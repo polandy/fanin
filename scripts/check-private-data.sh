@@ -21,8 +21,8 @@ patterns=(
   '\b[A-Za-z0-9-]+\.(lan|local|localdomain|home|internal|intranet|fritz\.box)\b'
   '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b'
 )
-# Emails that may appear: examples, GitHub noreply addresses and ssh remotes.
-allow='@(example\.(com|org|net)|users\.noreply\.github\.com)\b|\bgit@github\.com\b|\bnoreply@github\.com\b'
+# Allowed: @2x image names, example and GitHub noreply addresses, ssh remotes.
+allow='@[0-9]+x\.(png|svg|jpg|webp)\b|@(example\.(com|org|net)|users\.noreply\.github\.com)\b|\bgit@github\.com\b|\bnoreply@github\.com\b'
 
 # Extra terms that must not be published themselves: one per line in .private-terms (gitignored) or in
 # FANIN_PRIVATE_TERMS (newline or comma separated).
@@ -44,7 +44,7 @@ scan() {
   fi
 }
 
-hits=$(scan "$regex" | grep -vE "$allow")
+hits=$(scan "$regex" | sed -E "s/$allow//g" | grep -E "$regex")
 for t in "${extra[@]}"; do
   more=$(if [[ $mode == tree ]]; then git grep --untracked -nIiF -e "$t" -- . ':!.private-terms'; \
     else git log --all -p --format='commit %H' | grep -niF -e "$t"; fi)
