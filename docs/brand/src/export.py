@@ -70,7 +70,6 @@ class Face:
 
 SEMI, MED = Face("Geist-SemiBold.ttf"), Face("Geist-Medium.ttf")
 TRACK = -0.035
-FONT_UNITS = 1000.0
 
 
 def wordmark(size, x, baseline, fill):
@@ -90,7 +89,6 @@ def svg_doc(w, h, body, vb=None, bg=None):
 
 # ink box of "fanin" at size 1: ascender top of f/i dot to baseline (no descenders)
 ASC = 0.72
-XH = SEMI.tt["OS/2"].sxHeight / 1000
 
 
 def lockup_h(ink, acc, fs=64.0):
@@ -130,8 +128,8 @@ def main():
     img = lambda *p: os.path.join(ROOT, *p)
     # logo/: mark, horizontal and stacked lockups, four colourways, SVG + PNG 1x/2x
     for name, (ink, acc) in VARIANTS.items():
-        for kind, svgtext, base_h in (("mark", mark_svg(ink, acc), 256), ("lockup-horizontal", lockup_h(ink, acc), None),
-                                      ("lockup-stacked", lockup_s(ink, acc), None)):
+        for kind, svgtext in (("mark", mark_svg(ink, acc)), ("lockup-horizontal", lockup_h(ink, acc)),
+                                      ("lockup-stacked", lockup_s(ink, acc))):
             stem = img("logo", f"fanin-{kind}-{name}")
             write(stem + ".svg", svgtext)
             vb = [float(v) for v in svgtext.split('viewBox="')[1].split('"')[0].split()]
@@ -160,7 +158,7 @@ def main():
     gap = 0.32 * fs
     _, adv = SEMI.outline("fanin", fs, TRACK)
     tfs = 40.0
-    tag, tadv = MED.outline(TAGLINE, tfs, 0.0)
+    _, tadv = MED.outline(TAGLINE, tfs, 0.0)
     lw = art_w + gap + adv
     x0, y_top = (1280 - lw) / 2, 200.0
     base = y_top + art_h / 2 + ASC * fs / 2

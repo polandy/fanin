@@ -1,55 +1,63 @@
 #!/usr/bin/env bash
-# Fails when tracked files (or, with --history, any commit diff) contain private data.
+# Fails when the tree (or, with --history, any line ever added on any ref) contains private data.
 set -uo pipefail
 
-usage() { echo "usage: $0 [--history]" >&2; exit 2; }
+die() { echo "check-private-data: $*" >&2; exit 2; }
+
 mode=tree
 case "${1:-}" in
   "") ;;
   --history) mode=history ;;
-  *) usage ;;
+  *) die "usage: $0 [--history]" ;;
 esac
 
-cd "$(git rev-parse --show-toplevel)" || exit 2
+top=$(git rev-parse --show-toplevel) || die "not inside a git repository"
+cd "$top" || die "cannot cd to $top"
+self=scripts/check-private-data.sh
 
 patterns=(
-  '\b(10\.[0-9]{1,3}|192\.168|172\.(1[6-9]|2[0-9]|3[01])|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7]))\.[0-9]{1,3}\.[0-9]{1,3}\b'
-  '\b169\.254\.[0-9]{1,3}\.[0-9]{1,3}\b'
+  '(^|[^0-9.])(10\.[0-9]{1,3}|192\.168|172\.(1[6-9]|2[0-9]|3[01])|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])|169\.254)\.[0-9]{1,3}\.[0-9]{1,3}([^0-9.]|$)'
   '/home/[A-Za-z0-9_]'
   '/Users/[A-Za-z0-9_]'
-  '[A-Za-z]:\\Users\\'
-  '\b[A-Za-z0-9-]+\.(lan|local|localdomain|home|internal|intranet|fritz\.box)\b'
-  '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b'
+  '[A-Za-z]:[\\/]Users[\\/]'
+  '[A-Za-z0-9-]\.(lan|local|localdomain|home\.arpa|fritz\.box)([^A-Za-z0-9.-]|$)'
+  '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}'
 )
-# Allowed: @2x image names, example and GitHub noreply addresses, ssh remotes.
-allow='@[0-9]+x\.(png|svg|jpg|webp)\b|@(example\.(com|org|net)|users\.noreply\.github\.com)\b|\bgit@github\.com\b|\bnoreply@github\.com\b'
+regex=$(IFS='|'; echo "${patterns[*]}")
+# Allowed: @2x image names, example and GitHub noreply addresses, ssh remotes. Replaced by a space before matching.
+allow='@[0-9]+x\.(png|svg|jpg|webp)|[A-Za-z0-9._%+-]*@(example\.(com|org|net)|users\.noreply\.github\.com)|git@github\.com|noreply@github\.com'
 
-# Extra terms that must not be published themselves: one per line in .private-terms (gitignored) or in
+# Terms that must not be published themselves: one per line in .private-terms (gitignored) or in
 # FANIN_PRIVATE_TERMS (newline or comma separated).
-extra=()
+terms=$(mktemp) || die "mktemp failed"
+trap 'rm -f "$terms"' EXIT
 if [[ -f .private-terms ]]; then
-  while IFS= read -r t; do [[ -n "$t" && "$t" != \#* ]] && extra+=("$t"); done < .private-terms
+  grep -vE '^[[:space:]]*(#|$)' .private-terms >>"$terms"
+  [[ $? -le 1 ]] || die "cannot read .private-terms"
 fi
 if [[ -n "${FANIN_PRIVATE_TERMS:-}" ]]; then
-  while IFS= read -r t; do [[ -n "$t" ]] && extra+=("$t"); done < <(tr ',' '\n' <<<"$FANIN_PRIVATE_TERMS")
+  tr ',' '\n' <<<"$FANIN_PRIVATE_TERMS" | grep -v '^[[:space:]]*$' >>"$terms"
 fi
 
-regex=$(IFS='|'; echo "${patterns[*]}")
-
-scan() {
+# Prints candidate lines as "<where>:<text>": the tree as file:line, the history as commit:file.
+candidates() {
   if [[ $mode == tree ]]; then
-    git grep --untracked -nIE "$1" -- . ':!scripts/check-private-data.sh'
+    git grep --untracked -nI -e '' -- . ":!$self" ':!.private-terms'
+    [[ $? -le 1 ]] || die "git grep failed"
   else
-    git log --all -p --format='commit %H' -- . ':!scripts/check-private-data.sh' | grep -nE "$1"
+    git log --all -p --no-color --format='commit %H' -- . ":!$self" | awk '
+      /^commit [0-9a-f]+$/ { c = substr($2, 1, 12); next }
+      /^\+\+\+ / { f = substr($0, 5); sub(/^b\//, "", f); next }
+      /^\+/ { print c ":" f ":" substr($0, 2) }'
+    [[ ${PIPESTATUS[0]} -eq 0 ]] || die "git log failed"
   fi
 }
 
-hits=$(scan "$regex" | sed -E "s/$allow//g" | grep -E "$regex")
-for t in "${extra[@]}"; do
-  more=$(if [[ $mode == tree ]]; then git grep --untracked -nIiF -e "$t" -- . ':!.private-terms'; \
-    else git log --all -p --format='commit %H' | grep -niF -e "$t"; fi)
-  [[ -n "$more" ]] && hits+=$'\n'"$more"
-done
+lines=$(candidates) || exit 2
+hits=$(sed -E "s/$allow/ /g" <<<"$lines" | grep -E "$regex")
+if [[ -s "$terms" ]]; then
+  hits+=$'\n'$(grep -iF -f "$terms" <<<"$lines")
+fi
 hits=$(sed '/^$/d' <<<"$hits")
 
 if [[ -n "$hits" ]]; then

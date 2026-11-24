@@ -24,10 +24,10 @@ check gate the PR; the forge merges it when it is green. You are asked only when
 
 ## Development
 
-You need Go (the version in `go.mod`) and `make`.
+You need Go (the version in `go.mod`), `make` and `shellcheck`.
 
 ```sh
-make ci    # gofmt, go vet, go build, go test, private-data checks
+make ci    # gofmt, shellcheck, go vet, go build, go test, private-data checks
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md).
