@@ -1,0 +1,24 @@
+# Build output
+/bin/
+/dist/
+*.test
+*.out
+cover.out
+
+# Local private-data deny list, see scripts/check-private-data.sh
+/.private-terms
+
+# Runtime state and local config
+*.db
+*.db-wal
+*.db-shm
+/state/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Python caches from docs/brand/src
+__pycache__/
