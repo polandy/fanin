@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: make fmt-check
+      - name: go vet
+        run: make vet
+      - name: go build
+        run: make build
+      - name: go test
+        run: make test
+      - name: private data (tree)
+        run: make private-check
+      - name: private data (history)
+        run: make private-check-history
