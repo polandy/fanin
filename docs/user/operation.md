@@ -134,3 +134,8 @@ for each run; without them the command refuses to start and names the missing va
 A report counts only with the token of the task's current run; a report from an older run is refused and logged.
 A worker without MCP writes `result.json` (the same fields plus `"token"`) into its run directory instead; a file
 that cannot be parsed is an error, never a result.
+
+`fanin report <kind> [--pr n] [--branch b] [--issue n] [--issue-url u] [--text t]` is the shell form of both. With
+`--dir <run directory>` it writes `result.json` atomically (the run token from `FANIN_RUN_TOKEN`); without it, with
+`FANIN_URL`, `FANIN_RUN_ID` and `FANIN_RUN_TOKEN` set, it sends the report to the daemon. An unknown kind or a missing
+field is exit 2 and writes nothing; a refused token or an unwritable directory is exit 1.

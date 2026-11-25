@@ -86,6 +86,10 @@ The fallback file is `result.json` in the run directory: one JSON object with th
 
 - `resultwatch.Watch(ctx, clock, dir, every)` reads the file now and then every `every` (default 5 s) on the
   injected clock, until it appears or ctx ends.
+- `fanin report <kind> --dir <run dir>` (`cmd/fanin/cmd_report.go`) writes it with `internal/atomicfile` after the
+  same per-kind check as the routes (`model.Result.Validate`); invalid is exit 2 and no file. Without `--dir` it
+  sends the report like `fanin_report` does. The old bash path reads it first:
+  [old-path-result](../runbooks/old-path-result.md).
 - A file that exists but cannot be read or parsed (half written, not one object, an unknown field, no token, no
   kind) is `resultwatch.ErrUnreadable`, never a result.
 - The parsed file goes through the same token check as the routes.

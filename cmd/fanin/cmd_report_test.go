@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/jsonschema-go/jsonschema"
 
 	"github.com/polandy/fanin/internal/cli"
 	"github.com/polandy/fanin/pkg/faninmcp"
@@ -39,7 +38,6 @@ func validateAgainstSchema(t *testing.T, data []byte) {
 	if err := rs.Validate(doc); err != nil {
 		t.Errorf("result file does not match the schema: %v\n%s", err, data)
 	}
-	var _ *jsonschema.Schema = s
 }
 
 // C-REPORT: the written file validates against the schema and parses back to the report.
@@ -55,7 +53,7 @@ func TestCReportWritesSchemaValidFile(t *testing.T) {
 		{"issue", []string{"issue", "--issue", "7", "--issue-url", "https://example.com/i/7"},
 			faninmcp.Report{Kind: faninmcp.KindIssue, Issue: 7, IssueURL: "https://example.com/i/7"}},
 		{"nothing", []string{"nothing", "--text", "already fixed"}, faninmcp.Report{Kind: faninmcp.KindNothing, Text: "already fixed"}},
-		{"blocked", []string{"blocked", "--text", "which", "db?"}, faninmcp.Report{Kind: faninmcp.KindBlocked, Text: "which db?"}},
+		{"blocked", []string{"blocked", "--text", "which db?"}, faninmcp.Report{Kind: faninmcp.KindBlocked, Text: "which db?"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
