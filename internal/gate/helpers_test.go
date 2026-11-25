@@ -20,12 +20,15 @@ const (
 	base    = "main"
 	project = "alpha"
 	taskID  = "t-1"
+	docFile = "docs/a.md"
+
+	waitTimer = "gate_wait+30m0s"
+	pollTimer = "gate_poll+1m0s"
 )
 
 var start = time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
 
 var (
-	errNet    = errors.New("dial tcp: i/o timeout")
 	errBroken = errors.New("broken JSON")
 )
 
@@ -120,3 +123,11 @@ func mustRead(t *testing.T, f *fakeForge, tg gate.Target) gate.Result {
 	}
 	return got
 }
+
+// pendingFor is the PENDING result of wait w.
+func pendingFor(w gate.Wait) gate.Result {
+	return gate.Result{Verdict: gate.Pending, Wait: w, Reasons: []string{string(w)}}
+}
+
+// redFor is the RED result with reasons.
+func redFor(reasons ...string) gate.Result { return gate.Result{Verdict: gate.Red, Reasons: reasons} }

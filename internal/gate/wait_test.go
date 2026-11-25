@@ -116,11 +116,11 @@ func TestGitHubWaits(t *testing.T) {
 	running := pendingPR(check("ci", forge.CheckPending, 0), review(forge.CheckSuccess, 1, ""))
 	t.Run("GH-7_pending_waits_12_times_1800s_then_red", func(t *testing.T) {
 		step, armed := drive(t, answer(running), limits(), githubTarget())
-		want := gate.Result{Verdict: gate.Red, Reasons: []string{"still checks running after 12 waits"}}
+		want := redFor("still checks running after 12 waits")
 		if diff := cmp.Diff(want, step.Result); diff != "" || step.Err != nil {
 			t.Fatalf("final (-want +got):\n%s err %v", diff, step.Err)
 		}
-		if diff := cmp.Diff(repeat(12, "gate_wait+30m0s"), kinds(armed)); diff != "" {
+		if diff := cmp.Diff(repeat(12, waitTimer), kinds(armed)); diff != "" {
 			t.Errorf("timers (-want +got):\n%s", diff)
 		}
 	})
@@ -130,7 +130,7 @@ func TestGitHubWaits(t *testing.T) {
 		if step.Result.Verdict != gate.Green || f.prCalls != 4 {
 			t.Fatalf("final %+v after %d reads, want GREEN after 4", step.Result, f.prCalls)
 		}
-		want := []string{"gate_wait+30m0s", "gate_wait+30m0s", "gate_settle+20s"}
+		want := []string{waitTimer, waitTimer, "gate_settle+20s"}
 		if diff := cmp.Diff(want, kinds(armed)); diff != "" {
 			t.Errorf("timers (-want +got):\n%s", diff)
 		}
@@ -147,7 +147,7 @@ func TestGitHubWaits(t *testing.T) {
 		if !errors.Is(step.Err, gate.ErrUnreachable) || !errors.Is(step.Err, forge.ErrNetwork) {
 			t.Fatalf("final err = %v, want gate unreachable wrapping forge.ErrNetwork", step.Err)
 		}
-		want := append([]string{"gate_wait+30m0s"}, repeat(6, "gate_retry+1m0s")...)
+		want := append([]string{waitTimer}, repeat(6, "gate_retry+1m0s")...)
 		if diff := cmp.Diff(want, kinds(armed)); diff != "" {
 			t.Errorf("timers (-want +got):\n%s", diff)
 		}
@@ -191,25 +191,25 @@ func TestGiteaPolls(t *testing.T) {
 		if diff := cmp.Diff(want, step.Result); diff != "" || step.Err != nil {
 			t.Fatalf("final (-want +got):\n%s err %v", diff, step.Err)
 		}
-		if diff := cmp.Diff(repeat(5, "gate_poll+1m0s"), kinds(armed)); diff != "" {
+		if diff := cmp.Diff(repeat(5, pollTimer), kinds(armed)); diff != "" {
 			t.Errorf("timers (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("GT-4_running_checks_are_red_after_40_polls", func(t *testing.T) {
 		pr := pendingPR(check("build", forge.CheckPending, 0))
 		step, armed := drive(t, answer(pr), limits(), giteaTarget())
-		want := gate.Result{Verdict: gate.Red, Reasons: []string{"still checks running after 40 polls"}}
+		want := redFor("still checks running after 40 polls")
 		if diff := cmp.Diff(want, step.Result); diff != "" {
 			t.Fatalf("final (-want +got):\n%s", diff)
 		}
-		if diff := cmp.Diff(repeat(40, "gate_poll+1m0s"), kinds(armed)); diff != "" {
+		if diff := cmp.Diff(repeat(40, pollTimer), kinds(armed)); diff != "" {
 			t.Errorf("timers (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("GT-4_polled_until_settled", func(t *testing.T) {
 		running := pendingPR(check("build", forge.CheckPending, 0))
 		f := &fakeForge{reads: []read{{pr: running}, {pr: running}, {pr: openPR(check("build", forge.CheckSuccess, 3))}},
-			files: []string{"docs/a.md"}}
+			files: []string{docFile}}
 		step, armed := drive(t, f, limits(), giteaTarget())
 		if step.Result.Verdict != gate.GreenDocs || len(armed) != 2 {
 			t.Fatalf("final %+v after %v, want GREEN docs after 2 polls", step.Result, kinds(armed))
