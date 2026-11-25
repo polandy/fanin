@@ -12,7 +12,9 @@ import (
 
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
+	"github.com/polandy/fanin/internal/gate"
 	"github.com/polandy/fanin/internal/model"
+	"github.com/polandy/fanin/internal/notify"
 	"github.com/polandy/fanin/internal/pick"
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/store"
@@ -28,7 +30,7 @@ const (
 
 // ownTimer reports whether the scheduler arms and fires timers of kind.
 func ownTimer(kind string) bool {
-	return kind == TimerStall || kind == TimerTimeout || kind == TimerAwait
+	return kind == TimerStall || kind == TimerTimeout || kind == TimerAwait || gateTimer(kind)
 }
 
 // BGFooterMax is how long a worker's own background-shell footer spares it from the timeout (SCENARIOS WD-2).
@@ -71,6 +73,10 @@ type Deps struct {
 	Log     *slog.Logger
 	// Unpushed lists a run's unpushed commits before NUDGE_SECURE (SCENARIOS AW-11, AW-12).
 	Unpushed Unpushed
+	// Notify tells the owner about a blocked task; nil only logs the note.
+	Notify notify.Notifier
+	// Gates reads the gate of an analysis PR; nil leaves the PR unread for the owner's go.
+	Gates PRGates
 	// Waiting, when set, is called each time the loop is about to block.
 	Waiting func()
 }
@@ -86,7 +92,10 @@ type Scheduler struct {
 	// stopped are the projects a consumed pause holds until they are resumed.
 	stopped map[string]bool
 	retryAt time.Time
-	done    chan func(context.Context)
+	// gates is the gate episode of each gating analysis task; busy marks a turn in flight.
+	gates map[model.TaskID]gate.State
+	busy  map[model.TaskID]turnState
+	done  chan func(context.Context)
 	// applied counts the runtime events and stream ends the loop handled.
 	applied atomic.Int64
 }
@@ -99,7 +108,11 @@ type reservation struct {
 // New returns a scheduler of the projects with loop: fanin; each must run on fanind's own host.
 func New(d Deps) (*Scheduler, error) {
 	s := &Scheduler{d: d, watched: map[model.RunID]*watch{}, picking: map[model.TaskID]reservation{},
-		stopped: map[string]bool{}, done: make(chan func(context.Context))}
+		stopped: map[string]bool{}, done: make(chan func(context.Context)),
+		gates: map[model.TaskID]gate.State{}, busy: map[model.TaskID]turnState{}}
+	if s.d.Notify == nil {
+		s.d.Notify = notify.NewLog(d.Log)
+	}
 	for _, p := range d.Config.Projects {
 		if p.Loop != config.LoopFanin {
 			continue

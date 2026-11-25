@@ -2,7 +2,7 @@
 
 Status: implemented in `internal/sched` and wired into `cmd/fanind` for every project with `loop: fanin`.
 Direction: [concept](../concept.md) D1, C-LOOP, C-SLOTS and C-BUDGET. Scenarios: PK-3 to PK-6, SP-8, SP-10, SP-11,
-LN-1 to LN-5, WD-1 to WD-3, FP-6, AW-10 to AW-13.
+LN-1 to LN-5, WD-1 to WD-3, FP-3, FP-6, AW-10 to AW-13, GH-11, GH-12.
 
 `fanind` is the event loop. The owner session only answers. The bash orchestrator keeps every project with
 `loop: bash` (the default), and `fanind --shadow` keeps importing the bash state of those projects only.
@@ -13,7 +13,7 @@ LN-1 to LN-5, WD-1 to WD-3, FP-6, AW-10 to AW-13.
 
 1. reads the store events after the cursor in batches of `EventBatch` (256);
 2. applies the runtime events the observers sent (`WorkerRuntime.Observe`);
-3. fires the due `stall`, `worker_timeout` and `await` timers;
+3. fires the due `stall`, `worker_timeout` and `await` timers, and the gate timers of a gating analysis;
 4. fills the free slots of every project.
 
 Between steps the loop blocks on the next store commit (`Store.Changed`), a runtime event, a finished picker or
@@ -126,6 +126,24 @@ A spent budget on a live latest run hands the run over. A run that is gating ret
 the task has used `max_runs_per_task` runs, it moves to `paused` with `paused <agent>: <reason>; <n> of <m> runs
 used` instead. The format and the fallbacks are in the [handover spec](handover.md).
 
+## Analysis tasks (FP-3, GH-11, GH-12)
+
+An analysis task (`fanin task add --analyze`) ends by the result its run reports:
+
+- `issue`: the run ends succeeded, the task `done` with `analysis needs-owner <issue url>` (`#<n>` without a
+  URL), and the pane is closed. A pane that cannot be closed is logged with `close it by hand`.
+- `nothing`: the same, with `idle: <text>`.
+- `blocked`: the task moves to `needs_owner` with `blocked <agent>: <text>` and the owner gets a note
+  (`Deps.Notify`; `notified` or `notify_failed` is recorded). The pane stays open.
+- `done_pr`: the task moves to `gating` with `gating #<n>` and the PR's gate is read (`gate.Watcher`). Its
+  `gate_retry`, `gate_wait`, `gate_settle` and `gate_poll` timers read it again. A green PR records a
+  `gate_verdict` of `ready #<n>: GREEN <title>; <note>`, where the note says whether it changes more than docs
+  (`gate.DocsOnly`, unreadable files count as code). The task stays gating for the owner's go; nothing merges.
+  A red PR goes to the owner as blocked; an unreadable gate as `ERROR #<n>: <cause>`.
+- Any other kind (`done`, `pushed`) goes to the owner as blocked: an analysis ends with one of the four above.
+
+Without `Deps.Gates` the verdict is `ready #<n>: gate unread, no forge reader; check the PR before the go`.
+
 ## Restart (SP-10, SP-11)
 
 `Run` first resumes every non-ended latest run of a scheduled project:
@@ -158,3 +176,7 @@ A stop by ctx is never a task failure:
 - Nothing fills `context_pct` or the token counts yet, and nothing counts `fix_rounds`; the budget checks act once
   the gate and the adapters write them through `SetRunBudget`.
 - A pending pause does not stop a handover; the fresh run continues the task.
+- `fanind` passes no `Deps.Gates` yet (no forge reader is wired), so an analysis PR is never read there.
+- The gate state of a gating analysis is held in memory; after a restart only an armed gate timer reads it again.
+- A green docs-only analysis PR waits for the owner's go like any other; there is no merge path yet.
+- A stop between the end of an analysis and its pane close leaves the pane open.

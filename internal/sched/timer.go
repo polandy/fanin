@@ -37,7 +37,10 @@ func (s *Scheduler) onStoreEvent(ctx context.Context, ev model.Event) error {
 	case model.EventProgress:
 		return s.moveRun(ctx, ev.RunID, model.RunStalled, model.RunWorking, "progress")
 	case model.EventResultReported:
-		return s.reported(ctx, ev)
+		if err := s.reported(ctx, ev); err != nil {
+			return err
+		}
+		return s.finishAnalysis(ctx, p, ev)
 	case model.EventTokenUsage:
 		return s.checkBudget(ctx, p, ev)
 	case model.EventRunState, model.EventTaskState:
@@ -99,6 +102,7 @@ func (s *Scheduler) reconcile(ctx context.Context, id model.TaskID) error {
 	for _, r := range runs {
 		s.unwatch(r.ID)
 	}
+	delete(s.gates, id)
 	timers, err := s.taskTimers(ctx, id)
 	if err != nil || len(timers) == 0 {
 		return err
@@ -124,7 +128,7 @@ func (s *Scheduler) fireTimers(ctx context.Context) error {
 	return nil
 }
 
-// fire handles one due timer; a timer of an ended or reported run is only disarmed.
+// fire handles one due timer; a timer of an ended or reported run is only disarmed, except the gate's.
 func (s *Scheduler) fire(ctx context.Context, p config.Project, t store.Timer) error {
 	task, err := s.d.Store.Task(ctx, t.TaskID)
 	if err != nil {
@@ -133,6 +137,9 @@ func (s *Scheduler) fire(ctx context.Context, p config.Project, t store.Timer) e
 	runs, err := s.d.Store.Runs(ctx, t.TaskID)
 	if err != nil {
 		return err
+	}
+	if gateTimer(t.Kind) {
+		return s.fireGate(ctx, p, t, task, runs)
 	}
 	if len(runs) == 0 || task.State.Terminal() || runs[len(runs)-1].State.Terminal() ||
 		runs[len(runs)-1].State == model.RunReported {

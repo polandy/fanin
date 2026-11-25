@@ -64,6 +64,30 @@ func TestAnswersInOrderAndLastRepeats(t *testing.T) {
 	}
 }
 
+func TestPrefixMatchesLongerArgvOnly(t *testing.T) {
+	b := fakebin.New(t)
+	b.Fake("herdr").On([]string{"agent", "get", "a"}, fakebin.Answer{Stdout: "exact"}).
+		OnPrefix([]string{"agent", "prompt", "a"}, fakebin.Answer{Stdout: "sent"})
+	b.Install()
+
+	for _, argv := range [][]string{{"agent", "prompt", "a"}, {"agent", "prompt", "a", "do 'x' * now\n"}} {
+		res, err := run(t, "", append([]string{"herdr"}, argv...)...)
+		if err != nil || string(res.Stdout) != "sent" {
+			t.Errorf("herdr %q = %q, %v; want the prefix answer", argv, res.Stdout, err)
+		}
+	}
+	if res, err := run(t, "", "herdr", "agent", "get", "a"); err != nil || string(res.Stdout) != "exact" {
+		t.Errorf("exact rule = %q, %v", res.Stdout, err)
+	}
+	var ee *runtime.ExitError
+	if _, err := run(t, "", "herdr", "agent", "prompted", "a"); !errors.As(err, &ee) || ee.Code != fakebin.ExitUnexpected {
+		t.Errorf("argv that only shares a word = %v, want exit %d", err, fakebin.ExitUnexpected)
+	}
+	if err := os.Remove(filepath.Join(b.Dir(), "herdr.unexpected")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLogsArgvAndDirIncludingAwkwardArgs(t *testing.T) {
 	b := fakebin.New(t)
 	awkward := []string{"agent", "prompt", "a", "line1\nline2 'q' \"d\" $x", ""}
