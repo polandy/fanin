@@ -1,7 +1,7 @@
 GO_DIRS := $(wildcard cmd internal pkg)
 GO_PKGS := $(patsubst %,./%/...,$(GO_DIRS))
 COVERAGE_PKGS := internal/gate internal/sched internal/store internal/hook
-COVERAGE_EXISTING := $(wildcard $(COVERAGE_PKGS))
+COVERAGE_EXISTING := $(sort $(patsubst %/,%,$(dir $(wildcard $(addsuffix /*.go,$(COVERAGE_PKGS))))))
 
 .PHONY: ci build vet test test-shuffle coverage integration fmt-check shell-check script-test check-no-sleeps \
 	check-file-size private-check private-check-history
@@ -20,7 +20,7 @@ test:
 	go test -race -count=1 $(GO_PKGS)
 
 test-shuffle:
-	go test -count=1 -shuffle=on -timeout=120s $(GO_PKGS)
+	go test -race -count=1 -shuffle=on -timeout=120s $(GO_PKGS)
 
 # Profiles only the gated packages: cover mode fails on packages without tests (no covdata tool).
 coverage:

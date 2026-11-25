@@ -48,9 +48,9 @@ PROFILE
 expect pass "coverage accepts 80% at threshold 80" scripts/check-coverage.sh "$tmp/cover.out" 80 internal/gate
 expect fail "coverage rejects 80% at threshold 90" scripts/check-coverage.sh "$tmp/cover.out" 90 internal/gate
 expect fail "coverage rejects an uncovered package" scripts/check-coverage.sh "$tmp/cover.out" 90 internal/sched
-expect pass "coverage skips a package without code" scripts/check-coverage.sh "$tmp/cover.out" 90 internal/hook
 mkdir -p "$tmp/w/internal/store"
 echo "package store" > "$tmp/w/internal/store/s.go"
+expect pass "coverage skips a package without code" bash -c "cd '$tmp/w' && '$PWD/scripts/check-coverage.sh' '$tmp/cover.out' 90 internal/hook"
 expect fail "coverage rejects a package with code but no tests" bash -c "cd '$tmp/w' && '$PWD/scripts/check-coverage.sh' '$tmp/cover.out' 90 internal/store"
 
 [ "$failures" -eq 0 ]
