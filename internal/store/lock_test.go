@@ -47,7 +47,7 @@ func TestLock(t *testing.T) {
 				t.Errorf("message %q, want %q", err.Error(), want)
 			}
 		}
-		other := LockRequest{Project: "proj-b", Holder: "task-b", Lease: lease}
+		other := LockRequest{Project: projectB, Holder: "task-b", Lease: lease}
 		if err := s.AcquireLock(ctx, other); err != nil {
 			t.Errorf("lock of another project: %v, want nil", err)
 		}

@@ -15,6 +15,7 @@ var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 // Shared test values.
 const (
 	project      = "proj-a"
+	projectB     = "proj-b"
 	holderA      = "task-a"
 	unknownValue = "nap"
 	timerPoll    = "poll"
