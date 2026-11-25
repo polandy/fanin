@@ -161,3 +161,16 @@ that cannot be parsed is an error, never a result.
 `--dir <run directory>` it writes `result.json` atomically (the run token from `FANIN_RUN_TOKEN`); without it, with
 `FANIN_URL`, `FANIN_RUN_ID` and `FANIN_RUN_TOKEN` set, it sends the report to the daemon. An unknown kind or a missing
 field is exit 2 and writes nothing; a refused token or an unwritable directory is exit 1.
+
+## Metrics, overview and doctor
+
+- `GET /metrics` on the daemon's `listen` address serves Prometheus text: `fanin_tasks` and `fanin_runs` per
+  project and state, and the counters `fanin_runs_started_total`, `fanin_nudges_total`, `fanin_merges_total` and
+  `fanin_adapter_errors_total`. It needs no token: bind `listen` to a trusted interface. An unreadable store is a
+  500.
+- `fanin overview [project...]` prints each project's board: done this run, next, waiting for owner, holds with
+  the command that lifts them, and decisions.
+- `fanin doctor` checks config, store, herdr, the forge login and the `fanin/review` branch protection per project,
+  and the systemd unit. It prints a table and exits 1 when any row says `FAIL`. A `skip` row is a check that cannot
+  run on this host. No token is printed.
+- Every log line about a task carries `project`, `task_id` and `run_id`.

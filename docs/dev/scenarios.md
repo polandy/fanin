@@ -741,8 +741,10 @@ These read-only views move to the snapshot API and the UI.
   - Sections: Erledigt (the current run only, newest 4 plus a count), Weiter (queued and not started), what waits
     on the owner, CI and merge holds with the file to remove, decisions, and lane blocks.
   - `--close-done` closes finished workers' panes.
-- Source: `overview.sh`. Test: `overview.sh#1-#8`, `rotate-state.sh#7`. Mark: CHANGES (C-STORE): the UI board
-  (ADDENDUM §2.11.3).
+- Source: `overview.sh`. Test: `overview.sh#1-#8`, `rotate-state.sh#7`, `cmd/fanin/cmd_overview_test.go`. Mark: CHANGES
+  (C-STORE): the UI board (ADDENDUM §2.11.3). `fanin overview` prints the board sections of the snapshot as English
+  text: done this run (count and newest four), next, waiting for owner, holds with the `fanin hold lift` command,
+  decisions. An unreachable daemon is an error, never an empty board.
 
 **ST-3**
 - `agents.sh` (German): one line per agent, waiting-on-owner first, managed vs owner sessions. One machine down
@@ -927,6 +929,31 @@ Webhooks, cron and the release webhook queue the same `intake.TaskRequest` as th
 - Release webhook: a published GitHub release starts DR-1 for the webhook's project; any other event or action is
   ignored.
 - Source: `deploy-release.sh`. Test: `internal/intake/webhook_test.go`. Mark: CHANGES (C-LOOP).
+
+## 20. Observability
+
+Metrics, `fanin doctor` and structured logs ([spec](spec/observability.md)).
+
+**OB-1**
+- `GET /metrics` (no token) serves the Prometheus text format: tasks and runs per project and state, and the
+  counters of runs started, nudges, merges and adapter errors. A store that cannot be read is a 500, never partial
+  numbers.
+- Source: —. Test: `internal/metrics/metrics_test.go`, `internal/api/metrics_route_test.go`. Mark: CHANGES (C-STORE).
+
+**OB-2**
+- Every number is counted from the store, so a store transition raises its counter in the same commit and a
+  restart loses nothing.
+- Source: —. Test: `internal/metrics/metrics_test.go`. Mark: CHANGES (C-STORE).
+
+**OB-3**
+- `fanin doctor` prints one row per check: config, store, herdr, forge auth and branch protection per project
+  (`fanin/review` required), systemd. A component that does not answer is a FAIL row and exit 1, never ok. A check
+  that cannot run here (a project on a remote host) is a `skip` with its reason. No token is printed.
+- Source: —. Test: `internal/doctor/doctor_test.go`, `cmd/fanin/cmd_doctor_test.go`. Mark: CHANGES (C-CONFIG).
+
+**OB-4**
+- Every task-bound log line of the scheduler carries `project`, `task_id` and `run_id`.
+- Source: —. Test: `internal/sched/logids_test.go`. Mark: CHANGES (C-LOG).
 
 ## Coverage gaps today
 
