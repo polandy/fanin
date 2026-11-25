@@ -119,7 +119,7 @@ func (f *fakeWorkflows) WatchRun(_ context.Context, _ string, id int64) error {
 
 func releaseConfig() config.Config {
 	cfg := testConfig()
-	cfg.Projects = append(cfg.Projects, config.Project{Name: projNixos, Forge: "gitea", WorkerKind: kindClaude,
+	cfg.Projects = append(cfg.Projects, config.Project{Name: projNixos, Forge: config.ForgeGitea, WorkerKind: kindClaude,
 		Base: "master"})
 	cfg.Triggers.Release = &config.Release{Project: projNixos, ComposeGlob: "modules/*/docker-compose.yml",
 		Registry: "ghcr.io", Model: modelSonnet}

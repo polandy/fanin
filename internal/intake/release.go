@@ -70,7 +70,8 @@ type Outcome string
 
 // Outcomes of an intake event.
 const (
-	OutcomeQueued    Outcome = "queued"
+	// OutcomeQueued left a new task in model.TaskQueued.
+	OutcomeQueued            = Outcome(model.TaskQueued)
 	OutcomeDuplicate Outcome = "duplicate"
 	OutcomeNothing   Outcome = "nothing"
 	OutcomeIgnored   Outcome = "ignored"

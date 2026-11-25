@@ -9,6 +9,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+// projAlpha is the claude project of the base tree.
+const projAlpha = "alpha"
+
 const triggersYAML = `webhooks:
   issues:
     kind: forge
@@ -37,13 +40,13 @@ func TestLoadTriggers(t *testing.T) {
 	cfg, _ := mustLoad(t, with(map[string]string{fileTriggers: triggersYAML}))
 	want := Triggers{
 		Webhooks: map[string]Webhook{
-			"issues":   {Kind: WebhookForge, Project: "alpha", SecretEnv: "FANIN_HOOK_ISSUES", Label: "fanin"},
-			"alerts":   {Kind: WebhookAlert, Project: "alpha", SecretEnv: "FANIN_HOOK_ALERTS", Model: "opus"},
-			"releases": {Kind: WebhookRelease, Project: "alpha", SecretEnv: "FANIN_HOOK_RELEASES"},
+			"issues":   {Kind: WebhookForge, Project: projAlpha, SecretEnv: "FANIN_HOOK_ISSUES", Label: "fanin"},
+			"alerts":   {Kind: WebhookAlert, Project: projAlpha, SecretEnv: "FANIN_HOOK_ALERTS", Model: "opus"},
+			"releases": {Kind: WebhookRelease, Project: projAlpha, SecretEnv: "FANIN_HOOK_RELEASES"},
 		},
-		Cron: map[string]Cron{"nightly": {Project: "alpha", Every: Duration(24 * time.Hour),
+		Cron: map[string]Cron{"nightly": {Project: projAlpha, Every: Duration(24 * time.Hour),
 			Task: "update the dependencies"}},
-		Release: &Release{Project: "alpha", ComposeGlob: "modules/*/docker-compose.yml", Registry: "ghcr.io",
+		Release: &Release{Project: projAlpha, ComposeGlob: "modules/*/docker-compose.yml", Registry: "ghcr.io",
 			Model: "sonnet"},
 	}
 	if d := cmp.Diff(want, cfg.Triggers); d != "" {
@@ -77,7 +80,7 @@ func TestLoadRefusesBadTriggers(t *testing.T) {
 			[]string{"/webhooks/h"}},
 		{"IN-5_release_webhook_without_release", strings.Replace(strings.Replace(hook, "kind: forge", "kind: release",
 			1), "    label: fanin\n", "", 1), []string{"/webhooks/h/kind", ruleReleaseKnown}},
-		{"IN-4_cron_unknown_project", strings.Replace(cron, "alpha", "gamma", 1),
+		{"IN-4_cron_unknown_project", strings.Replace(cron, projAlpha, "gamma", 1),
 			[]string{"/cron/n/project", ruleProjectKnown}},
 		{"IN-4_cron_task_and_analyze", cron + "    analyze: q\n", []string{"/cron/n"}},
 		{"IN-4_cron_bad_interval", strings.Replace(cron, "1h", "soon", 1), []string{"/cron/n/every", "soon"}},

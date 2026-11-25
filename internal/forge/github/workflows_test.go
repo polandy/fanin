@@ -12,12 +12,13 @@ import (
 
 const (
 	workflow = "docker.yml"
+	flagJSON = "--json"
 	runID    = 4711
 )
 
 var (
 	runListArgv = []string{"gh", "run", "list", flagRepo, repo, "--workflow", workflow, "--commit", headSHA,
-		"--limit", "1", "--json", "databaseId"}
+		"--limit", "1", flagJSON, "databaseId"}
 	runWatchArgv = []string{"gh", "run", "watch", "4711", flagRepo, repo, "--exit-status"}
 )
 
