@@ -1,7 +1,7 @@
 # Daemon and status
 
 Status: implemented in `cmd/fanind`, `internal/config` and `cmd/fanin/cmd_status.go`. Direction:
-[concept](../concept.md), migration step 3. The shadow importer of that step is not built yet (see below).
+[concept](../concept.md), migration step 3. The shadow importer of that step is in [shadow](shadow.md).
 
 ## Config (`internal/config`)
 
@@ -11,12 +11,14 @@ the user-facing reference in [`docs/user/configuration.md`](../../user/configura
 
 ## fanind
 
-`fanind --config DIR` (or `$FANIN_CONFIG`):
+`fanind --config DIR [--shadow STATE_DIR]` (or `$FANIN_CONFIG`, `$FANIN_SHADOW`):
 
 1. Loads the config and builds the `slog` logger it selects. A missing config, an empty owner token variable or a
    listen address it cannot bind refuses to start with a named error and exit 1.
-2. Opens the store (`store.Open`) and serves the API (`api.New`) with the configured project order.
-3. The root context comes from `signal.NotifyContext` (SIGINT, SIGTERM). On stop it cancels every open request,
+2. Opens the store (`store.Open`). With `--shadow` it imports the bash state directory once, a failed import
+   refusing to start, and keeps importing it until the stop ([shadow](shadow.md)).
+3. Serves the API (`api.New`) with the configured project order.
+4. The root context comes from `signal.NotifyContext` (SIGINT, SIGTERM). On stop it cancels every open request,
    so event streams end, then waits up to `ShutdownGrace` (10 s, on the injected clock) for them and closes the
    store. A stop is a clean exit (0) and writes nothing to the store: no task or run changes state.
 
@@ -48,9 +50,3 @@ gamma  loop=idle  worker=0  merge=stale (r0)  last: 2026-03-04T05:06:07Z hold_se
 | `open` | non-zero counts of ready, blocked (a dependency is still open), paused, needs-owner and failed tasks, then each active hold (`ci hold (fix <task>)`); `-` when nothing is open |
 
 An unreachable daemon or an unknown state in the snapshot is an error with exit 1, never an empty status.
-
-## Not built yet: the shadow importer
-
-Step 3 also has `internal/shadow` follow the bash orchestrator's `state/*.md`, lock and hold files and map them to
-tasks, runs and holds, read-only. It waits for anonymised fixtures of the bash state, which the importer's tests
-compare byte for byte before and after a run.

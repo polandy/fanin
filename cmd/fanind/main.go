@@ -22,12 +22,16 @@ import (
 	"github.com/polandy/fanin/internal/owner"
 	"github.com/polandy/fanin/internal/report"
 	"github.com/polandy/fanin/internal/safego"
+	"github.com/polandy/fanin/internal/shadow"
 	"github.com/polandy/fanin/internal/store"
 	"github.com/polandy/fanin/internal/version"
 )
 
 // envConfig is the fallback of --config.
 const envConfig = "FANIN_CONFIG"
+
+// envShadow is the fallback of --shadow.
+const envShadow = "FANIN_SHADOW"
 
 // ShutdownGrace is how long open requests get to finish once fanind is stopped.
 const ShutdownGrace = 10 * time.Second
@@ -47,6 +51,8 @@ type deps struct {
 	clock  clock.Clock
 	// ready is called with the bound address once the API accepts connections.
 	ready func(addr string)
+	// probe replaces the shadow importer's flock check when set.
+	probe shadow.Probe
 }
 
 func main() {
@@ -64,8 +70,9 @@ func run(ctx context.Context, args []string, d deps) error {
 	fs := flag.NewFlagSet("fanind", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	cfgPath := fs.String("config", d.getenv(envConfig), "path to the config directory ($"+envConfig+")")
+	shadowDir := fs.String("shadow", d.getenv(envShadow), "bash state directory to import ($"+envShadow+")")
 	if err := fs.Parse(args); err != nil {
-		return fmt.Errorf("%w: %w; usage: fanind [--config DIR]", errUsage, err)
+		return fmt.Errorf("%w: %w; usage: fanind [--config DIR] [--shadow DIR]", errUsage, err)
 	}
 	if *cfgPath == "" {
 		return fmt.Errorf("%w: set --config or $%s to the config directory", errNoConfig, envConfig)
@@ -89,6 +96,13 @@ func run(ctx context.Context, args []string, d deps) error {
 			log.Error("fanind: close the store", "err", err)
 		}
 	}()
+	if *shadowDir != "" {
+		stop, err := startShadow(ctx, *shadowDir, st, log, d)
+		if err != nil {
+			return err
+		}
+		defer stop()
+	}
 	reg := api.NewRegistry()
 	api.RegisterBuiltins(reg)
 	h, err := api.New(api.Config{Source: st, OwnerToken: token, Clock: d.clock, Logger: log, Registry: reg,
@@ -101,6 +115,28 @@ func run(ctx context.Context, args []string, d deps) error {
 		return fmt.Errorf("%w: listen %q: %w; set listen in fanin.yaml of %s to a free host:port", errListen, cfg.Listen, err, *cfgPath)
 	}
 	return serve(ctx, ln, h, log, d)
+}
+
+// startShadow imports dir once, then keeps importing it until the returned stop, which waits for the loop.
+func startShadow(ctx context.Context, dir string, st *store.Store, log *slog.Logger, d deps) (func(), error) {
+	im := shadow.New(dir, st, d.clock, log)
+	if d.probe != nil {
+		im.Probe = d.probe
+	}
+	if err := im.Import(ctx); err != nil {
+		return nil, fmt.Errorf("fanind: first shadow import: %w; fix the state directory or drop --shadow", err)
+	}
+	loopCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	safego.Go(loopCtx, log, func(c context.Context) {
+		defer close(done)
+		im.Run(c)
+	})
+	log.Info("fanind: shadow import running", "dir", dir, "interval", shadow.Interval)
+	return func() {
+		cancel()
+		<-done
+	}, nil
 }
 
 // serve runs the API on ln until ctx ends, then cancels open requests (event streams) and waits for them.
