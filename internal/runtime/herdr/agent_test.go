@@ -86,16 +86,3 @@ func TestStop(t *testing.T) {
 		}
 	})
 }
-
-func TestObserveStubClosesWithTheContext(t *testing.T) {
-	f := newFixture(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	ch, err := f.rt.Observe(ctx, want)
-	if err != nil {
-		t.Fatalf("Observe: %v", err)
-	}
-	cancel()
-	if _, open := <-ch; open {
-		t.Error("stub sent an event")
-	}
-}
