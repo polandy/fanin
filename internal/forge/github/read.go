@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -135,14 +136,14 @@ func (c *Client) Files(ctx context.Context, repo string, number int) ([]string, 
 // decodeStrict decodes one JSON value and rejects empty output and trailing data.
 func decodeStrict(out []byte, v any) error {
 	if len(bytes.TrimSpace(out)) == 0 {
-		return fmt.Errorf("empty output")
+		return errors.New("empty output")
 	}
 	dec := json.NewDecoder(bytes.NewReader(out))
 	if err := dec.Decode(v); err != nil {
 		return err
 	}
 	if dec.More() {
-		return fmt.Errorf("trailing data after the JSON value")
+		return errors.New("trailing data after the JSON value")
 	}
 	return nil
 }
@@ -177,7 +178,7 @@ func convertCheck(rc checkJSON) (forge.Check, error) {
 	switch rc.Type {
 	case typeCheckRun:
 		if rc.Name == "" {
-			return forge.Check{}, fmt.Errorf("check run without a name")
+			return forge.Check{}, errors.New("check run without a name")
 		}
 		if rc.Status != runCompleted {
 			started, err := parseTime(rc.StartedAt, false)

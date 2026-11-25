@@ -90,6 +90,9 @@ const (
 	StatusError   StatusState = "error"
 )
 
+// AllStatusStates lists every StatusState.
+var AllStatusStates = []StatusState{StatusPending, StatusSuccess, StatusFailure, StatusError}
+
 // Status is a commit status on one SHA, such as the review verdict (concept D5).
 type Status struct {
 	Repo        string

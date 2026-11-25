@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -24,12 +25,9 @@ func (c *Client) Open(ctx context.Context, req forge.OpenRequest) (int, error) {
 		return 0, err
 	}
 	url := strings.TrimSpace(string(out))
-	i := strings.LastIndex(url, pullPathMarker)
-	n, convErr := 0, errors.New("no PR URL")
-	if i >= 0 {
-		n, convErr = strconv.Atoi(url[i+len(pullPathMarker):])
-	}
-	if convErr != nil || n <= 0 {
+	_, num, found := strings.Cut(url, pullPathMarker)
+	n, convErr := strconv.Atoi(num)
+	if !found || convErr != nil || n <= 0 {
 		return 0, fmt.Errorf("%w: gh pr create %s answered %q, want a PR URL", forge.ErrUnreadable, req.Repo, url)
 	}
 	return n, nil
@@ -46,9 +44,9 @@ func (c *Client) EnableAutoMerge(ctx context.Context, req forge.MergeRequest) er
 
 // PostStatus posts a commit status on st.SHA.
 func (c *Client) PostStatus(ctx context.Context, st forge.Status) error {
-	if st.Repo == "" || st.SHA == "" || st.Context == "" || st.State == "" {
-		return fmt.Errorf("%w: status repo %q sha %q context %q state %q; set all four", forge.ErrInvalidRequest,
-			st.Repo, st.SHA, st.Context, st.State)
+	if st.Repo == "" || st.SHA == "" || st.Context == "" || !slices.Contains(forge.AllStatusStates, st.State) {
+		return fmt.Errorf("%w: status repo %q sha %q context %q state %q; set all four, state one of %v",
+			forge.ErrInvalidRequest, st.Repo, st.SHA, st.Context, st.State, forge.AllStatusStates)
 	}
 	args := []string{"api", "--method", "POST", fmt.Sprintf("repos/%s/statuses/%s", st.Repo, st.SHA),
 		"-f", "state=" + string(st.State), "-f", "context=" + st.Context, "-f", "description=" + st.Description}
