@@ -60,7 +60,7 @@ func newEnv(t *testing.T, extra ...func(*Registry)) *env {
 	for _, f := range extra {
 		f(reg)
 	}
-	h, err := New(Config{Source: st, OwnerToken: ownerToken, Clock: clk, Registry: reg})
+	h, err := New(Config{Source: st, OwnerToken: ownerToken, Clock: clk, Registry: reg, Projects: configured})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -267,6 +267,14 @@ func fill(t *testing.T, e *env) {
 			FixTask: "t9"})
 		return err
 	})
+	for _, l := range []store.LockRequest{
+		{Project: projAlpha, Holder: "r1", Lease: time.Hour},
+		{Project: "gamma", Holder: "r0", Lease: time.Hour},
+	} {
+		if err := e.st.AcquireLock(context.Background(), l); err != nil {
+			t.Fatalf("AcquireLock: %v", err)
+		}
+	}
 }
 
 // TestSnapshotGolden covers the snapshot view of status (see SCENARIOS ST-1).
