@@ -138,15 +138,14 @@ func (s *Scheduler) onRunEvent(ctx context.Context, w *watch, ev runtime.RunEven
 		err = s.moveRun(ctx, w.run.ID, model.RunStalled, model.RunWorking, string(ev.Type))
 	case runtime.RunEventStalled:
 		w.unknown = false
-		if ev.Reason != runtime.StallBGShell {
-			w.bgSince = time.Time{}
-		} else if w.bgSince.IsZero() {
-			w.bgSince = now
-		}
 		if ev.Reason == runtime.StallBGShell {
+			if w.bgSince.IsZero() {
+				w.bgSince = now
+			}
 			err = s.moveRun(ctx, w.run.ID, model.RunWorking, model.RunStalled, StalledDetail+string(ev.Reason))
 			break
 		}
+		w.bgSince = time.Time{}
 		if p, ok := s.project(w.project); ok {
 			err = s.stall(ctx, p, w.run.ID, StalledDetail+string(ev.Reason), ev.Tail)
 		}
