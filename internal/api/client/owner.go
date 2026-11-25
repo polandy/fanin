@@ -70,3 +70,21 @@ func (c *Client) Wait(ctx context.Context, owner bool, after int64) (wire.Event,
 	err := c.do(ctx, http.MethodGet, path, nil, &ev)
 	return ev, err
 }
+
+// AddTask calls POST /api/v1/tasks.
+func (c *Client) AddTask(ctx context.Context, req wire.TaskRequest) (wire.Task, error) {
+	var t wire.Task
+	err := c.Post(ctx, "/api/v1/tasks", req, &t)
+	return t, err
+}
+
+// Tasks calls GET /api/v1/tasks for the open tasks of project, or of every project when it is empty.
+func (c *Client) Tasks(ctx context.Context, project string) (wire.Tasks, error) {
+	path := "/api/v1/tasks"
+	if project != "" {
+		path += "?project=" + url.QueryEscape(project)
+	}
+	var ts wire.Tasks
+	err := c.do(ctx, http.MethodGet, path, nil, &ts)
+	return ts, err
+}

@@ -89,11 +89,11 @@ func (t *Tx) CreateTask(ctx context.Context, task model.Task) error {
 		return fmt.Errorf("store: encode after of task %q: %w", task.ID, err)
 	}
 	if _, err := t.tx.ExecContext(ctx, `INSERT INTO tasks (id, project, title, prompt, shape, state, owner_task,
-		after_ids, owner_model, project_model, picked_model, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		after_ids, owner_model, project_model, picked_model, created_at, updated_at, worker_kind)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		string(task.ID), task.Project, task.Title, task.Prompt, string(task.Shape), string(task.State),
 		boolToDB(task.OwnerTask), string(after), task.OwnerModel, task.ProjectModel, task.PickedModel,
-		toDB(t.now), toDB(t.now)); err != nil {
+		toDB(t.now), toDB(t.now), task.WorkerKind); err != nil {
 		return fmt.Errorf("store: create task %q: %w", task.ID, err)
 	}
 	_, err = t.AppendEvent(ctx, model.Event{

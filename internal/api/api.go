@@ -70,6 +70,8 @@ type Config struct {
 	Reports Reports
 	// Fleet feeds the hosts view; without it the snapshot lists no hosts.
 	Fleet Fleet
+	// Intake queues tasks; without it POST /api/v1/tasks answers 500 and queues nothing.
+	Intake Intake
 }
 
 // Owner is the owner channel the command endpoints call (internal/owner).

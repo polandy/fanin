@@ -59,7 +59,9 @@ type Task struct {
 	// OwnerTask marks a task the owner named; its project loop ends after its first merge (see SCENARIOS PK-6).
 	OwnerTask bool
 	// After lists the tasks that must be done before this one is dispatched.
-	After        []TaskID
+	After []TaskID
+	// WorkerKind is the worker kind the owner asked for; empty means the project's.
+	WorkerKind   string
 	OwnerModel   string
 	ProjectModel string
 	PickedModel  string
