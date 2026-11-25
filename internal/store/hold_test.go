@@ -94,6 +94,33 @@ func TestHolds(t *testing.T) {
 	})
 }
 
+func TestSetHoldReason(t *testing.T) {
+	t.Run("MG-4_failed_hook_rewrites_the_reason_of_its_hold", func(t *testing.T) {
+		s, _ := newStore(t)
+		id := setHold(t, s, model.Hold{Project: project, Kind: model.HoldMerge, Reason: "hook running"})
+		mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+			return tx.SetHoldReason(ctx, id, "failed: deploy exited 1")
+		})
+		holds, err := s.Holds(context.Background(), project)
+		if err != nil || len(holds) != 1 || holds[0].Reason != "failed: deploy exited 1" {
+			t.Errorf("Holds = %+v %v, want the new reason", holds, err)
+		}
+	})
+	t.Run("MG-4_a_lifted_or_unknown_hold_is_not_found", func(t *testing.T) {
+		s, _ := newStore(t)
+		id := setHold(t, s, model.Hold{Project: project, Kind: model.HoldMerge})
+		liftHold(t, s, id)
+		for _, h := range []string{id, "nope"} {
+			err := s.Transition(context.Background(), func(ctx context.Context, tx *Tx) error {
+				return tx.SetHoldReason(ctx, h, "failed")
+			})
+			if !errors.Is(err, ErrNotFound) {
+				t.Errorf("SetHoldReason(%s) = %v, want ErrNotFound", h, err)
+			}
+		}
+	})
+}
+
 func TestHoldFailures(t *testing.T) {
 	s, _ := newStore(t)
 	id := setHold(t, s, model.Hold{ID: "h1", Project: project, Kind: model.HoldMerge})

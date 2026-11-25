@@ -60,7 +60,7 @@ func TestLock(t *testing.T) {
 			t.Fatal(err)
 		}
 		waiting := make(chan struct{}, 1)
-		s.waiting = func() { waiting <- struct{}{} }
+		s.OnLockWait(func() { waiting <- struct{}{} })
 		done := goWait(ctx, s, req(holderB))
 		<-waiting
 		if err := s.ReleaseLock(ctx, project, holderA); err != nil {
