@@ -17,7 +17,7 @@ func TestPR(t *testing.T) {
 	t.Run("reads_head_mergeable_and_statuses_with_the_token", func(t *testing.T) {
 		f := newFake(t)
 		f.on(pullPath, reply(http.StatusOK, prDoc()))
-		f.on(statusPath, reply(http.StatusOK, combined(status("ci", valSuccess), status(review, "pending"))))
+		f.on(statusPath, reply(http.StatusOK, combined(status("ci", valSuccess), described(status(review, "pending"), reviewText))))
 		got, err := f.client(t).PR(context.Background(), repo, number)
 		if err != nil {
 			t.Fatal(err)
@@ -29,7 +29,7 @@ func TestPR(t *testing.T) {
 			BaseBranch: baseBranch,
 			Checks: []forge.Check{
 				{Name: "ci", State: forge.CheckSuccess, UpdatedAt: at},
-				{Name: review, State: forge.CheckPending, UpdatedAt: at},
+				{Name: review, State: forge.CheckPending, UpdatedAt: at, Description: reviewText},
 			},
 		}
 		if diff := cmp.Diff(want, got); diff != "" {

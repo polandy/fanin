@@ -64,6 +64,8 @@ type Check struct {
 	State CheckState
 	// UpdatedAt is when the check finished, or started while it is pending; zero only for a queued check run.
 	UpdatedAt time.Time
+	// Description is a commit status's text, such as the review's reasons; empty for a check run.
+	Description string
 }
 
 // PR is a pull request as the forge reports it.
