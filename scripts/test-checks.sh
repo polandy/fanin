@@ -53,4 +53,20 @@ echo "package store" > "$tmp/w/internal/store/s.go"
 expect pass "coverage skips a package without code" bash -c "cd '$tmp/w' && '$PWD/scripts/check-coverage.sh' '$tmp/cover.out' 90 internal/hook"
 expect fail "coverage rejects a package with code but no tests" bash -c "cd '$tmp/w' && '$PWD/scripts/check-coverage.sh' '$tmp/cover.out' 90 internal/store"
 
+# check-scenarios
+sc=scripts/testdata/scenarios
+expect pass "scenarios report exits 0 with missing IDs" scripts/check-scenarios.sh --report $sc/scenarios.md $sc/tests
+expect fail "scenarios strict exits 1 with missing IDs" scripts/check-scenarios.sh --strict $sc/scenarios.md $sc/tests
+expect pass "scenarios strict exits 0 when all IDs are covered" scripts/check-scenarios.sh --strict $sc/scenarios.md $sc/full
+expect fail "scenarios report fails on an unknown ID" scripts/check-scenarios.sh --report $sc/scenarios.md $sc/unknown
+expect fail "scenarios strict fails on an unknown ID" scripts/check-scenarios.sh --strict $sc/scenarios.md $sc/unknown
+expect error "scenarios without a mode is a usage error" scripts/check-scenarios.sh $sc/scenarios.md
+expect pass "scenarios report passes on the repo tree" scripts/check-scenarios.sh --report
+equals() { # equals <name> <want> <got>
+  if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: wanted '$2', got '$3'" >&2; failures=$((failures + 1)); fi
+}
+equals "scenarios counts IDs per section" "1. Alpha: 1 of 2 covered, missing: AA-2
+2. Beta: 1 of 2 covered, missing: BB-10" "$(scripts/check-scenarios.sh --report $sc/scenarios.md $sc/tests 2>&1)"
+equals "scenarios report lists all 17 sections" 17 "$(scripts/check-scenarios.sh --report | grep -c '^[0-9]*\. ')"
+
 [ "$failures" -eq 0 ]
