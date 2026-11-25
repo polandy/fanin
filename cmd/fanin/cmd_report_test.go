@@ -15,7 +15,17 @@ import (
 	"github.com/polandy/fanin/pkg/faninmcp"
 )
 
-const reportToken = "run-secret"
+const (
+	reportToken  = "run-secret"
+	reportBranch = "feat/report"
+	flagText     = "--text"
+)
+
+var (
+	kindDonePR  = string(faninmcp.KindDonePR)
+	kindIssue   = string(faninmcp.KindIssue)
+	kindBlocked = string(faninmcp.KindBlocked)
+)
 
 func fileEnv() map[string]string {
 	return map[string]string{faninmcp.EnvRunToken: reportToken}
@@ -47,13 +57,13 @@ func TestCReportWritesSchemaValidFile(t *testing.T) {
 		args []string
 		want faninmcp.Report
 	}{
-		{"done_pr", []string{"done_pr", "--pr", "42"}, faninmcp.Report{Kind: faninmcp.KindDonePR, PR: 42}},
-		{"pushed", []string{"pushed", "--branch", "feat/x"}, faninmcp.Report{Kind: faninmcp.KindPushed, Branch: "feat/x"}},
-		{"committed", []string{"committed", "--branch", "feat/x"}, faninmcp.Report{Kind: faninmcp.KindCommitted, Branch: "feat/x"}},
-		{"issue", []string{"issue", "--issue", "7", "--issue-url", "https://example.com/i/7"},
+		{kindDonePR, []string{kindDonePR, "--pr", "42"}, faninmcp.Report{Kind: faninmcp.KindDonePR, PR: 42}},
+		{"pushed", []string{"pushed", "--branch", reportBranch}, faninmcp.Report{Kind: faninmcp.KindPushed, Branch: reportBranch}},
+		{"committed", []string{"committed", "--branch", reportBranch}, faninmcp.Report{Kind: faninmcp.KindCommitted, Branch: reportBranch}},
+		{kindIssue, []string{kindIssue, "--issue", "7", "--issue-url", "https://example.com/i/7"},
 			faninmcp.Report{Kind: faninmcp.KindIssue, Issue: 7, IssueURL: "https://example.com/i/7"}},
-		{"nothing", []string{"nothing", "--text", "already fixed"}, faninmcp.Report{Kind: faninmcp.KindNothing, Text: "already fixed"}},
-		{"blocked", []string{"blocked", "--text", "which db?"}, faninmcp.Report{Kind: faninmcp.KindBlocked, Text: "which db?"}},
+		{"nothing", []string{"nothing", flagText, "already fixed"}, faninmcp.Report{Kind: faninmcp.KindNothing, Text: "already fixed"}},
+		{kindBlocked, []string{kindBlocked, flagText, "which db?"}, faninmcp.Report{Kind: faninmcp.KindBlocked, Text: "which db?"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -91,7 +101,7 @@ func TestCReportInvalidWritesNothing(t *testing.T) {
 		{"done_pr_without_pr", fileEnv(), []string{"done_pr"}},
 		{"blocked_without_text", fileEnv(), []string{"blocked"}},
 		{"bad_issue_url", fileEnv(), []string{"issue", "--issue", "1", "--issue-url", "not a url"}},
-		{"no_token", map[string]string{}, []string{"nothing", "--text", "x"}},
+		{"no_token", map[string]string{}, []string{"nothing", flagText, "x"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -128,7 +138,7 @@ func TestCReportWriteIsAtomic(t *testing.T) {
 		_ = f.Close()
 		t.Skip("the directory is writable despite mode 0500 (running as root)")
 	}
-	code, _, stderr := runArgs(t, defaultRegistry, fileEnv(), "report", "--dir", dir, "nothing", "--text", "new")
+	code, _, stderr := runArgs(t, defaultRegistry, fileEnv(), "report", "--dir", dir, "nothing", flagText, "new")
 	if code != cli.ExitError {
 		t.Errorf("exit %d, want %d; stderr %q", code, cli.ExitError, stderr)
 	}
@@ -172,7 +182,7 @@ func TestCReportWrongTokenExitsOne(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	env := map[string]string{faninmcp.EnvURL: srv.URL, faninmcp.EnvRunID: "r1", faninmcp.EnvRunToken: reportToken}
-	code, _, stderr := runArgs(t, defaultRegistry, env, "report", "nothing", "--text", "x")
+	code, _, stderr := runArgs(t, defaultRegistry, env, "report", "nothing", flagText, "x")
 	if code != cli.ExitError {
 		t.Errorf("exit %d, want %d", code, cli.ExitError)
 	}
@@ -183,7 +193,7 @@ func TestCReportWrongTokenExitsOne(t *testing.T) {
 
 // C-REPORT: no --dir and no daemon environment is a usage error naming both ways.
 func TestCReportNeedsATarget(t *testing.T) {
-	code, _, stderr := runArgs(t, defaultRegistry, fileEnv(), "report", "nothing", "--text", "x")
+	code, _, stderr := runArgs(t, defaultRegistry, fileEnv(), "report", "nothing", flagText, "x")
 	if code != cli.ExitUsage || !strings.Contains(stderr, "--dir") || !strings.Contains(stderr, faninmcp.EnvURL) {
 		t.Errorf("exit %d, stderr %q", code, stderr)
 	}
