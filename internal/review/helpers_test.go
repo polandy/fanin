@@ -35,7 +35,11 @@ const (
 	notReadyBody = "## PR quality review\n\n- internal/x.go:3 lacks a test.\n\n**Merge readiness**: not ready"
 )
 
-const gitBin = "git"
+const (
+	gitBin        = "git"
+	reviewSkill   = "/pr-review"
+	reviewTimeout = 1800 * time.Second
+)
 
 var (
 	worktree   = repoDir + "/.claude/worktrees/fanin-review-42"
@@ -180,7 +184,7 @@ type setup struct {
 
 func newSetup(r runtime.Runner, f *fakeForge) *setup {
 	return &setup{runner: r, clock: clock.NewManual(start), forge: f, events: &fakeEvents{},
-		cfg: review.Config{Model: reviewModel}}
+		cfg: review.Config{Skill: reviewSkill, Model: reviewModel, Timeout: reviewTimeout}}
 }
 
 func (s *setup) reviewer() *review.Reviewer {

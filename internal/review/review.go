@@ -20,10 +20,8 @@ import (
 	"github.com/polandy/fanin/internal/runtime/headless"
 )
 
-// The review run's defaults and limits (SCENARIOS OC-3, OC-5).
+// The review run's limits (SCENARIOS OC-3, OC-5); the defaults of its settings live in the config schema.
 const (
-	DefaultSkill   = "/pr-review"
-	DefaultTimeout = 1800 * time.Second
 	// TextLimit is the most characters of the review text a Result carries, for the worker's nudge.
 	TextLimit = 1500
 	// MaxTries is the first run plus one retry with CorrectionNote.
@@ -82,7 +80,7 @@ type Events interface {
 	Append(ctx context.Context, ev model.Event) error
 }
 
-// Config is the project's review settings (review_skill, review_model, review_timeout).
+// Config is the project's review settings (review_skill, review_model, review_timeout); all three are required.
 type Config struct {
 	Skill   string
 	Model   string
@@ -120,14 +118,8 @@ type Reviewer struct {
 	cfg    Config
 }
 
-// New returns a Reviewer; an empty Skill means DefaultSkill, a zero Timeout DefaultTimeout.
+// New returns a Reviewer; Review checks cfg.
 func New(rt *headless.Runtime, runner runtime.Runner, f Forge, ev Events, cfg Config) *Reviewer {
-	if cfg.Skill == "" {
-		cfg.Skill = DefaultSkill
-	}
-	if cfg.Timeout == 0 {
-		cfg.Timeout = DefaultTimeout
-	}
 	return &Reviewer{rt: rt, runner: runner, forge: f, events: ev, cfg: cfg}
 }
 
@@ -170,8 +162,9 @@ func (r *Reviewer) validate(req Request) error {
 	case req.Project == "" || req.Repo == "" || req.Number <= 0 || req.Dir == "":
 		return fmt.Errorf("%w: review of project %q repo %q PR %d dir %q; pass all four", runtime.ErrInvalidSpec,
 			req.Project, req.Repo, req.Number, req.Dir)
-	case r.cfg.Model == "":
-		return fmt.Errorf("%w: review model of %q is empty; set review_model", runtime.ErrInvalidSpec, req.Project)
+	case r.cfg.Skill == "" || r.cfg.Model == "" || r.cfg.Timeout <= 0:
+		return fmt.Errorf("%w: review of %q has skill %q, model %q, timeout %s; set review_skill, review_model "+
+			"and a positive review_timeout", runtime.ErrInvalidSpec, req.Project, r.cfg.Skill, r.cfg.Model, r.cfg.Timeout)
 	}
 	return nil
 }

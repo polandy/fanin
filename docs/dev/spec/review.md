@@ -12,6 +12,10 @@ the gate reads it ([`gate.md`](gate.md)). An unreadable review is an error, neve
 | `review_model` | `sonnet` | model of the headless run |
 | `review_timeout` | `30m` | longest run (OC-3); past it the run is killed and `headless.ErrTimeout` returned |
 
+The defaults come from the config schema; `review.Config` without a skill, a model or a positive timeout is
+`runtime.ErrInvalidSpec` before anything runs. The run is a headless `claude -p` (`internal/runtime/headless`);
+another worker kind, such as the opencode review of OC-4, is not part of this package yet.
+
 Only GitHub projects are reviewed for now: the skill posts its comment with `gh`, and fanin reads it back through
 `forge.Comments`, which the Gitea client does not have.
 

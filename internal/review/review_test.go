@@ -121,15 +121,15 @@ func TestReview(t *testing.T) {
 			errc <- err
 		}()
 		<-h.started
-		s.clock.Advance(review.DefaultTimeout - time.Second)
+		s.clock.Advance(reviewTimeout - time.Second)
 		select {
 		case err := <-errc:
 			t.Fatalf("Review returned before the timeout: %v", err)
 		default:
 		}
 		s.clock.Advance(time.Second)
-		if err := <-errc; !errors.Is(err, headless.ErrTimeout) || review.DefaultTimeout != 1800*time.Second {
-			t.Errorf("err = %v, timeout %s; want ErrTimeout after 1800s", err, review.DefaultTimeout)
+		if err := <-errc; !errors.Is(err, headless.ErrTimeout) {
+			t.Errorf("err = %v; want ErrTimeout after %s", err, reviewTimeout)
 		}
 		rr.Done()
 		if len(f.posted()) != 0 {
@@ -213,6 +213,23 @@ func TestReviewFailures(t *testing.T) {
 }
 
 func TestReviewUnreadableForge(t *testing.T) {
+	for _, cfg := range []review.Config{
+		{Model: reviewModel, Timeout: reviewTimeout},
+		{Skill: reviewSkill, Timeout: reviewTimeout},
+		{Skill: reviewSkill, Model: reviewModel},
+	} {
+		t.Run("incomplete_settings_start_nothing", func(t *testing.T) {
+			rr := testutil.NewRecordingRunner(t)
+			s := newSetup(rr, newForge())
+			s.cfg = cfg
+			if _, err := s.reviewer().Review(context.Background(), request()); !errors.Is(err, runtime.ErrInvalidSpec) {
+				t.Errorf("err = %v, want ErrInvalidSpec", err)
+			}
+			if len(rr.Calls()) != 0 {
+				t.Errorf("ran %q for incomplete settings", rr.Calls())
+			}
+		})
+	}
 	t.Run("PR_read_fails_before_any_git", func(t *testing.T) {
 		rr := testutil.NewRecordingRunner(t)
 		f := newForge()
