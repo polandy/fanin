@@ -85,7 +85,7 @@ func TestPrompt(t *testing.T) {
 
 	t.Run("SP-7_include_cycle_fails", func(t *testing.T) {
 		fsys := fstest.MapFS{
-			fixtureTemplate:       {Data: []byte("{{INCLUDE:a}}\n")},
+			fixtureTemplate:        {Data: []byte("{{INCLUDE:a}}\n")},
 			"templates/parts/a.md": {Data: []byte("{{INCLUDE:a}}\n")},
 		}
 		if _, err := render(fsys, "x", vars); !errors.Is(err, ErrTemplate) {
