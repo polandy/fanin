@@ -123,9 +123,13 @@ type obs struct {
 	closed bool
 }
 
-func observe(t *testing.T, status, text string) *obs {
+// observe starts Observe on a pane in status showing text; setup runs on the fake before the first probe.
+func observe(t *testing.T, status, text string, setup ...func(p *paneFake)) *obs {
 	t.Helper()
 	fake := &paneFake{status: status, text: text}
+	for _, f := range setup {
+		f(fake)
+	}
 	clk := &signalClock{Manual: clock.NewManual(start), waits: make(chan time.Duration)}
 	rt := herdr.New(fake, clk, logger, herdr.DefaultConfig())
 	ctx, cancel := context.WithCancel(context.Background())

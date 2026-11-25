@@ -40,7 +40,7 @@ func types(ts ...runtime.RunEventType) []runtime.RunEventType { return ts }
 
 func TestObserveBackgroundFooter(t *testing.T) {
 	t.Run("AW-3_live_footer_holds_the_wait_up_to_50_waits", func(t *testing.T) {
-		o := observe(t, "idle", screen(reply, "", bgTask))
+		o := observe(t, herdr.StatusIdle, screen(reply, "", bgTask))
 		hold := polls(herdr.DefaultStallSlice) * herdr.DefaultMaxBGWaits
 		o.tick(hold - 1)
 		if len(o.got) != 0 {
@@ -53,11 +53,11 @@ func TestObserveBackgroundFooter(t *testing.T) {
 	})
 
 	t.Run("AW-3_later_status_is_picked_up", func(t *testing.T) {
-		o := observe(t, "idle", screen(reply, "", bgTask))
+		o := observe(t, herdr.StatusIdle, screen(reply, "", bgTask))
 		o.tick(10)
-		o.fake.set("working", workingPane(1, 1))
+		o.fake.set(herdr.StatusWorking, workingPane(1, 1))
 		o.tick(1)
-		o.fake.set("idle", idleScreen)
+		o.fake.set(herdr.StatusIdle, idleScreen)
 		o.tick(1)
 		if diff := cmp.Diff(types(runtime.RunEventWorking, runtime.RunEventIdle), o.types()); diff != "" {
 			t.Errorf("events (-want +got):\n%s", diff)
@@ -69,7 +69,7 @@ func TestObserveBackgroundFooter(t *testing.T) {
 
 	t.Run("AW-3_stale_footer_far_up_does_not_count", func(t *testing.T) {
 		stale := screen("⏺ started a job\n"+bgTask+"\n"+strings.Repeat("⏺ more output\n", 20)+reply, "", footer)
-		o := observe(t, "idle", stale)
+		o := observe(t, herdr.StatusIdle, stale)
 		if diff := cmp.Diff(types(runtime.RunEventIdle), o.types()); diff != "" {
 			t.Errorf("events (-want +got):\n%s", diff)
 		}
@@ -78,9 +78,9 @@ func TestObserveBackgroundFooter(t *testing.T) {
 
 func TestObserveStall(t *testing.T) {
 	t.Run("AW-4_unchanged_pane_for_3_slices_is_stalled_quiet", func(t *testing.T) {
-		o := observe(t, "working", workingPane(1, 0))
+		o := observe(t, herdr.StatusWorking, workingPane(1, 0))
 		for i := 1; i < polls(quietStall); i++ {
-			o.fake.set("working", workingPane(1, i*30))
+			o.fake.set(herdr.StatusWorking, workingPane(1, i*30))
 			o.tick(1)
 		}
 		if diff := cmp.Diff(types(runtime.RunEventWorking), o.types()); diff != "" {
@@ -96,9 +96,9 @@ func TestObserveStall(t *testing.T) {
 	})
 
 	t.Run("AW-4_real_output_resets_the_count", func(t *testing.T) {
-		o := observe(t, "working", workingPane(1, 0))
+		o := observe(t, herdr.StatusWorking, workingPane(1, 0))
 		o.tick(20)
-		o.fake.set("working", workingPane(2, 600))
+		o.fake.set(herdr.StatusWorking, workingPane(2, 600))
 		o.tick(polls(quietStall))
 		if diff := cmp.Diff(types(runtime.RunEventWorking), o.types()); diff != "" {
 			t.Fatalf("events before the reset window ends (-want +got):\n%s", diff)
@@ -110,7 +110,7 @@ func TestObserveStall(t *testing.T) {
 	})
 
 	t.Run("AW-5_unchanged_shell_tail_for_20_min_is_stalled_bg_shell", func(t *testing.T) {
-		o := observe(t, "idle", screen("⏺ Bash(make ci) running in the background", "", bgShell))
+		o := observe(t, herdr.StatusIdle, screen("⏺ Bash(make ci) running in the background", "", bgShell))
 		o.tick(polls(herdr.DefaultBGShellWindow) - 1)
 		if len(o.got) != 0 {
 			t.Fatalf("events before 20 min = %v, want none", o.types())
@@ -125,9 +125,9 @@ func TestObserveStall(t *testing.T) {
 	})
 
 	t.Run("AW-5_a_changed_tail_restarts_the_window", func(t *testing.T) {
-		o := observe(t, "idle", screen("⏺ Bash(make ci)\n  ok internal/a", "", bgShell))
+		o := observe(t, herdr.StatusIdle, screen("⏺ Bash(make ci)\n  ok internal/a", "", bgShell))
 		o.tick(30)
-		o.fake.set("idle", screen("⏺ Bash(make ci)\n  ok internal/a\n  ok internal/b", "", bgShell))
+		o.fake.set(herdr.StatusIdle, screen("⏺ Bash(make ci)\n  ok internal/a\n  ok internal/b", "", bgShell))
 		o.tick(polls(herdr.DefaultBGShellWindow))
 		if len(o.got) != 0 {
 			t.Fatalf("events within the restarted window = %v, want none", o.types())
@@ -141,7 +141,7 @@ func TestObserveStall(t *testing.T) {
 
 func TestObserveReadFailures(t *testing.T) {
 	t.Run("AW-6_status_read_retried_3_times_then_unreachable", func(t *testing.T) {
-		o := observe(t, "working", workingPane(1, 0))
+		o := observe(t, herdr.StatusWorking, workingPane(1, 0))
 		o.fake.do(func(p *paneFake) { p.down = 4 })
 		o.drain()
 		if diff := cmp.Diff(types(runtime.RunEventWorking, runtime.RunEventUnreachable), o.types()); diff != "" {
@@ -158,11 +158,11 @@ func TestObserveReadFailures(t *testing.T) {
 	})
 
 	t.Run("AW-6_pane_read_recovers_on_the_third_retry", func(t *testing.T) {
-		o := observe(t, "working", workingPane(1, 0))
-		o.fake.set("working", workingPane(2, 30))
+		o := observe(t, herdr.StatusWorking, workingPane(1, 0))
+		o.fake.set(herdr.StatusWorking, workingPane(2, 30))
 		o.fake.do(func(p *paneFake) { p.readFails = 3 })
 		o.tick(4)
-		o.fake.set("working", workingPane(3, 150))
+		o.fake.set(herdr.StatusWorking, workingPane(3, 150))
 		o.tick(1)
 		if diff := cmp.Diff(types(runtime.RunEventWorking), o.types()); diff != "" {
 			t.Errorf("events (-want +got):\n%s", diff)
@@ -173,7 +173,7 @@ func TestObserveReadFailures(t *testing.T) {
 	})
 
 	t.Run("AW-6_pane_read_failing_4_times_is_unreachable", func(t *testing.T) {
-		o := observe(t, "working", workingPane(1, 0))
+		o := observe(t, herdr.StatusWorking, workingPane(1, 0))
 		o.fake.do(func(p *paneFake) { p.readFails = 4 })
 		o.drain()
 		if diff := cmp.Diff(types(runtime.RunEventWorking, runtime.RunEventUnreachable), o.types()); diff != "" {
@@ -183,9 +183,9 @@ func TestObserveReadFailures(t *testing.T) {
 	})
 
 	t.Run("AW-6_hiccup_between_two_samples_is_not_settled", func(t *testing.T) {
-		o := observe(t, "working", workingPane(1, 0))
+		o := observe(t, herdr.StatusWorking, workingPane(1, 0))
 		for i := 1; i <= polls(quietStall)+5; i++ {
-			o.fake.set("working", workingPane(i, i*30))
+			o.fake.set(herdr.StatusWorking, workingPane(i, i*30))
 			if i == polls(quietStall)/2 {
 				o.fake.do(func(p *paneFake) { p.readFails, p.emptyReads = 1, 1 })
 				o.tick(3)
@@ -202,8 +202,8 @@ func TestObserveReadFailures(t *testing.T) {
 	})
 
 	t.Run("AW-7_empty_idle_pane_is_read_again", func(t *testing.T) {
-		o := observe(t, "working", workingPane(1, 0))
-		o.fake.set("idle", idleScreen)
+		o := observe(t, herdr.StatusWorking, workingPane(1, 0))
+		o.fake.set(herdr.StatusIdle, idleScreen)
 		o.fake.do(func(p *paneFake) { p.emptyReads = 1 })
 		o.tick(2)
 		if diff := cmp.Diff(types(runtime.RunEventWorking, runtime.RunEventIdle), o.types()); diff != "" {
@@ -230,7 +230,7 @@ func TestObserveReadFailures(t *testing.T) {
 
 func TestObserveResume(t *testing.T) {
 	t.Run("AW-8_unsent_nudge_gets_Enter_at_most_twice_within_the_grace", func(t *testing.T) {
-		o := observe(t, "idle", screen(reply, unsentText, footer))
+		o := observe(t, herdr.StatusIdle, screen(reply, unsentText, footer))
 		grace := polls(herdr.DefaultResumeGrace)
 		o.tick(grace - 1)
 		if len(o.got) != 0 || o.fake.enters != herdr.DefaultResumeEnters {
@@ -249,9 +249,8 @@ func TestObserveResume(t *testing.T) {
 	})
 
 	t.Run("AW-8_submitted_nudge_starts_work_without_answered_in_pane", func(t *testing.T) {
-		o := observe(t, "idle", screen(reply, unsentText, footer))
-		o.fake.do(func(p *paneFake) {
-			p.onEnter = func(p *paneFake) { p.status, p.text = "working", workingPane(1, 0) }
+		o := observe(t, herdr.StatusIdle, screen(reply, unsentText, footer), func(p *paneFake) {
+			p.onEnter = func(p *paneFake) { p.status, p.text = herdr.StatusWorking, workingPane(1, 0) }
 		})
 		o.tick(1)
 		if diff := cmp.Diff(types(runtime.RunEventWorking), o.types()); diff != "" {
@@ -274,7 +273,7 @@ func TestObserveDialog(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			o := observe(t, "blocked", c.text)
+			o := observe(t, herdr.StatusBlocked, c.text)
 			if diff := cmp.Diff(types(runtime.RunEventDialog), o.types()); diff != "" {
 				t.Fatalf("events (-want +got):\n%s", diff)
 			}
@@ -285,14 +284,14 @@ func TestObserveDialog(t *testing.T) {
 	}
 
 	t.Run("AW-9_numbered_list_in_a_normal_reply_is_no_dialog", func(t *testing.T) {
-		o := observe(t, "idle", screen(numbered, "", footer))
+		o := observe(t, herdr.StatusIdle, screen(numbered, "", footer))
 		if diff := cmp.Diff(types(runtime.RunEventIdle), o.types()); diff != "" {
 			t.Errorf("events (-want +got):\n%s", diff)
 		}
 	})
 
 	t.Run("AW-9_same_dialog_is_reported_once", func(t *testing.T) {
-		o := observe(t, "blocked", screen(approval, "", footer))
+		o := observe(t, herdr.StatusBlocked, screen(approval, "", footer))
 		o.tick(5)
 		if diff := cmp.Diff(types(runtime.RunEventDialog), o.types()); diff != "" {
 			t.Errorf("events (-want +got):\n%s", diff)
@@ -303,8 +302,8 @@ func TestObserveDialog(t *testing.T) {
 func TestObserveLastWords(t *testing.T) {
 	t.Run("AW-12_last_words_drop_input_box_and_footer_and_tail_is_the_run_pane", func(t *testing.T) {
 		body := strings.Repeat("⏺ earlier output\n", 10) + "⏺ I could not push:\n  the remote refused the branch."
-		o := observe(t, "working", workingPane(1, 0))
-		o.fake.set("done", screen(body, "", footer))
+		o := observe(t, herdr.StatusWorking, workingPane(1, 0))
+		o.fake.set(herdr.StatusDone, screen(body, "", footer))
 		o.tick(1)
 		ev := o.last()
 		if ev.Type != runtime.RunEventIdle {
@@ -314,7 +313,7 @@ func TestObserveLastWords(t *testing.T) {
 		if ev.LastWords != want {
 			t.Errorf("last words = %q, want %q", ev.LastWords, want)
 		}
-		if ev.Tail != screen(body, "", footer) || ev.Status != "done" {
+		if ev.Tail != screen(body, "", footer) || ev.Status != herdr.StatusDone {
 			t.Errorf("tail %q status %q, want the pane read and done", ev.Tail, ev.Status)
 		}
 	})
@@ -322,8 +321,8 @@ func TestObserveLastWords(t *testing.T) {
 
 func TestObserveAnsweredInPane(t *testing.T) {
 	t.Run("WA-3_dialog_answered_in_the_pane", func(t *testing.T) {
-		o := observe(t, "blocked", screen(approval, "", footer))
-		o.fake.set("working", workingPane(1, 0))
+		o := observe(t, herdr.StatusBlocked, screen(approval, "", footer))
+		o.fake.set(herdr.StatusWorking, workingPane(1, 0))
 		o.tick(1)
 		want := types(runtime.RunEventDialog, runtime.RunEventAnsweredInPane, runtime.RunEventWorking)
 		if diff := cmp.Diff(want, o.types()); diff != "" {
@@ -332,8 +331,8 @@ func TestObserveAnsweredInPane(t *testing.T) {
 	})
 
 	t.Run("WA-3_idle_worker_answered_in_the_pane", func(t *testing.T) {
-		o := observe(t, "idle", idleScreen)
-		o.fake.set("working", workingPane(1, 0))
+		o := observe(t, herdr.StatusIdle, idleScreen)
+		o.fake.set(herdr.StatusWorking, workingPane(1, 0))
 		o.tick(1)
 		want := types(runtime.RunEventIdle, runtime.RunEventAnsweredInPane, runtime.RunEventWorking)
 		if diff := cmp.Diff(want, o.types()); diff != "" {
@@ -342,11 +341,11 @@ func TestObserveAnsweredInPane(t *testing.T) {
 	})
 
 	t.Run("WA-3_answer_through_fanin_is_not_in_pane", func(t *testing.T) {
-		o := observe(t, "blocked", screen(approval, "", footer))
+		o := observe(t, herdr.StatusBlocked, screen(approval, "", footer))
 		if err := o.rt.Prompt(context.Background(), want, "1"); err != nil {
 			t.Fatalf("Prompt: %v", err)
 		}
-		o.fake.set("working", workingPane(1, 0))
+		o.fake.set(herdr.StatusWorking, workingPane(1, 0))
 		o.tick(1)
 		if diff := cmp.Diff(types(runtime.RunEventDialog, runtime.RunEventWorking), o.types()); diff != "" {
 			t.Errorf("events (-want +got):\n%s", diff)
