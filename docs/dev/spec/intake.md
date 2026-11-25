@@ -86,9 +86,8 @@ and retried after `intake.CronRetry`.
    Otherwise queue task `<config project>-release-<repo>-<version>` with model `release.model`.
 
 A malformed repository or tag, no tag, no workflow, no run, a failed run, no digest, or zero or several
-modules is `ErrRelease` (or the
-forge error) and queues nothing (DR-2). The probe runs `git` and `docker` on the control host, so both projects
-must be on host `local`. The release queue runs one deploy at a time; a release still queued when `fanind` stops
+modules is `ErrRelease` (or the forge error) and queues nothing (DR-2). The probe runs `git` and `docker` on the
+control host, so both projects must be on host `local`. The release queue runs one deploy at a time; a release still queued when `fanind` stops
 is lost, and the sender's redelivery starts it again.
 
 ## CLI
