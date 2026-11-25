@@ -42,6 +42,7 @@ type Source interface {
 	AllHolds(ctx context.Context) ([]model.Hold, error)
 	Locks(ctx context.Context) ([]model.Lock, error)
 	LatestEvents(ctx context.Context) ([]model.Event, error)
+	Events(ctx context.Context, task model.TaskID) ([]model.Event, error)
 	EventsAfter(ctx context.Context, seq int64, limit int) ([]model.Event, error)
 	LastEventSeq(ctx context.Context) (int64, error)
 	// Changed returns a channel closed after the next committed change.

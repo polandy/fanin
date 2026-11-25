@@ -1,7 +1,10 @@
 package api
 
 import (
+	"context"
+	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/polandy/fanin/internal/api/wire"
@@ -13,7 +16,7 @@ const boardDoneShown = 4
 
 // buildBoard derives the ST-2 sections of every project in snap.Projects from the snapshot's open tasks and the
 // done tasks.
-func buildBoard(snap wire.Snapshot, done []model.Task) []wire.BoardProject {
+func buildBoard(ctx context.Context, src Source, snap wire.Snapshot, done []model.Task) ([]wire.BoardProject, error) {
 	open := map[string]bool{}
 	for _, t := range snap.Tasks {
 		open[t.ID] = true
@@ -26,7 +29,7 @@ func buildBoard(snap wire.Snapshot, done []model.Task) []wire.BoardProject {
 	out := make([]wire.BoardProject, 0, len(snap.Projects))
 	for _, p := range snap.Projects {
 		out = append(out, wire.BoardProject{Project: p, Done: wire.BoardDone{Newest: []wire.BoardTask{}},
-			Next: []wire.BoardTask{}, Waiting: []wire.BoardTask{}, Holds: []wire.Hold{}, Decisions: []wire.BoardTask{}})
+			Next: []wire.BoardTask{}, Waiting: []wire.BoardTask{}, Ready: []wire.BoardReady{}, Holds: []wire.Hold{}, Decisions: []wire.BoardTask{}})
 	}
 	for i := range out {
 		byProject[out[i].Project] = &out[i]
@@ -40,7 +43,13 @@ func buildBoard(snap wire.Snapshot, done []model.Task) []wire.BoardProject {
 		}
 		bt := wire.BoardTask{ID: t.ID, Title: t.Title, State: t.State, Shape: t.Shape, UpdatedAt: t.UpdatedAt,
 			QuestionID: question[t.ID]}
+		ready, ok, err := readyPR(ctx, src, t)
+		if err != nil {
+			return nil, err
+		}
 		switch {
+		case ok:
+			b.Ready = append(b.Ready, ready)
 		case t.State == string(model.TaskNeedsOwner) || t.State == string(model.TaskPaused):
 			b.Waiting = append(b.Waiting, bt)
 		case t.Shape == string(model.ShapeDecision):
@@ -68,7 +77,36 @@ func buildBoard(snap wire.Snapshot, done []model.Task) []wire.BoardProject {
 			b.Holds = append(b.Holds, h)
 		}
 	}
-	return out
+	return out, nil
+}
+
+// readyPR reports whether task t is a gating task whose latest gate verdict is a ready verdict. A ready verdict
+// without a PR number is an error, never a ready PR.
+func readyPR(ctx context.Context, src Source, t wire.Task) (wire.BoardReady, bool, error) {
+	if t.State != string(model.TaskGating) {
+		return wire.BoardReady{}, false, nil
+	}
+	events, err := src.Events(ctx, model.TaskID(t.ID))
+	if err != nil {
+		return wire.BoardReady{}, false, fmt.Errorf("read events of task %q: %w", t.ID, err)
+	}
+	for _, e := range slices.Backward(events) {
+		if e.Type != model.EventGateVerdict {
+			continue
+		}
+		rest, ok := strings.CutPrefix(e.Detail, model.ReadyVerdictPrefix)
+		if !ok {
+			return wire.BoardReady{}, false, nil
+		}
+		ref, line, _ := strings.Cut(rest, ": ")
+		pr, err := strconv.Atoi(strings.TrimPrefix(ref, "#"))
+		if err != nil {
+			return wire.BoardReady{}, false, fmt.Errorf("gate verdict %q of task %q has no PR number (want %q#<n>: <verdict>): %w",
+				e.Detail, t.ID, model.ReadyVerdictPrefix, err)
+		}
+		return wire.BoardReady{ID: t.ID, Title: t.Title, PR: pr, Verdict: line, UpdatedAt: e.At}, true, nil
+	}
+	return wire.BoardReady{}, false, nil
 }
 
 // hostsDTO orders each host's workers: those waiting on the owner first, then managed before owner sessions,

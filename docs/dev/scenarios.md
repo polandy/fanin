@@ -743,7 +743,8 @@ These read-only views move to the snapshot API and the UI.
   - `--close-done` closes finished workers' panes.
 - Source: `overview.sh`. Test: `overview.sh#1-#8`, `rotate-state.sh#7`, `cmd/fanin/cmd_overview_test.go`. Mark: CHANGES
   (C-STORE): the UI board (ADDENDUM §2.11.3). `fanin overview` prints the board sections of the snapshot as English
-  text: done this run (count and newest four), next, waiting for owner, holds with the `fanin hold lift` command,
+  text: done this run (count and newest four), next, waiting for owner, ready for go (PR number and verdict line,
+  the snapshot's `ready` section), holds with the `fanin hold lift` command,
   decisions. An unreachable daemon is an error, never an empty board.
 
 **ST-3**

@@ -1,0 +1,12 @@
+{
+  "alpha": [
+    {
+      "id": "r1",
+      "title": "title r1",
+      "pr": 17,
+      "verdict": "GREEN code fix; changes code",
+      "updated_at": "2026-03-04T06:28:07Z"
+    }
+  ],
+  "gamma": []
+}

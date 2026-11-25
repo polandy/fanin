@@ -21,7 +21,7 @@ const (
 func init() {
 	register(Command{
 		Name:    "overview",
-		Summary: "print the board per project: done this run, next, waiting for owner, holds, decisions",
+		Summary: "print the board per project: done this run, next, waiting for owner, ready for go, holds, decisions",
 		Run:     runOverview,
 	})
 }
@@ -64,6 +64,11 @@ func renderBoard(b wire.BoardProject) string {
 	section("done this run", b.Done.Count, taskLines(b.Done.Newest))
 	section("next", len(b.Next), taskLines(b.Next))
 	section("waiting for owner", len(b.Waiting), taskLines(b.Waiting))
+	var ready []string
+	for _, r := range b.Ready {
+		ready = append(ready, fmt.Sprintf("#%d %s %s: %s", r.PR, r.ID, r.Title, r.Verdict))
+	}
+	section("ready for go", len(b.Ready), ready)
 	var holds []string
 	for _, h := range b.Holds {
 		line := fmt.Sprintf("%s hold %s: %s", h.Kind, h.ID, h.Reason)

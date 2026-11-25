@@ -172,6 +172,16 @@ type BoardDone struct {
 	Newest []BoardTask `json:"newest"`
 }
 
+// BoardReady is a PR that passed the gate and waits for the owner's go.
+type BoardReady struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	PR    int    `json:"pr"`
+	// Verdict is the gate's verdict line, such as "GREEN fix it; changes code".
+	Verdict   string    `json:"verdict"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // BoardProject is the board of one project (SCENARIOS ST-2).
 type BoardProject struct {
 	Project string `json:"project"`
@@ -181,6 +191,8 @@ type BoardProject struct {
 	Next []BoardTask `json:"next"`
 	// Waiting are the tasks that wait on the owner: needs_owner or paused.
 	Waiting []BoardTask `json:"waiting"`
+	// Ready are the gating tasks whose latest gate verdict says the PR is ready for the owner's go.
+	Ready []BoardReady `json:"ready"`
 	// Holds are the project's active CI and merge holds; each can be lifted.
 	Holds []Hold `json:"holds"`
 	// Decisions are the open decision-shaped tasks that are not already in Waiting.

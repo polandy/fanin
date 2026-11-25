@@ -174,7 +174,8 @@ field is exit 2 and writes nothing; a refused token or an unwritable directory i
   project and state, and the counters `fanin_runs_started_total`, `fanin_nudges_total`, `fanin_merges_total` and
   `fanin_adapter_errors_total`. It needs no token: bind `listen` to a trusted interface. An unreadable store is a
   500.
-- `fanin overview [project...]` prints each project's board: done this run, next, waiting for owner, holds with
+- `fanin overview [project...]` prints each project's board: done this run, next, waiting for owner, ready for go (PR number and
+  gate verdict line), holds with
   the command that lifts them, and decisions.
 - `fanin doctor` checks config, store, herdr, the forge login and the `fanin/review` branch protection per project,
   and the systemd unit. It prints a table and exits 1 when any row says `FAIL`. A `skip` row is a check that cannot

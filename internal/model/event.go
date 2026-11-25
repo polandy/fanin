@@ -58,3 +58,7 @@ type Event struct {
 	// Detail is a one-line summary for status and the rendered log.
 	Detail string
 }
+
+// ReadyVerdictPrefix leads the detail of a gate_verdict that says a PR waits for the owner's go; the PR reference
+// (`#<n>`), a colon and the verdict line follow.
+const ReadyVerdictPrefix = "ready "

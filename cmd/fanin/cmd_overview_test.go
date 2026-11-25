@@ -39,6 +39,8 @@ func overviewSnapshot() wire.Snapshot {
 				}},
 				Next:    []wire.BoardTask{task("a6", "the next one", string(model.TaskQueued)), blocked},
 				Waiting: []wire.BoardTask{asking, task("a9", "paused for a while", string(model.TaskPaused))},
+				Ready: []wire.BoardReady{{ID: "a12", Title: "ship the report", PR: 17,
+					Verdict: "GREEN ship the report; changes code", UpdatedAt: overviewT0}},
 				Holds: []wire.Hold{
 					{ID: "h1", Project: projAlpha, Kind: "ci", Reason: "main is red", FixTask: "a10"},
 					{ID: "h2", Project: projAlpha, Kind: "merge", Reason: "hook failed"},
