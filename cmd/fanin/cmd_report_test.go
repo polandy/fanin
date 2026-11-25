@@ -25,6 +25,7 @@ var (
 	kindDonePR  = string(faninmcp.KindDonePR)
 	kindIssue   = string(faninmcp.KindIssue)
 	kindBlocked = string(faninmcp.KindBlocked)
+	kindNothing = string(faninmcp.KindNothing)
 )
 
 func fileEnv() map[string]string {
@@ -62,7 +63,7 @@ func TestCReportWritesSchemaValidFile(t *testing.T) {
 		{"committed", []string{"committed", "--branch", reportBranch}, faninmcp.Report{Kind: faninmcp.KindCommitted, Branch: reportBranch}},
 		{kindIssue, []string{kindIssue, "--issue", "7", "--issue-url", "https://example.com/i/7"},
 			faninmcp.Report{Kind: faninmcp.KindIssue, Issue: 7, IssueURL: "https://example.com/i/7"}},
-		{"nothing", []string{"nothing", flagText, "already fixed"}, faninmcp.Report{Kind: faninmcp.KindNothing, Text: "already fixed"}},
+		{kindNothing, []string{kindNothing, flagText, "already fixed"}, faninmcp.Report{Kind: faninmcp.KindNothing, Text: "already fixed"}},
 		{kindBlocked, []string{kindBlocked, flagText, "which db?"}, faninmcp.Report{Kind: faninmcp.KindBlocked, Text: "which db?"}},
 	}
 	for _, tt := range tests {
@@ -101,7 +102,7 @@ func TestCReportInvalidWritesNothing(t *testing.T) {
 		{"done_pr_without_pr", fileEnv(), []string{"done_pr"}},
 		{"blocked_without_text", fileEnv(), []string{"blocked"}},
 		{"bad_issue_url", fileEnv(), []string{"issue", "--issue", "1", "--issue-url", "not a url"}},
-		{"no_token", map[string]string{}, []string{"nothing", flagText, "x"}},
+		{"no_token", map[string]string{}, []string{kindNothing, flagText, "x"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -182,7 +183,7 @@ func TestCReportWrongTokenExitsOne(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	env := map[string]string{faninmcp.EnvURL: srv.URL, faninmcp.EnvRunID: "r1", faninmcp.EnvRunToken: reportToken}
-	code, _, stderr := runArgs(t, defaultRegistry, env, "report", "nothing", flagText, "x")
+	code, _, stderr := runArgs(t, defaultRegistry, env, "report", kindNothing, flagText, "x")
 	if code != cli.ExitError {
 		t.Errorf("exit %d, want %d", code, cli.ExitError)
 	}
@@ -193,7 +194,7 @@ func TestCReportWrongTokenExitsOne(t *testing.T) {
 
 // C-REPORT: no --dir and no daemon environment is a usage error naming both ways.
 func TestCReportNeedsATarget(t *testing.T) {
-	code, _, stderr := runArgs(t, defaultRegistry, fileEnv(), "report", "nothing", flagText, "x")
+	code, _, stderr := runArgs(t, defaultRegistry, fileEnv(), "report", kindNothing, flagText, "x")
 	if code != cli.ExitUsage || !strings.Contains(stderr, "--dir") || !strings.Contains(stderr, faninmcp.EnvURL) {
 		t.Errorf("exit %d, stderr %q", code, stderr)
 	}
