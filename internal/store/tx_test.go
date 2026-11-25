@@ -171,6 +171,38 @@ func TestRunLifecycle(t *testing.T) {
 	}
 }
 
+func TestRunLadderColumns(t *testing.T) {
+	s, _ := newStore(t)
+	ctx := context.Background()
+	createTasks(t, s, "t1")
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		return tx.CreateRun(ctx, model.Run{ID: "r1", TaskID: "t1", Number: 1, Hint: "fix the parser"})
+	})
+	budget := model.Budget{Stalls: 1, ContextPct: 80, FooterWaits: 3, ContinueNudges: 1, SecureNudges: 1}
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		if err := tx.SetRunCounts(ctx, "r1", budget); err != nil {
+			return err
+		}
+		if err := tx.SetRunTail(ctx, "r1", "line 1\nline 2"); err != nil {
+			return err
+		}
+		return tx.SetRunBranch(ctx, "r1", "feat/parser")
+	})
+	run, err := s.Run(ctx, "r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []any{run.Budget, run.Hint, run.Tail, run.Branch}
+	want := []any{budget, "fix the parser", "line 1\nline 2", "feat/parser"}
+	if d := cmp.Diff(want, got); d != "" {
+		t.Errorf("run (-want +got):\n%s", d)
+	}
+	wantTypes := []model.EventType{model.EventTaskCreated, model.EventRunStarted}
+	if d := cmp.Diff(wantTypes, eventTypes(t, s, "t1")); d != "" {
+		t.Errorf("events (-want +got):\n%s; the scheduler's counts append none", d)
+	}
+}
+
 func TestRunFailures(t *testing.T) {
 	s, _ := newStore(t)
 	createTasks(t, s, "t1")
@@ -208,6 +240,15 @@ func TestRunFailures(t *testing.T) {
 		}, ErrNotFound},
 		{"budget of missing run", func(ctx context.Context, tx *Tx) error {
 			return tx.SetRunBudget(ctx, "nope", model.Budget{})
+		}, ErrNotFound},
+		{"counts of missing run", func(ctx context.Context, tx *Tx) error {
+			return tx.SetRunCounts(ctx, "nope", model.Budget{})
+		}, ErrNotFound},
+		{"tail of missing run", func(ctx context.Context, tx *Tx) error {
+			return tx.SetRunTail(ctx, "nope", "tail")
+		}, ErrNotFound},
+		{"branch of missing run", func(ctx context.Context, tx *Tx) error {
+			return tx.SetRunBranch(ctx, "nope", "feat/x")
 		}, ErrNotFound},
 	}
 	for _, tt := range tests {

@@ -50,7 +50,10 @@ func TestObserveBackgroundFooter(t *testing.T) {
 		}
 		o.tick(1)
 		if diff := cmp.Diff(types(runtime.RunEventIdle), o.types()); diff != "" {
-			t.Errorf("events after %d waits (-want +got):\n%s", herdr.DefaultMaxBGWaits, diff)
+			t.Fatalf("events after %d waits (-want +got):\n%s", herdr.DefaultMaxBGWaits, diff)
+		}
+		if !o.got[0].BGFooter {
+			t.Error("idle after the hold lacks BGFooter, want it set for the AW-11 ladder")
 		}
 	})
 
@@ -66,6 +69,9 @@ func TestObserveBackgroundFooter(t *testing.T) {
 		}
 		if o.got[1].LastWords != reply {
 			t.Errorf("last words = %q, want %q", o.got[1].LastWords, reply)
+		}
+		if o.got[1].BGFooter {
+			t.Error("idle without a footer has BGFooter set")
 		}
 	})
 
