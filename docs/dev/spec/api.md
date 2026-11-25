@@ -1,0 +1,62 @@
+# HTTP API and SSE
+
+Status: implemented in `internal/api` (server), `internal/api/wire` (JSON types) and `internal/api/client` (Go
+client for the CLI). Direction: [concept](../concept.md), owner UI. Rules: [guidelines](../guidelines.md), HTTP.
+
+## Conventions
+
+- `net/http` with the Go 1.22 mux patterns (`"GET /api/v1/health"`); no framework. Paths start with `/api/v1/`.
+- Bodies are JSON. Every non-2xx answer is `{"error": {"code": "<code>", "message": "<what, and the fix>"}}` with
+  one of the codes in `wire`: `not_found`, `unauthorized`, `forbidden`, `bad_request`, `too_large`, `internal`.
+  An unknown path is a JSON 404 too.
+- An unreadable store is a 500 `internal`, never an empty answer.
+
+## Owner token
+
+- `api.New` refuses an empty owner token (`ErrNoOwnerToken`): command endpoints fail closed.
+- Every route whose method is not GET or HEAD is a command endpoint. `New` wraps it; a route cannot opt out.
+  - No or wrong `Authorization: Bearer <token>`: 401 `unauthorized`. The token is compared in constant time and is
+    never logged.
+  - A correct token on a request that carries webhook headers (`X-GitHub-*`, `X-Gitea-*`, `X-Gogs-*`,
+    `X-Gitlab-*`, `X-Hub-Signature*`): 403 `forbidden`. A webhook proves itself by its signature on its own intake
+    route, never as the owner.
+  - The body is capped at `api.MaxBodyBytes` (1 MiB).
+- GET endpoints need no token: the API is meant for a loopback or tailnet listener.
+
+## Route registry
+
+A file adds its endpoints with `api.RegisterBuiltin(fn)` from `init`; `fn` calls `Registry.Add(api.Route{Pattern,
+Handler})`. `api.RegisterBuiltins(reg)` applies every such function, and `api.New` serves the registry. Handlers get
+the `*api.Server` (`Source()`, `Clock()`, `Logger()`). Other strands add endpoints in their own files and touch
+none of the existing ones.
+
+## Endpoints
+
+| Route | Answer |
+|---|---|
+| `GET /api/v1/health` | `{"status": "ok"}` |
+| `GET /api/v1/snapshot` | `wire.Snapshot`: open tasks, their runs, open questions, active holds, the projects they name, and `last_seq` |
+| `GET /api/v1/events` | server-sent events, see below |
+
+The snapshot never carries a run's report token. `last_seq` is read before the rest, so a client that opens the
+stream with `after=<last_seq>` sees every later change at least once.
+
+## Event stream
+
+- `GET /api/v1/events?after=<seq>` (or the `Last-Event-ID` header; `after` wins) streams the event log from the
+  event after `seq`, then each new one. No cursor means the whole log. A bad cursor is a 400.
+- One SSE event per log entry: `id: <seq>`, `event: <type>` (a `model.EventType`) and `data:` the `wire.Event` JSON.
+- The handler takes `Store.Changed()` before it reads, then waits on that channel, the request context and a
+  keep-alive timer; nothing polls. `Store.Changed` closes after each committed `Transition`.
+- An idle stream gets `: keepalive` every `api.KeepAliveEvery` (25 s, from the injected clock).
+
+## Go client
+
+`client.New(baseURL, token, httpClient)`: `Health`, `Snapshot`, `Events(ctx, after, ready, fn)` and `Post(ctx, path,
+body, out)` for the typed calls other strands add. A failed call is a `*client.Error` (`errors.As`).
+
+## Tests
+
+`internal/api/api_test.go` (httptest, real SQLite): POST without a token 401 and with it 200; a webhook-shaped call
+refused; a route registered from its own function; the snapshot golden file (`go test ./internal/api -update`);
+SSE after a store write, waiting on a channel; resume by cursor; keep-alive from the manual clock.

@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -207,12 +208,13 @@ func TestWebhookDisguisedCommandCallIsRefused(t *testing.T) {
 func TestRouteFromOwnFileIsServed(t *testing.T) {
 	e := newEnv(t, registerCalls(new(int)))
 	got := e.reg.Patterns()
-	want := []string{
-		"GET /api/v1/events", "GET /api/v1/health", "GET /api/v1/snapshot",
-		"GET /api/v1/test/open", "POST /api/v1/test/echo",
+	for _, want := range []string{"GET /api/v1/test/open", "POST /api/v1/test/echo", "GET /api/v1/health"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("pattern %q is not registered; have %v", want, got)
+		}
 	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("registered patterns (-want +got):\n%s", diff)
+	if resp := e.do(t, http.MethodGet, "/api/v1/test/open", "", nil); resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /api/v1/test/open status = %d, want 200", resp.StatusCode)
 	}
 }
 
