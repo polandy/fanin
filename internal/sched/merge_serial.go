@@ -156,8 +156,9 @@ func (s *Scheduler) mergeOnce(ctx context.Context, j mergeJob) mergeEnd {
 	stop := s.renewLock(ctx, j, req)
 	defer stop()
 	end := s.mergeLocked(ctx, j, waited || j.regate)
-	if err := s.d.Store.ReleaseLock(ctx, j.p.Name, req.Holder); err != nil && ctx.Err() == nil && end.err == nil {
-		end.err = fmt.Errorf("release the merge lock of %s: %w", j.p.Name, err)
+	if err := s.d.Store.ReleaseLock(ctx, j.p.Name, req.Holder); err != nil && ctx.Err() == nil {
+		s.logFor(j.p.Name, j.run.TaskID, j.run.ID).WarnContext(ctx,
+			"sched: merge lock not released; it frees when the lease ends", "pr", j.ref(), "err", err)
 	}
 	return end
 }

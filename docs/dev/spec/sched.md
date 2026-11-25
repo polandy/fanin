@@ -153,7 +153,7 @@ runs at a time:
 - The merge takes the project lock (`store.AcquireLock`, holder the task ID, lease `merge.lock_lease`) and renews it
   every half lease. A held lock is waited for up to `merge.lock_wait`; a longer wait goes to the owner as
   `ERROR #<n>: merge lock of project <p> held for over <wait> by <holder>`. An expired lease of a dead holder is
-  taken over (MG-3).
+  taken over (MG-3). A lock lost to an expired lease is only logged, on renew and on release: the merge goes on.
 - Under the lock it checks the holds (`store.MergeHold`). A held merge logs `merge_held` with `paused #<n>: merge
   held (<kind> hold <id>: <reason>) (worker <agent> still open)` and waits; a `hold_lifted` of the project starts
   every held merge again. The holds are checked only under the lock, so a merge that waits for the lock is not
