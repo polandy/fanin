@@ -59,16 +59,16 @@ flowchart LR
 
 ## Status
 
-Concept. The design decisions are written down; the implementation follows the plan below, each step on its own
-and reversible.
+The plan below is built. The bash loops are retired project by project, following the
+[cutover runbook](docs/dev/runbooks/cutover.md).
 
 - [x] Behaviour of the existing bash orchestrator written down as acceptance scenarios
-- [ ] Config as validated YAML
+- [x] Config as validated YAML
 - [x] Shadow store: `fanind` follows the old state and fills SQLite
-- [ ] Owner channel: questions answered through CLI, MCP and UI
+- [x] Owner channel: questions answered through CLI, MCP and UI
 - [x] New task shapes: analysis tasks end to end (alerts follow)
-- [ ] The PR path moves to fanin, project by project
-- [ ] The bash loops are retired
+- [x] The PR path moves to fanin, project by project
+- [x] The bash loops are retired
 
 The full plan is in [`docs/dev/concept.md`](docs/dev/concept.md#migration).
 
@@ -76,6 +76,7 @@ The full plan is in [`docs/dev/concept.md`](docs/dev/concept.md#migration).
 
 - [Concept and decisions](docs/dev/concept.md)
 - [Acceptance scenarios](docs/dev/scenarios.md)
+- [Cutover runbook](docs/dev/runbooks/cutover.md)
 - [Coding guidelines](docs/dev/guidelines.md)
 - [Configuration](docs/user/configuration.md) and [operation](docs/user/operation.md)
 - [Brand files](docs/brand/README.md)

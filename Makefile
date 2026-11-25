@@ -74,6 +74,6 @@ private-check-history:
 schema-check:
 	go run ./internal/config/cmd/schemacheck config/examples
 
-# Report mode until the tests exist; switch to --strict once every scenario has one.
+# Every scenario has a test or an entry in scripts/scenario-exceptions.txt.
 scenario-check:
-	scripts/check-scenarios.sh --report
+	scripts/check-scenarios.sh --strict
