@@ -16,7 +16,7 @@ Direction: [concept](../concept.md) (Configuration, C-CONFIG). Scenarios: ST-4, 
 | `triggers.yaml` | `triggers.schema.json` | no | nothing yet: only an empty mapping validates |
 | `projects/<name>.yaml` | `project.schema.json` | no | one project; the file name is the project name |
 
-A missing optional file counts as empty, but every reference must resolve: a project names a forge, so
+A project file must end in `.yaml`; a `.yml` one is an error. A missing optional file counts as empty, but every reference must resolve: a project names a forge, so
 `forges.yaml` is needed as soon as there is a project. Any other `*.yaml` or `*.yml` beside them is an error.
 Projects are listed (and `fanin status` shows them) in file-name order.
 

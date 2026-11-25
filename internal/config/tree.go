@@ -104,10 +104,14 @@ func (t *tree) readProjects() error {
 		return fmt.Errorf("%w: %s: %w", ErrRead, t.path(dirProjects), err)
 	}
 	for _, e := range entries {
+		path := filepath.Join(t.path(dirProjects), e.Name())
+		if !e.IsDir() && filepath.Ext(e.Name()) == extYML {
+			return fmt.Errorf("%w: %s: a project file ends in %s (rule %s); rename it", ErrInvalid, path, extYAML,
+				ruleFileKnown)
+		}
 		if e.IsDir() || filepath.Ext(e.Name()) != extYAML {
 			continue
 		}
-		path := filepath.Join(t.path(dirProjects), e.Name())
 		if err := validateDoc(schemaName, projectName(path)); err != nil {
 			return fmt.Errorf("%w: %s: the file name gives the project name: %w; rename the file", ErrInvalid, path, err)
 		}
