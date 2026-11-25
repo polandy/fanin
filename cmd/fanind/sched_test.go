@@ -172,8 +172,11 @@ func seedLiveRun(t *testing.T, path string) {
 		if err := tx.SetTaskState(ctx, "b1", model.TaskRunning, "slot 1"); err != nil {
 			return err
 		}
-		return tx.CreateRun(ctx, model.Run{ID: "b1-run-1", TaskID: "b1", Number: 1, Slot: 1,
-			Worker: model.Worker{Agent: "b1-1", Workspace: "ws", Tab: "tab", Pane: "pane"}})
+		if err := tx.CreateRun(ctx, model.Run{ID: "b1-run-1", TaskID: "b1", Number: 1, Slot: 1,
+			Worker: model.Worker{Agent: "b1-1", Workspace: "ws", Tab: "tab", Pane: "pane"}}); err != nil {
+			return err
+		}
+		return tx.SetRunState(ctx, "b1-run-1", model.RunWorking, "started")
 	})
 	if err != nil {
 		t.Fatal(err)

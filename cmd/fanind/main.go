@@ -51,6 +51,7 @@ var (
 	errNoConfig     = errors.New("fanind: no config")
 	errNoOwnerToken = errors.New("fanind: no owner token")
 	errListen       = errors.New("fanind: cannot listen")
+	errSchedStopped = errors.New("fanind: scheduler stopped")
 )
 
 // deps are the seams of run; main passes the real ones.
@@ -79,8 +80,20 @@ func main() {
 	}
 }
 
-// run serves until ctx ends; a stop by ctx is a clean exit, never a task failure.
+// run serves until ctx ends or the scheduler stops on an error; a stop by ctx is a clean exit, never a task
+// failure.
 func run(ctx context.Context, args []string, d deps) error {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	err := serveDaemon(ctx, cancel, args, d)
+	if cause := context.Cause(ctx); errors.Is(cause, errSchedStopped) {
+		return cause
+	}
+	return err
+}
+
+// serveDaemon is run with the cancel that the scheduler calls with its error.
+func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []string, d deps) error {
 	fs := flag.NewFlagSet("fanind", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	cfgPath := fs.String("config", d.getenv(envConfig), "path to the config directory ($"+envConfig+")")
@@ -110,7 +123,7 @@ func run(ctx context.Context, args []string, d deps) error {
 			log.Error("fanind: close the store", "err", err)
 		}
 	}()
-	stopSched, err := startSched(ctx, cfg, st, log, d)
+	stopSched, err := startSched(ctx, cancel, cfg, st, log, d)
 	if err != nil {
 		return fmt.Errorf("fanind: %w; fix loop in the project files of %s", err, *cfgPath)
 	}
@@ -158,8 +171,10 @@ func fanin(cfg config.Config) map[string]bool {
 	return out
 }
 
-// startSched runs the scheduler when a project has loop: fanin; the returned stop waits for it.
-func startSched(ctx context.Context, cfg config.Config, st *store.Store, log *slog.Logger, d deps) (func(), error) {
+// startSched runs the scheduler when a project has loop: fanin; an error of the scheduler stops fanind through
+// cancel, and the returned stop waits for it.
+func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.Config, st *store.Store,
+	log *slog.Logger, d deps) (func(), error) {
 	if len(fanin(cfg)) == 0 {
 		return func() {}, nil
 	}
@@ -175,17 +190,17 @@ func startSched(ctx context.Context, cfg config.Config, st *store.Store, log *sl
 	if err != nil {
 		return nil, err
 	}
-	loopCtx, cancel := context.WithCancel(ctx)
+	loopCtx, stop := context.WithCancel(ctx)
 	done := make(chan struct{})
 	safego.Go(loopCtx, log, func(c context.Context) {
 		defer close(done)
 		if err := s.Run(c); err != nil {
-			log.Error("fanind: scheduler stopped", "err", err)
+			cancel(fmt.Errorf("%w: %w; fix the store, then start fanind again", errSchedStopped, err))
 		}
 	})
 	log.Info("fanind: scheduler running", "projects", s.Projects())
 	return func() {
-		cancel()
+		stop()
 		<-done
 	}, nil
 }

@@ -19,7 +19,8 @@ the user-facing reference in [`docs/user/configuration.md`](../../user/configura
    refusing to start, and keeps importing it until the stop ([shadow](shadow.md)).
 3. When a project has `loop: fanin`, runs the [scheduler](sched.md) with the herdr runtime and the headless
    picker. A `loop: fanin` project on a remote host refuses to start. The per-run files go to `runs/` next to
-   the store. The shadow import skips these projects.
+   the store. The shadow import skips these projects. A scheduler that stops on an error (an unreadable
+   store while it resumes) stops fanind with `fanind: scheduler stopped` and exit 1.
 4. Serves the API (`api.New`) with the configured project order.
 5. The root context comes from `signal.NotifyContext` (SIGINT, SIGTERM). On stop it cancels every open request,
    so event streams end, then waits up to `ShutdownGrace` (10 s, on the injected clock) for them, stops the
