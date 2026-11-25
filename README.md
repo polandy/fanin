@@ -66,7 +66,7 @@ and reversible.
 - [ ] Config as validated YAML
 - [x] Shadow store: `fanind` follows the old state and fills SQLite
 - [ ] Owner channel: questions answered through CLI, MCP and UI
-- [ ] New task shapes (analysis, alerts)
+- [x] New task shapes: analysis tasks end to end (alerts follow)
 - [ ] The PR path moves to fanin, project by project
 - [ ] The bash loops are retired
 

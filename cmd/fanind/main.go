@@ -123,7 +123,16 @@ func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []str
 			log.Error("fanind: close the store", "err", err)
 		}
 	}()
-	stopSched, err := startSched(ctx, cancel, cfg, st, log, d)
+	host, err := os.Hostname()
+	if err != nil {
+		log.Warn("fanind: hostname unreadable; notes are prefixed with local", "err", err)
+		host = config.HostLocal
+	}
+	notifier, err := notify.New(cfg.Notify, exec.Runner{}, host, log)
+	if err != nil {
+		return fmt.Errorf("fanind: %w; fix notify.kind in fanin.yaml of %s", err, *cfgPath)
+	}
+	stopSched, err := startSched(ctx, cancel, cfg, st, notifier, log, d)
 	if err != nil {
 		return fmt.Errorf("fanind: %w; fix loop in the project files of %s", err, *cfgPath)
 	}
@@ -136,15 +145,6 @@ func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []str
 		defer stop()
 	}
 	svc := owner.New(st, owner.NoDeliverer{}, log)
-	host, err := os.Hostname()
-	if err != nil {
-		log.Warn("fanind: hostname unreadable; notes are prefixed with local", "err", err)
-		host = config.HostLocal
-	}
-	notifier, err := notify.New(cfg.Notify, exec.Runner{}, host, log)
-	if err != nil {
-		return fmt.Errorf("fanind: %w; fix notify.kind in fanin.yaml of %s", err, *cfgPath)
-	}
 	svc.SetNotifier(notifier)
 	reg := api.NewRegistry()
 	api.RegisterBuiltins(reg)
@@ -174,7 +174,7 @@ func fanin(cfg config.Config) map[string]bool {
 // startSched runs the scheduler when a project has loop: fanin; an error of the scheduler stops fanind through
 // cancel, and the returned stop waits for it.
 func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.Config, st *store.Store,
-	log *slog.Logger, d deps) (func(), error) {
+	notifier notify.Notifier, log *slog.Logger, d deps) (func(), error) {
 	if len(fanin(cfg)) == 0 {
 		return func() {}, nil
 	}
@@ -186,8 +186,8 @@ func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.
 	}
 	rt, pk := workers(cfg, log)
 	s, err := sched.New(sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
-		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}},
-		Files:    sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}})
+		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier,
+		Files: sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}})
 	if err != nil {
 		return nil, err
 	}

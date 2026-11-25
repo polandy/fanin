@@ -44,6 +44,8 @@ type Fake struct {
 type rule struct {
 	argv    []string
 	answers []Answer
+	// prefix matches every argv that starts with argv.
+	prefix bool
 }
 
 // New returns an empty Bin in a fresh temp dir; Install puts it on PATH.
@@ -71,6 +73,13 @@ func (f *Fake) On(argv []string, answers ...Answer) *Fake {
 		answers = []Answer{{}}
 	}
 	f.rules = append(f.rules, rule{argv: argv, answers: answers})
+	return f
+}
+
+// OnPrefix scripts the answers for every argv that starts with prefix, as On does for one exact argv.
+func (f *Fake) OnPrefix(prefix []string, answers ...Answer) *Fake {
+	f.On(prefix, answers...)
+	f.rules[len(f.rules)-1].prefix = true
 	return f
 }
 
@@ -182,7 +191,11 @@ func (f *Fake) script(dir string) string {
 	b.WriteString("case \"$k\" in\n")
 	for i, r := range f.rules {
 		counter := quote(filepath.Join(dir, fmt.Sprintf("%s.n%d", f.name, i)))
-		fmt.Fprintf(&b, "%s)\n", key(r.argv))
+		pat := key(r.argv)
+		if r.prefix {
+			pat += "*"
+		}
+		fmt.Fprintf(&b, "%s)\n", pat)
 		fmt.Fprintf(&b, "  n=0; [ -f %s ] && read -r n < %s\n  echo $((n + 1)) > %s\n", counter, counter, counter)
 		b.WriteString("  case \"$n\" in\n")
 		for j, a := range r.answers {

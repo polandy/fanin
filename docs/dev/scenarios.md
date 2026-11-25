@@ -901,8 +901,6 @@ These have no test and need one in fanin:
 
 - **dry-activate** (GT-8): only `firewall-diff` is tested.
 - **deploy-release** (DR-1, DR-2).
-- **The analysis paths of loop.sh**: ISSUE and the docs-only analysis PR (FP-3, GH-11) are covered only
-  indirectly.
 - **Spawn's tab title restore** after a resume.
 
 Write the tests for the failure paths of these first.

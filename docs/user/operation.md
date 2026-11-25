@@ -69,6 +69,8 @@ fanin task import batch.chain --project alpha                        # queue a c
 - `task add` takes `--task` or `--analyze`, never both, plus `--model`, `--worker` and `--after <id>` (repeatable). An
   unknown model or worker, `--worker opencode` for an analysis or a Gitea project, or an unknown `--after` task is a
   usage error (exit 2) and queues nothing.
+- An analysis on a `loop: fanin` project ends by its report: an issue or nothing ends it `done` and closes its
+  pane; blocked notifies you and keeps the pane; a PR is gated and waits for your `go`, nothing merges.
 - `task import` reads one `model|task` per line; `#` lines and blank lines are skipped but counted. Each task waits
   for the one before it. Importing a changed file again adds only the new lines.
 - `go` records the go as an `owner_go` event; a task outside its gates is refused.
