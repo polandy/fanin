@@ -16,6 +16,17 @@ or the address is taken.
 
 SIGINT or SIGTERM stops it: open requests end, the store is closed and the exit code is 0. A stop changes no task.
 
+### Following the bash orchestrator
+
+```sh
+fanind --config /path/to/config --shadow /path/to/orchestrator/state   # or FANIN_SHADOW=...
+```
+
+With `--shadow`, `fanind` reads the bash orchestrator's state directory (`<project>.md`, hold and merge-lock files)
+every 30 s and mirrors it into the store, so `fanin status` shows the bash state. It never writes to that
+directory. An unreadable directory or file stops the start with exit 1 and a message naming it; later failures are
+logged at `ERROR` and the next import tries again. Imported task IDs start with `shadow-`.
+
 ## fanin status
 
 ```sh
@@ -47,10 +58,19 @@ fanin hold lift h1             # lift a hold after the cause is fixed
 fanin pause alpha              # stop alpha before its next worker, once
 fanin resume alpha             # clear that pause
 fanin wait --owner             # block until something needs the owner; prints one event
+fanin task add --project alpha --task "fix the build" --model opus   # queue an owner task; prints its ID
+fanin task add --project alpha --analyze "why is CI slow?"           # queue an owner question
+fanin task list --project alpha  # open tasks, with their `after` dependencies
+fanin task import batch.chain --project alpha                        # queue a chain file
 ```
 
 - `answer` refuses free text on a numbered dialog and lists the options; nothing reaches the worker then. When
   the answer cannot be delivered, nothing is recorded and the question stays open.
+- `task add` takes `--task` or `--analyze`, never both, plus `--model`, `--worker` and `--after <id>` (repeatable). An
+  unknown model or worker, `--worker opencode` for an analysis or a Gitea project, or an unknown `--after` task is a
+  usage error (exit 2) and queues nothing.
+- `task import` reads one `model|task` per line; `#` lines and blank lines are skipped but counted. Each task waits
+  for the one before it. Importing a changed file again adds only the new lines.
 - `go` records the go as an `owner_go` event; a task outside its gates is refused.
 - `wait` prints `<seq> <type> <project> <task> <run>: <detail>`. `--after <seq>` starts after that event instead
   of waiting only for new ones, so a loop of `wait --after <last seq>` misses nothing.

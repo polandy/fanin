@@ -1,0 +1,1 @@
+Before you finish, call the MCP tool `fanin_report` once with your result: `done_pr` with `pr`, `pushed` or `committed` with `branch`, `issue` with `issue`, `nothing` or `blocked` with `text`. Then your final message must be exactly one line, nothing else:

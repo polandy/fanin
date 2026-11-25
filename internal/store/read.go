@@ -10,7 +10,7 @@ import (
 )
 
 const taskColumns = `id, project, title, prompt, shape, state, owner_task, after_ids, owner_model, project_model,
-	picked_model, created_at, updated_at`
+	picked_model, created_at, updated_at, worker_kind`
 
 const runColumns = `id, task_id, number, slot, branch, token, fix_rounds, review_nudges, stalls, input_tokens,
 	output_tokens, total_tokens, state, result, started_at, ended_at`
@@ -24,7 +24,7 @@ func scanTask(sc scanner) (model.Task, error) {
 		ownerTask, created, upd int64
 	)
 	if err := sc.Scan(&id, &t.Project, &t.Title, &t.Prompt, &shape, &state, &ownerTask, &after, &t.OwnerModel,
-		&t.ProjectModel, &t.PickedModel, &created, &upd); err != nil {
+		&t.ProjectModel, &t.PickedModel, &created, &upd, &t.WorkerKind); err != nil {
 		return model.Task{}, err
 	}
 	t.ID = model.TaskID(id)
