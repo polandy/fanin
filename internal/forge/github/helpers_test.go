@@ -35,6 +35,7 @@ const (
 	completed     = "COMPLETED"
 	success       = "SUCCESS"
 	doneAt        = "2026-11-25T09:05:00Z"
+	reviewText    = "ready for this head"
 )
 
 var (
@@ -51,7 +52,7 @@ func prDoc() map[string]any {
 		"statusCheckRollup": []any{
 			checkRun("ci", completed, success, "2026-11-25T09:00:00Z", doneAt),
 			checkRun("lint", "IN_PROGRESS", "", "2026-11-25T09:01:00Z", "0001-01-01T00:00:00Z"),
-			commitStatus(reviewContext, success, keyStarted, "2026-11-25T09:06:00Z"),
+			withDescription(commitStatus(reviewContext, success, keyStarted, "2026-11-25T09:06:00Z"), reviewText),
 		},
 	}
 }
@@ -68,6 +69,12 @@ func commitStatus(context, state, timeKey, at string) map[string]any {
 	if timeKey != "" {
 		st[timeKey] = at
 	}
+	return st
+}
+
+// withDescription sets the description of a commit status.
+func withDescription(st map[string]any, text string) map[string]any {
+	st["description"] = text
 	return st
 }
 
