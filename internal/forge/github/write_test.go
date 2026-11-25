@@ -92,6 +92,14 @@ func TestPostStatus(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("unknown_state_is_rejected_before_gh", func(t *testing.T) {
+		c, _ := newClient(t)
+		bad := st
+		bad.State = "green"
+		if err := c.PostStatus(context.Background(), bad); !errors.Is(err, forge.ErrInvalidRequest) {
+			t.Errorf("err = %v, want ErrInvalidRequest", err)
+		}
+	})
 	t.Run("network_failure", func(t *testing.T) {
 		c, r := newClient(t)
 		r.Expect(base, testutil.Reply{ExitCode: 1, Stderr: netStderr})
