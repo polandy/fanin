@@ -32,6 +32,16 @@ const (
 	keyState   = "state"
 	keyMerged  = "merged"
 	keyStatus  = "status"
+
+	keyRef          = "ref"
+	keySHA          = "sha"
+	keyContext      = "context"
+	keyFilename     = "filename"
+	valOpen         = "open"
+	valClosed       = "closed"
+	valSuccess      = "success"
+	caseServerError = "server_error"
+	caseBrokenJSON  = "broken_json"
 )
 
 // fake is a Gitea API on httptest: routes by "METHOD path", records every call and request body.
@@ -123,8 +133,8 @@ func raw(code int, body string) http.HandlerFunc {
 func prDoc() map[string]any {
 	return map[string]any{
 		"number": number, "title": title, "html_url": "https://git.example.com/acme/widget/pulls/42",
-		keyState: "open", keyMerged: false, "mergeable": true,
-		"head": map[string]any{"ref": headBranch, "sha": headSHA}, "base": map[string]any{"ref": baseBranch, "sha": "000"},
+		keyState: valOpen, keyMerged: false, "mergeable": true,
+		"head": map[string]any{keyRef: headBranch, keySHA: headSHA}, "base": map[string]any{keyRef: baseBranch, keySHA: "000"},
 	}
 }
 
@@ -135,11 +145,11 @@ func prWith(key string, v any) map[string]any {
 }
 
 func status(context, state string) map[string]any {
-	return map[string]any{"context": context, keyStatus: state, "created_at": "2026-11-25T09:00:00Z", "updated_at": doneAt}
+	return map[string]any{keyContext: context, keyStatus: state, "created_at": "2026-11-25T09:00:00Z", "updated_at": doneAt}
 }
 
 func combined(statuses ...map[string]any) map[string]any {
-	return map[string]any{keyState: "success", "total_count": len(statuses), "statuses": statuses}
+	return map[string]any{keyState: valSuccess, "total_count": len(statuses), "statuses": statuses}
 }
 
 var _ forge.Forge = (*gitea.Client)(nil)

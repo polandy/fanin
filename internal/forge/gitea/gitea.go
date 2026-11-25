@@ -113,7 +113,11 @@ func (c *Client) send(ctx context.Context, op string, cl call) error {
 		// The transport error is not wrapped: it may quote the request.
 		return fmt.Errorf("%w: %s: %s", forge.ErrNetwork, op, c.token.Scrub(err.Error()))
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			c.log.DebugContext(ctx, "forge: gitea close answer", "op", op, "err", c.token.Scrub(err.Error()))
+		}
+	}()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, MaxBody+1))
 	if err != nil {
 		return fmt.Errorf("%w: %s: read answer: %s", forge.ErrNetwork, op, c.token.Scrub(err.Error()))

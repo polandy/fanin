@@ -8,6 +8,8 @@ import (
 	"github.com/polandy/fanin/internal/forge"
 )
 
+const hub, alpha = "hub", "alpha"
+
 // stubForge is a Forge that is never called; the resolver only hands it out.
 type stubForge struct {
 	forge.Forge
@@ -18,8 +20,8 @@ func newResolver(t *testing.T) (*forge.Resolver, *stubForge, *stubForge) {
 	t.Helper()
 	gh, gt := &stubForge{name: "github"}, &stubForge{name: "gitea"}
 	r, err := forge.NewResolver(
-		map[string]forge.Named{"hub": {Kind: forge.KindGitHub, Client: gh}, "tea": {Kind: forge.KindGitea, Client: gt}},
-		map[string]string{"alpha": "hub", "beta": "tea"})
+		map[string]forge.Named{hub: {Kind: forge.KindGitHub, Client: gh}, "tea": {Kind: forge.KindGitea, Client: gt}},
+		map[string]string{alpha: hub, "beta": "tea"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +31,7 @@ func newResolver(t *testing.T) (*forge.Resolver, *stubForge, *stubForge) {
 func TestResolver(t *testing.T) {
 	t.Run("GT-2_each_project_gets_its_forge_client", func(t *testing.T) {
 		r, gh, gt := newResolver(t)
-		for project, want := range map[string]*stubForge{"alpha": gh, "beta": gt} {
+		for project, want := range map[string]*stubForge{alpha: gh, "beta": gt} {
 			got, _, err := r.For(project)
 			if err != nil {
 				t.Fatal(err)
@@ -46,7 +48,7 @@ func TestResolver(t *testing.T) {
 
 	t.Run("GT-2_gitea_operation_on_a_github_project_is_refused", func(t *testing.T) {
 		r, _, _ := newResolver(t)
-		got, err := r.Require("alpha", forge.KindGitea)
+		got, err := r.Require(alpha, forge.KindGitea)
 		if !errors.Is(err, forge.ErrWrongForge) || got != nil {
 			t.Fatalf("Require(alpha, gitea) = %v, %v; want ErrWrongForge", got, err)
 		}
@@ -70,9 +72,9 @@ func TestResolver(t *testing.T) {
 		forges   map[string]forge.Named
 		projects map[string]string
 	}{
-		{"missing_forge", map[string]forge.Named{}, map[string]string{"alpha": "hub"}},
-		{"unknown_kind", map[string]forge.Named{"hub": {Kind: "gitlab", Client: &stubForge{}}}, nil},
-		{"nil_client", map[string]forge.Named{"hub": {Kind: forge.KindGitHub}}, nil},
+		{"missing_forge", map[string]forge.Named{}, map[string]string{alpha: hub}},
+		{"unknown_kind", map[string]forge.Named{hub: {Kind: "gitlab", Client: &stubForge{}}}, nil},
+		{"nil_client", map[string]forge.Named{hub: {Kind: forge.KindGitHub}}, nil},
 	} {
 		t.Run("bad_config_is_refused_"+tc.name, func(t *testing.T) {
 			if _, err := forge.NewResolver(tc.forges, tc.projects); !errors.Is(err, forge.ErrInvalidRequest) {

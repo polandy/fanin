@@ -15,7 +15,7 @@ import (
 const comparePath = "GET /api/v1/repos/acme/widget/compare/main...feat/widget"
 
 func commit(sha, message string) map[string]any {
-	return map[string]any{"sha": sha, "commit": map[string]any{"message": message}}
+	return map[string]any{keySHA: sha, "commit": map[string]any{"message": message}}
 }
 
 func squash(t *testing.T) forge.MergeRequest {
@@ -31,7 +31,7 @@ func squash(t *testing.T) forge.MergeRequest {
 func TestOpenBranch(t *testing.T) {
 	t.Run("GT-1_opens_titled_by_the_oldest_commit_listing_every_commit", func(t *testing.T) {
 		f := newFake(t)
-		f.on(listPath, reply(http.StatusOK, []map[string]any{prWith("head", map[string]any{"ref": "other", "sha": "1"})}))
+		f.on(listPath, reply(http.StatusOK, []map[string]any{prWith("head", map[string]any{keyRef: "other", keySHA: "1"})}))
 		f.on(comparePath, reply(http.StatusOK, map[string]any{"total_commits": 2, "commits": []map[string]any{
 			commit("222", "fix: handle the edge\n\nThe edge case.\n"),
 			commit("111", "feat: add the widget\n"),
@@ -77,8 +77,8 @@ func TestOpenBranch(t *testing.T) {
 		name string
 		h    http.HandlerFunc
 	}{
-		{"server_error", raw(http.StatusInternalServerError, "boom")},
-		{"broken_json", raw(http.StatusOK, `[{"number":`)},
+		{caseServerError, raw(http.StatusInternalServerError, "boom")},
+		{caseBrokenJSON, raw(http.StatusOK, `[{"number":`)},
 		{"unreadable_entry", reply(http.StatusOK, []map[string]any{prWith(keyState, "weird")})},
 	} {
 		t.Run("GT-1_unlistable_open_prs_are_an_error_never_a_second_pr_"+tc.name, func(t *testing.T) {
@@ -163,7 +163,7 @@ func TestMerge(t *testing.T) {
 
 	t.Run("MG-6_a_merged_pr_is_success_without_a_merge", func(t *testing.T) {
 		f := newFake(t)
-		d := prWith(keyState, "closed")
+		d := prWith(keyState, valClosed)
 		d[keyMerged] = true
 		f.on(pullPath, reply(http.StatusOK, d))
 		if err := f.client(t).SquashMerge(context.Background(), squash(t)); err != nil {
@@ -176,7 +176,7 @@ func TestMerge(t *testing.T) {
 
 	t.Run("a_closed_pr_is_not_open", func(t *testing.T) {
 		f := newFake(t)
-		f.on(pullPath, reply(http.StatusOK, prWith(keyState, "closed")))
+		f.on(pullPath, reply(http.StatusOK, prWith(keyState, valClosed)))
 		if err := f.client(t).SquashMerge(context.Background(), squash(t)); !errors.Is(err, forge.ErrNotOpen) {
 			t.Fatalf("err = %v, want ErrNotOpen", err)
 		}
@@ -184,7 +184,7 @@ func TestMerge(t *testing.T) {
 
 	t.Run("MG-6_a_view_without_head_branch_stops_before_the_merge", func(t *testing.T) {
 		f := newFake(t)
-		f.on(pullPath, reply(http.StatusOK, prWith("head", map[string]any{"sha": headSHA})))
+		f.on(pullPath, reply(http.StatusOK, prWith("head", map[string]any{keySHA: headSHA})))
 		if err := f.client(t).SquashMerge(context.Background(), squash(t)); !errors.Is(err, forge.ErrUnreadable) {
 			t.Fatalf("err = %v, want ErrUnreadable", err)
 		}
@@ -228,7 +228,7 @@ func TestPostStatus(t *testing.T) {
 		if err := f.client(t).PostStatus(context.Background(), st); err != nil {
 			t.Fatal(err)
 		}
-		want := map[string]any{keyState: "success", "context": review, "description": "approved",
+		want := map[string]any{keyState: valSuccess, keyContext: review, "description": "approved",
 			"target_url": "https://git.example.com/acme/widget/pulls/42#c1"}
 		if diff := cmp.Diff(want, f.body(path)); diff != "" {
 			t.Errorf("status body (-want +got):\n%s", diff)

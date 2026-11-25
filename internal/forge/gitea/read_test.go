@@ -17,7 +17,7 @@ func TestPR(t *testing.T) {
 	t.Run("reads_head_mergeable_and_statuses_with_the_token", func(t *testing.T) {
 		f := newFake(t)
 		f.on(pullPath, reply(http.StatusOK, prDoc()))
-		f.on(statusPath, reply(http.StatusOK, combined(status("ci", "success"), status(review, "pending"))))
+		f.on(statusPath, reply(http.StatusOK, combined(status("ci", valSuccess), status(review, "pending"))))
 		got, err := f.client(t).PR(context.Background(), repo, number)
 		if err != nil {
 			t.Fatal(err)
@@ -48,9 +48,9 @@ func TestPR(t *testing.T) {
 		want      forge.PRState
 		wantM     forge.Mergeable
 	}{
-		{"open_conflicting", "open", false, false, forge.StateOpen, forge.MergeableConflicted},
-		{"merged", "closed", true, false, forge.StateMerged, forge.MergeableConflicted},
-		{"closed", "closed", false, true, forge.StateClosed, forge.MergeableYes},
+		{"open_conflicting", valOpen, false, false, forge.StateOpen, forge.MergeableConflicted},
+		{"merged", valClosed, true, false, forge.StateMerged, forge.MergeableConflicted},
+		{valClosed, valClosed, false, true, forge.StateClosed, forge.MergeableYes},
 	} {
 		t.Run("state_"+tc.name, func(t *testing.T) {
 			d := prWith(keyState, tc.state)
@@ -91,7 +91,7 @@ func TestPR(t *testing.T) {
 	t.Run("statuses_are_read_page_by_page", func(t *testing.T) {
 		var first []map[string]any
 		for i := range 50 {
-			first = append(first, status(fmt.Sprintf("c%d", i), "success"))
+			first = append(first, status(fmt.Sprintf("c%d", i), valSuccess))
 		}
 		f := newFake(t)
 		f.on(pullPath, reply(http.StatusOK, prDoc()))
@@ -117,12 +117,12 @@ func TestPRUnreadable(t *testing.T) {
 		name string
 		h    http.HandlerFunc
 	}{
-		{"server_error", raw(http.StatusInternalServerError, "boom")},
-		{"broken_json", raw(http.StatusOK, `{"number":`)},
+		{caseServerError, raw(http.StatusInternalServerError, "boom")},
+		{caseBrokenJSON, raw(http.StatusOK, `{"number":`)},
 		{"trailing_data", raw(http.StatusOK, `{"number":42} {}`)},
 		{"other_number", reply(http.StatusOK, prWith("number", 7))},
 		{"unknown_state", reply(http.StatusOK, prWith(keyState, "draft"))},
-		{"no_head_branch", reply(http.StatusOK, prWith("head", map[string]any{"sha": headSHA}))},
+		{"no_head_branch", reply(http.StatusOK, prWith("head", map[string]any{keySHA: headSHA}))},
 		{"no_base", reply(http.StatusOK, prWith("base", map[string]any{}))},
 		{"no_mergeable", reply(http.StatusOK, prWith("mergeable", nil))},
 	} {
@@ -143,11 +143,11 @@ func TestPRUnreadable(t *testing.T) {
 		name string
 		h    http.HandlerFunc
 	}{
-		{"server_error", raw(http.StatusBadGateway, "bad gateway")},
-		{"broken_json", raw(http.StatusOK, `{"statuses":[`)},
+		{caseServerError, raw(http.StatusBadGateway, "bad gateway")},
+		{caseBrokenJSON, raw(http.StatusOK, `{"statuses":[`)},
 		{"unknown_state", reply(http.StatusOK, combined(status("ci", "green")))},
-		{"no_context", reply(http.StatusOK, combined(status("", "success")))},
-		{"bad_time", reply(http.StatusOK, combined(map[string]any{"context": "ci", keyStatus: "success", "updated_at": "soon"}))},
+		{"no_context", reply(http.StatusOK, combined(status("", valSuccess)))},
+		{"bad_time", reply(http.StatusOK, combined(map[string]any{keyContext: "ci", keyStatus: valSuccess, "updated_at": "soon"}))},
 	} {
 		t.Run("GT-6_status_unreadable_is_checks_unreadable_never_green_"+tc.name, func(t *testing.T) {
 			f := newFake(t)
@@ -188,12 +188,12 @@ func TestFiles(t *testing.T) {
 	t.Run("reads_every_page", func(t *testing.T) {
 		var first []map[string]any
 		for i := range 50 {
-			first = append(first, map[string]any{"filename": fmt.Sprintf("docs/f%d.md", i)})
+			first = append(first, map[string]any{keyFilename: fmt.Sprintf("docs/f%d.md", i)})
 		}
 		f := newFake(t)
 		f.on(filesPath, func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Query().Get("page") == "2" {
-				reply(http.StatusOK, []map[string]any{{"filename": "main.go"}})(w, r)
+				reply(http.StatusOK, []map[string]any{{keyFilename: "main.go"}})(w, r)
 				return
 			}
 			reply(http.StatusOK, first)(w, r)
@@ -213,8 +213,8 @@ func TestFiles(t *testing.T) {
 		want error
 	}{
 		{"server_unavailable", raw(http.StatusServiceUnavailable, "down"), forge.ErrNetwork},
-		{"broken_json", raw(http.StatusOK, `[{"filename":`), forge.ErrUnreadable},
-		{"empty_filename", reply(http.StatusOK, []map[string]any{{"filename": ""}}), forge.ErrUnreadable},
+		{caseBrokenJSON, raw(http.StatusOK, `[{keyFilename:`), forge.ErrUnreadable},
+		{"empty_filename", reply(http.StatusOK, []map[string]any{{keyFilename: ""}}), forge.ErrUnreadable},
 	} {
 		t.Run("GT-6_files_unreadable_is_an_error_"+tc.name, func(t *testing.T) {
 			f := newFake(t)
@@ -229,7 +229,7 @@ func TestFiles(t *testing.T) {
 	t.Run("endless_pages_are_an_error_not_a_truncated_list", func(t *testing.T) {
 		var page []map[string]any
 		for i := range 50 {
-			page = append(page, map[string]any{"filename": fmt.Sprintf("f%d", i)})
+			page = append(page, map[string]any{keyFilename: fmt.Sprintf("f%d", i)})
 		}
 		f := newFake(t)
 		f.on(filesPath, reply(http.StatusOK, page))
@@ -243,7 +243,7 @@ func TestListOpen(t *testing.T) {
 	t.Run("lists_open_prs_without_statuses", func(t *testing.T) {
 		f := newFake(t)
 		f.on(listPath, func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Query().Get(keyState) != "open" {
+			if r.URL.Query().Get(keyState) != valOpen {
 				t.Errorf("state query %q, want open", r.URL.Query().Get(keyState))
 			}
 			reply(http.StatusOK, []map[string]any{prDoc()})(w, r)

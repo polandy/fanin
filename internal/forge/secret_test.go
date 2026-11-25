@@ -35,7 +35,7 @@ func TestSecret(t *testing.T) {
 		log.Info("text", "dump", fmt.Sprintf("%+v", d))
 		outs := map[string]string{
 			"%v": fmt.Sprintf("%v", d), "%+v": fmt.Sprintf("%+v", d), "%#v": fmt.Sprintf("%#v", d),
-			"%s": fmt.Sprintf("%s", d.Token), "%q": fmt.Sprintf("%q", d.Token), "json": string(js), "slog": logs.String(),
+			"String": d.Token.String(), "%q": fmt.Sprintf("%q", d.Token), "json": string(js), "slog": logs.String(),
 		}
 		for form, out := range outs {
 			if strings.Contains(out, giteaToken) {
