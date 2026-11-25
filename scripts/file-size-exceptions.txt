@@ -1,0 +1,1 @@
+# Non-test .go files allowed above the line limit, one repo path per line. The list only shrinks.
