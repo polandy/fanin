@@ -52,6 +52,13 @@ fanin wait --owner             # block until something needs the owner; prints o
 - `wait` prints `<seq> <type> <project> <task> <run>: <detail>`. `--after <seq>` starts after that event instead
   of waiting only for new ones, so a loop of `wait --after <last seq>` misses nothing.
 
+## Web UI
+
+Open `http://<listen address>/ui/` in a browser. The inbox lists open owner questions and answers them with one
+click, the board shows each project's done, next, waiting, hold and decision tasks with a Lift button for holds, and
+the hosts view lists the workers per host (an unreachable host is one warning line). The page updates live. Commands
+ask for the owner token once per tab and keep it in that tab only.
+
 ## Owner MCP server
 
 `fanin mcp` serves the owner tools over stdio, so an agent session answers questions without a shell. Register it
