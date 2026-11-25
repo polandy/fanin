@@ -126,6 +126,12 @@ click, the board shows each project's done, next, waiting, hold and decision tas
 the hosts view lists the workers per host (an unreachable host is one warning line). The page updates live. Commands
 ask for the owner token once per tab and keep it in that tab only.
 
+Reading needs no token: every `GET` (the UI, `/api/v1/snapshot`, `events`, `questions`, `tasks`, `wait`,
+`/metrics`) answers anyone who reaches `listen`, with every task, question, hold and event detail. Commands need
+the owner token, reports the run token and webhooks their signature. To open the UI in the LAN, set `listen` to the
+host's LAN address (workers then reach the daemon there too) or put a reverse proxy in front; serve the proxy over
+HTTPS, since the UI sends the owner token with every command.
+
 ## Owner MCP server
 
 `fanin mcp` serves the owner tools over stdio, so an agent session answers questions without a shell. Register it
