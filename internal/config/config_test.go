@@ -100,3 +100,15 @@ func TestLoadUnreadableFileIsErrRead(t *testing.T) {
 		t.Fatalf("Load: %v, want ErrRead", err)
 	}
 }
+
+func TestLoadRelativeConfigPathGivesAnAbsoluteStore(t *testing.T) {
+	path := write(t, valid)
+	t.Chdir(filepath.Dir(path))
+	got, err := Load(filepath.Base(path))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if want := filepath.Join(filepath.Dir(path), "data", "fanin.db"); got.Store != want {
+		t.Errorf("Store = %q, want %q", got.Store, want)
+	}
+}
