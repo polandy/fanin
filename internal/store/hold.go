@@ -82,6 +82,16 @@ func (s *Store) Holds(ctx context.Context, project string) ([]model.Hold, error)
 	return scanAll(rows, scanHold)
 }
 
+// AllHolds returns the active holds of every project, oldest first.
+func (s *Store) AllHolds(ctx context.Context) ([]model.Hold, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+holdColumns+` FROM holds WHERE lifted_at = 0
+		ORDER BY created_at, id`)
+	if err != nil {
+		return nil, fmt.Errorf("store: read active holds: %w", err)
+	}
+	return scanAll(rows, scanHold)
+}
+
 // MergeHold returns the oldest active hold that stops task from merging: any merge hold, and a ci hold unless task
 // is its fix task. ok is false when nothing stops the merge (see SCENARIOS MG-4, MG-8).
 func (s *Store) MergeHold(ctx context.Context, project string, task model.TaskID) (hold model.Hold, ok bool,

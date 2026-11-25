@@ -44,6 +44,7 @@ type Store struct {
 
 	mu       sync.Mutex
 	released chan struct{}
+	changed  chan struct{}
 	// waiting is called each time WaitLock blocks; tests use it as their signal.
 	waiting func()
 }
@@ -65,7 +66,7 @@ func open(ctx context.Context, path string, clk clock.Clock, migrations fs.FS) (
 	}
 	// One connection: the store is the only writer, and SQLite serialises writers anyway.
 	db.SetMaxOpenConns(1)
-	s := &Store{db: db, clock: clk, released: make(chan struct{}), waiting: func() {}}
+	s := &Store{db: db, clock: clk, released: make(chan struct{}), changed: make(chan struct{}), waiting: func() {}}
 	if err := s.init(ctx, path, migrations); err != nil {
 		return nil, errors.Join(err, db.Close())
 	}

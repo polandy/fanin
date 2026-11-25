@@ -152,3 +152,14 @@ func (s *Store) OpenTasks(ctx context.Context) ([]model.Task, error) {
 	}
 	return scanAll(rows, scanTask)
 }
+
+// EventsAfter returns up to limit events with a sequence number above seq, in append order.
+func (s *Store) EventsAfter(ctx context.Context, seq int64, limit int) ([]model.Event, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT seq, type, project, task_id, run_id, at, detail FROM events WHERE seq > ? ORDER BY seq LIMIT ?`,
+		seq, limit)
+	if err != nil {
+		return nil, fmt.Errorf("store: read events after %d: %w", seq, err)
+	}
+	return scanAll(rows, scanEvent)
+}

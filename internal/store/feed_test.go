@@ -1,8 +1,8 @@
 package store
 
 import (
-	"errors"
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
