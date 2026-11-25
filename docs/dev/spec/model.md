@@ -14,7 +14,7 @@ fanin's domain types follow OpenAI's Symphony SPEC, pinned at commit
 | `Task.After` | §4.1.1 `blocked_by` | Hard dependencies: a task is dispatched only after every listed task is `done` (SCENARIOS CH-1) |
 | `Task.Shape` (`pr`, `analysis`, `decision`) | — | **fanin**: how a task ends (a PR, a report, an owner decision) |
 | `Task.OwnerTask` | — | **fanin**: a task the owner named; its project loop ends after its first merge (SCENARIOS PK-6) |
-| `Task.Model()` | §5.3.6 `codex.command` | Owner model, else project model, else picked model (SCENARIOS PK-5). Worker kinds without a model choice (opencode) ignore it in the runtime adapter |
+| `Task.Model()` | — | Owner model, else project model, else picked model (SCENARIOS PK-5); **fanin**. Worker kinds without a model choice (opencode) ignore it in the runtime adapter |
 | `Run` | §4.1.5 Run Attempt | `Number` counts from 1 (the SPEC's `attempt` is `null` for the first run) |
 | `Run.Slot` | §8.3 concurrency slot | Anonymous slot per project and host (concept C-SLOTS) |
 | `Run.Token` | — | **fanin**: the run's report token; a `fanin_report` counts only with the current run's token. Prints and logs as `[redacted]` |
