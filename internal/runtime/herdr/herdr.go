@@ -120,7 +120,7 @@ func (r *Runtime) Start(ctx context.Context, spec runtime.RunSpec) (runtime.RunH
 	if err := validate(spec); err != nil {
 		return runtime.RunHandle{}, err
 	}
-	h := runtime.RunHandle{Host: spec.Host, Agent: spec.Agent}
+	h := runtime.RunHandle{TaskID: spec.TaskID, RunID: spec.RunID, Project: spec.Project, Host: spec.Host, Agent: spec.Agent}
 	var err error
 	if h.Workspace, err = r.workspace(ctx, spec); err != nil {
 		return h, err

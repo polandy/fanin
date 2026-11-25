@@ -88,7 +88,9 @@ func (r *Runtime) enter(ctx context.Context, h runtime.RunHandle) error {
 	return nil
 }
 
-func promptKey(h runtime.RunHandle) string { return h.Host + "/" + h.Agent }
+func promptKey(h runtime.RunHandle) string { return h.Host + promptKeySep + h.Agent }
+
+const promptKeySep = "/"
 
 // notePrompt records that fanin just sent input to h's agent.
 func (r *Runtime) notePrompt(h runtime.RunHandle) {

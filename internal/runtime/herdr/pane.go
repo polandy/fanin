@@ -31,6 +31,7 @@ const (
 	frameChars    = " │┃"
 	shellWord     = "shell"
 	optionSep     = " / "
+	ellipsis      = "…"
 )
 
 var (
@@ -155,7 +156,7 @@ func fingerprint(text string) string {
 	var keep []string
 	for _, l := range lines(text) {
 		t := strings.TrimSpace(l)
-		if strings.Contains(t, statusLine) || (t != "" && strings.ContainsRune(spinnerGlyphs, []rune(t)[0]) && strings.Contains(t, "…")) {
+		if strings.Contains(t, statusLine) || (t != "" && strings.ContainsRune(spinnerGlyphs, []rune(t)[0]) && strings.Contains(t, ellipsis)) {
 			continue
 		}
 		keep = append(keep, volatile.ReplaceAllString(l, ""))

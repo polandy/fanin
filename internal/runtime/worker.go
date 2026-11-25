@@ -63,6 +63,10 @@ func (s RunSpec) SessionName() string {
 
 // RunHandle names a started run's agent and where it lives.
 type RunHandle struct {
+	// TaskID, RunID and Project are for logs only.
+	TaskID    model.TaskID
+	RunID     model.RunID
+	Project   string
 	Host      string
 	Agent     string
 	Workspace string

@@ -14,7 +14,7 @@ adapter. Every herdr call goes through `runtime.Runner`, every wait through the 
 
 `RunSpec` carries the task and run IDs (for logs), the project label, host, worktree, agent name, short title, model, prompt and MCP config path.
 The session name is `<project> · <short title> · <agent>` (SP-1); the title is left out when empty. Agent names
-are slot names without a lane (C-SLOTS). `RunHandle` names host, agent, workspace, tab and pane.
+are slot names without a lane (C-SLOTS). `RunHandle` names host, agent, workspace, tab and pane, plus the task and run IDs and the project for logs.
 
 Errors are sentinels in `internal/runtime`, matched with `errors.Is`: `ErrInvalidSpec`, `ErrOddAnswer`,
 `ErrStartFailed`, `ErrAgentTaken`, `ErrTrustDialog`, `ErrPromptRefused`, `ErrNotWorking`, `ErrStatusUnknown`,

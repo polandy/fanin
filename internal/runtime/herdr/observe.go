@@ -144,8 +144,8 @@ func retry[T any](ctx context.Context, o *observation, what string, read func(co
 			return v, fmt.Errorf("%w: herdr %s for %s (pane %s) failed %d times; check herdr on the worker host: %w",
 				runtime.ErrUnreachable, what, o.h.Agent, o.h.Pane, attempt+1, err)
 		}
-		o.r.logger.WarnContext(ctx, "herdr read failed, retrying", "agent", o.h.Agent, "pane", o.h.Pane,
-			"read", what, "attempt", attempt+1, "error", err)
+		o.r.logger.WarnContext(ctx, "herdr read failed, retrying", "task_id", o.h.TaskID, "run_id", o.h.RunID,
+			"project", o.h.Project, "agent", o.h.Agent, "pane", o.h.Pane, "read", what, "attempt", attempt+1, "error", err)
 		if werr := o.r.wait(ctx, o.r.cfg.ReadRetryInterval); werr != nil {
 			return v, werr
 		}

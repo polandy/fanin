@@ -28,8 +28,10 @@ const (
 var (
 	idleScreen = screen(reply, "", footer)
 	quietStall = herdr.DefaultStallSlice * herdr.DefaultStallSlices
-	polls      = func(d time.Duration) int { return int(d / poll) }
 )
+
+// polls is how many poll intervals fit into d.
+func polls(d time.Duration) int { return int(d / poll) }
 
 // workingPane is a claude pane at output step n whose spinner shows the given seconds.
 func workingPane(n, secs int) string {
