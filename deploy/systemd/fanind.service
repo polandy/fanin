@@ -1,0 +1,24 @@
+[Unit]
+Description=fanin daemon
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=fanin
+Group=fanin
+ExecStart=/usr/local/bin/fanind --config /etc/fanin
+# The owner token and the forge tokens, one NAME=value per line, readable by root only.
+EnvironmentFile=/etc/fanin/fanind.env
+# systemd starts units with a bare environment: tools fanind runs are found through this PATH.
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+StateDirectory=fanin
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
