@@ -11,6 +11,7 @@ import (
 	"github.com/polandy/fanin/internal/gate"
 )
 
+// see SCENARIOS GH-1, GH-2, GH-3, GH-4, FP-6
 func TestGitHubVerdicts(t *testing.T) {
 	ci := check("ci", forge.CheckSuccess, 0)
 	ready := review(forge.CheckSuccess, 5, "")
@@ -70,6 +71,7 @@ func TestGitHubVerdicts(t *testing.T) {
 	}
 }
 
+// see SCENARIOS GH-5
 func TestGitHubUnreadable(t *testing.T) {
 	for _, tc := range []struct {
 		name string

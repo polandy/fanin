@@ -11,6 +11,7 @@ import (
 	"github.com/polandy/fanin/internal/gate"
 )
 
+// see SCENARIOS GT-3, GT-4, GT-5, GT-6
 func TestGiteaVerdicts(t *testing.T) {
 	ci := check("ci", forge.CheckSuccess, 0)
 	withPR := func(edit func(*forge.PR)) forge.PR {
@@ -109,6 +110,7 @@ func TestGiteaUnreadable(t *testing.T) {
 	})
 }
 
+// see SCENARIOS GH-12
 func TestDocsOnly(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
