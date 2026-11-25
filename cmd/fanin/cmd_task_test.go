@@ -17,7 +17,10 @@ import (
 	"github.com/polandy/fanin/internal/store"
 )
 
-const modelOpus = "opus"
+const (
+	modelOpus = "opus"
+	flagTask  = "--task"
+)
 
 // startIntakeDaemon serves the API with intake over a real store; alpha is a GitHub project.
 func startIntakeDaemon(t *testing.T) (*store.Store, string) {
@@ -65,7 +68,7 @@ func queued(t *testing.T, st *store.Store) []model.Task {
 func TestTaskAddCommand(t *testing.T) {
 	t.Run("PK-6_owner_task_is_queued_and_printed", func(t *testing.T) {
 		st, url := startIntakeDaemon(t)
-		code, out, errOut := taskRun(t, url, "task", "add", "--project", projAlpha, "--task", "fix it", "--model", modelOpus)
+		code, out, errOut := taskRun(t, url, "task", "add", "--project", projAlpha, flagTask, "fix it", "--model", modelOpus)
 		ts := queued(t, st)
 		if code != cli.ExitOK || len(ts) != 1 || !ts[0].OwnerTask || out != string(ts[0].ID)+"\n" {
 			t.Errorf("exit %d, stdout %q, stderr %q, tasks %+v", code, out, errOut, ts)
@@ -80,11 +83,11 @@ func TestTaskAddCommand(t *testing.T) {
 		}
 	})
 	for name, args := range map[string][]string{
-		"task_with_analyze":      {"--task", "a", "--analyze", "b"},
+		"task_with_analyze":      {flagTask, "a", "--analyze", "b"},
 		"opencode_without_task":  {"--analyze", "b", "--worker", intake.KindOpencode},
-		"unknown_model":          {"--task", "a", "--model", "gpt-0"},
+		"unknown_model":          {flagTask, "a", "--model", "gpt-0"},
 		"neither_task_nor_query": {},
-		"no_project":             {"--task", "a"},
+		"no_project":             {flagTask, "a"},
 	} {
 		t.Run("PK-7_usage_error_"+name, func(t *testing.T) {
 			st, url := startIntakeDaemon(t)

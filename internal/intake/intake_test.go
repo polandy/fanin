@@ -17,10 +17,11 @@ import (
 )
 
 const (
-	projGH     = "alpha"
-	projGitea  = "beta"
-	kindClaude = "claude"
-	modelOpus  = "opus"
+	projGH      = "alpha"
+	projGitea   = "beta"
+	kindClaude  = "claude"
+	modelOpus   = "opus"
+	modelSonnet = "sonnet"
 )
 
 func testConfig() config.Config {
@@ -30,7 +31,7 @@ func testConfig() config.Config {
 			"gitea": {Kind: config.ForgeGitea},
 		},
 		WorkerKinds: map[string]config.WorkerKind{
-			kindClaude:   {Runtime: config.RuntimeHerdr, Models: []string{modelOpus, "sonnet"}, DefaultModel: "sonnet"},
+			kindClaude:   {Runtime: config.RuntimeHerdr, Models: []string{modelOpus, modelSonnet}, DefaultModel: modelSonnet},
 			KindOpencode: {Runtime: config.RuntimeHeadless},
 		},
 		Projects: []config.Project{
@@ -166,7 +167,7 @@ func testCH1ChainFileBecomesAfterChain(t *testing.T) {
 	if diff := cmp.Diff([]model.TaskID{"alpha-batch-2"}, ts[1].After); diff != "" || ts[0].After != nil {
 		t.Errorf("after chain (-want +got):\n%s", diff)
 	}
-	if !ts[0].OwnerTask || ts[0].OwnerModel != modelOpus || ts[1].OwnerModel != "sonnet" || ts[0].Prompt != "do one" {
+	if !ts[0].OwnerTask || ts[0].OwnerModel != modelOpus || ts[1].OwnerModel != modelSonnet || ts[0].Prompt != "do one" {
 		t.Errorf("tasks = %+v", ts)
 	}
 }
