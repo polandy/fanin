@@ -1,4 +1,4 @@
-// Package config loads and validates fanin.yaml (concept: Configuration; spec in docs/dev/spec/config.md).
+// Package config loads and validates fanin.yaml (concept: Configuration; spec in docs/dev/spec/daemon.md).
 package config
 
 import (
@@ -83,7 +83,11 @@ func Load(path string) (Config, error) {
 		seen[p.Name] = true
 	}
 	if !filepath.IsAbs(cfg.Store) {
-		cfg.Store = filepath.Join(filepath.Dir(path), cfg.Store)
+		abs, err := filepath.Abs(filepath.Join(filepath.Dir(path), cfg.Store))
+		if err != nil {
+			return Config{}, fmt.Errorf("%w: %s: store %q: %w; give store as an absolute path", ErrInvalid, path, cfg.Store, err)
+		}
+		cfg.Store = abs
 	}
 	if cfg.Log.Format == "" {
 		cfg.Log.Format = LogJSON

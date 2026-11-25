@@ -13,7 +13,7 @@ import (
 	"github.com/polandy/fanin/internal/model"
 )
 
-// Status words of a project line (see SCENARIOS ST-1 and docs/dev/spec/status.md).
+// Status words of a project line (see SCENARIOS ST-1 and docs/dev/spec/daemon.md).
 const (
 	loopActive  = "active"
 	loopIdle    = "idle"

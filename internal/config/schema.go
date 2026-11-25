@@ -62,6 +62,9 @@ func validateJSON(js []byte) error {
 		}
 		msgs = append(msgs, msg)
 	}
+	if len(msgs) == 0 {
+		return ve
+	}
 	return errors.New(strings.Join(msgs, "; "))
 }
 
