@@ -10,9 +10,8 @@ Do one project at a time, low-risk projects first. Every step has a check; do no
 ## Before you start
 
 - Where `fanind` runs: the scheduler only drives projects with `host: local`, so `fanind` runs on the host that has
-  the project's clone and the herdr server, as the user who owns that herdr server, the `gh` login and `claude`. In
-  the systemd unit set `User=` to that user and drop `ProtectHome`; `gh` cannot read a keyring token under systemd,
-  so put `GH_TOKEN` into the `EnvironmentFile`.
+  the project's clone and the herdr server, as the user who owns that herdr server, the `gh` login and `claude`
+  ([install](../../user/install.md#enable-the-unit)).
 - `fanind` runs with `--shadow` pointing at the bash state directory, and `fanin status` shows the project as the bash
   loop left it ([operation](../../user/operation.md#following-the-bash-orchestrator)). The importer reads merge
   locks from its own host's `/proc/locks`, so `--shadow` only works on the host where the bash loops run; a mounted
@@ -45,8 +44,8 @@ In the private repo:
 2. Leave the state file and `archive/` in place; they are the record for a rollback.
 3. Add `fanin/review` to the required checks of the base branch ([install](../../user/install.md#branch-protection)).
 
-Check: `fanin doctor` is clean, no `loop.sh` process for the project (`pgrep -af loop.sh`), its `.merge.lock` is not held, and `fanin status
-<project>` shows no lock held by the shadow importer after one import interval (30 s).
+Check: `fanin doctor` is clean, no `loop.sh` process for the project (`pgrep -af loop.sh`), its `.merge.lock` is not
+held, and `fanin status <project>` shows no lock held by the shadow importer after one import interval (30 s).
 
 ## 3. Prove one task end to end
 
