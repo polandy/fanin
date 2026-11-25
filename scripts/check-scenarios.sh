@@ -4,6 +4,8 @@
 # test names (TestX/GH-2_..., t.Run("GH-2_...")) and comments (see SCENARIOS GH-2).
 # --report lists missing IDs per section and exits 0; --strict exits 1 when any ID is missing.
 # An ID cited in a test that the scenarios file does not define fails in both modes.
+# SCENARIO_EXCEPTIONS (default scripts/scenario-exceptions.txt, only for docs/dev/scenarios.md) lists
+# "ID<TAB>reason" for behaviour that is retired or lives outside this repo; an excepted ID counts as covered. An exception for an unknown or tested ID fails.
 set -euo pipefail
 export LC_ALL=C
 
@@ -28,6 +30,23 @@ cited=$(find "$@" \( -name vendor -o -name testdata -o -name .git \) -prune -o -
 # Section lines: "<section>\t<ID>"; the section is the "## n. title" heading.
 defined=$(awk '/^## [0-9]+\. /{s=substr($0,4)} /^\*\*[A-Z]+-[0-9]+\*\*([ :].*)?$/{sub(/\*\*[ :].*$/,"**")} /^\*\*[A-Z]+-[0-9]+\*\*$/{gsub(/\*/,""); print s "\t" $0}' "$scenarios" | awk '!seen[$0]++')
 [ -n "$defined" ] || { echo "check-scenarios: no scenario IDs found in $scenarios" >&2; exit 2; }
+
+default_exc=; [ "$scenarios" = docs/dev/scenarios.md ] && default_exc=scripts/scenario-exceptions.txt
+exc_file=${SCENARIO_EXCEPTIONS:-$default_exc}
+excepted=""
+if [ -n "$exc_file" ] && [ -r "$exc_file" ]; then
+  excepted=$(grep -vE '^[[:space:]]*(#|$)' "$exc_file" | cut -f1 | sort -u || true)
+elif [ -n "${SCENARIO_EXCEPTIONS:-}" ]; then
+  echo "check-scenarios: cannot read $exc_file; fix SCENARIO_EXCEPTIONS" >&2; exit 2
+fi
+stale=$(comm -12 <(printf '%s\n' "$excepted" | sed '/^$/d') <(printf '%s\n' "$cited" | sed '/^$/d'))
+bad=$(comm -23 <(printf '%s\n' "$excepted" | sed '/^$/d') <(cut -f2 <<<"$defined" | sort -u))
+if [ -n "$stale$bad" ]; then
+  echo "check-scenarios: $exc_file excepts IDs that have a test or that $scenarios does not define: $(tr '\n' ' ' <<<"$stale$bad")" >&2
+  echo "remove the exception line" >&2
+  exit 1
+fi
+cited=$(printf '%s\n%s\n' "$cited" "$excepted" | sed '/^$/d' | sort -u)
 
 unknown=$(comm -23 <(printf '%s\n' "$cited" | sed '/^$/d') <(cut -f2 <<<"$defined" | sort -u))
 if [ -n "$unknown" ]; then

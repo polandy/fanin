@@ -69,6 +69,15 @@ expect fail "docs-links rejects a link into docs/dev" scripts/check-docs-links.s
 expect error "docs-links rejects a missing directory" scripts/check-docs-links.sh scripts/testdata/nope
 expect pass "docs-links passes on the repo tree" scripts/check-docs-links.sh
 
+# scenario exceptions
+printf '# why\nAA-2\tretired\nBB-10\tout of repo\n' > "$tmp/exc.txt"
+expect pass "scenarios strict accepts documented exceptions" env SCENARIO_EXCEPTIONS="$tmp/exc.txt" scripts/check-scenarios.sh --strict $sc/scenarios.md $sc/tests
+printf 'AA-1\ttested\n' > "$tmp/stale.txt"
+expect fail "scenarios rejects an exception for a tested ID" env SCENARIO_EXCEPTIONS="$tmp/stale.txt" scripts/check-scenarios.sh --strict $sc/scenarios.md $sc/tests
+printf 'ZZ-9\tnowhere\n' > "$tmp/unk.txt"
+expect fail "scenarios rejects an exception for an undefined ID" env SCENARIO_EXCEPTIONS="$tmp/unk.txt" scripts/check-scenarios.sh --strict $sc/scenarios.md $sc/tests
+expect fail "scenarios strict still fails without exceptions" env SCENARIO_EXCEPTIONS="$tmp/none.txt" scripts/check-scenarios.sh --strict $sc/scenarios.md $sc/tests
+
 equals() { # equals <name> <want> <got>
   if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: wanted '$2', got '$3'" >&2; failures=$((failures + 1)); fi
 }

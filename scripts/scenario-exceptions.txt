@@ -1,0 +1,11 @@
+# ID<TAB>reason. Retired or out-of-repo behaviour (docs/dev/runbooks/cutover.md); an excepted ID must have no test.
+GT-9	firewall-diff is not ported; it runs as a project's pre_go_check outside this repo
+CH-4	no lane names: anonymous slots per project and host (C-SLOTS), so nothing carries a lane
+CH-5	the hc-chain templates stay in the private repo; fanin has no chain or lane.sh
+WA-1	no watcher: fanin supervises every run it started and ignores owner sessions (C-LOOP)
+WA-4	the Stop hook is retired in the private repo at cutover; fanin has no unwatched agents
+WA-5	no watcher process; an unreadable herdr is an error, never a verdict (fail closed, CLAUDE.md)
+WA-6	no watcher lock and no loop fds; leases live in the store (C-LOCK)
+FP-4	remote git runs on the worker host through its result watcher and host runner, not ssh bash -s
+OA-4	loop-all.sh is retired; fanin overview and the owner channel replace its next: recipes (C-LOOP)
+OA-5	no loops started elsewhere: the daemon owns every run and the store keeps late results (C-LOOP)
