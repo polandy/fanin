@@ -21,6 +21,7 @@ import (
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/intake"
+	"github.com/polandy/fanin/internal/metrics"
 	"github.com/polandy/fanin/internal/notify"
 	"github.com/polandy/fanin/internal/owner"
 	"github.com/polandy/fanin/internal/pick"
@@ -159,7 +160,8 @@ func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []str
 	reg := api.NewRegistry()
 	api.RegisterBuiltins(reg)
 	h, err := api.New(api.Config{Source: st, OwnerToken: token, Clock: d.clock, Logger: log, Registry: reg,
-		Projects: cfg.ProjectNames(), Owner: svc, Intake: in, Webhooks: hooks, Reports: report.New(st, log)})
+		Projects: cfg.ProjectNames(), Owner: svc, Intake: in, Webhooks: hooks, Reports: report.New(st, log),
+		Metrics: metrics.Handler(st, log)})
 	if err != nil {
 		return fmt.Errorf("fanind: %w", err)
 	}

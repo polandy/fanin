@@ -102,7 +102,7 @@ func TestMetrics(t *testing.T) {
 				State: model.RunStarting}); err != nil {
 				return err
 			}
-			for _, typ := range []model.EventType{model.EventRunStarted, model.EventWorkerNudged, model.EventWorkerNudged,
+			for _, typ := range []model.EventType{model.EventWorkerNudged, model.EventWorkerNudged,
 				model.EventMerged, model.EventHookFailed, model.EventNotifyFailed} {
 				if _, err := tx.AppendEvent(ctx, model.Event{Type: typ, Project: projAlpha, TaskID: "a1", RunID: "r1"}); err != nil {
 					return err

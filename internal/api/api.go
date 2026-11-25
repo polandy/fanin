@@ -74,6 +74,8 @@ type Config struct {
 	Intake Intake
 	// Webhooks checks and maps signed deliveries; without it every webhook name is unknown.
 	Webhooks Webhooks
+	// Metrics serves GET /metrics; without it the route answers 500.
+	Metrics http.Handler
 }
 
 // Owner is the owner channel the command endpoints call (internal/owner).
@@ -99,6 +101,9 @@ func (s *Server) Clock() clock.Clock { return s.cfg.Clock }
 
 // Projects returns the configured project names in config order.
 func (s *Server) Projects() []string { return s.cfg.Projects }
+
+// Metrics returns the metrics handler, nil when none is configured.
+func (s *Server) Metrics() http.Handler { return s.cfg.Metrics }
 
 // Logger returns the server's logger.
 func (s *Server) Logger() *slog.Logger { return s.cfg.Logger }
