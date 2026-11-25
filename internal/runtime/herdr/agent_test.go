@@ -57,8 +57,8 @@ func TestStop(t *testing.T) {
 	t.Run("FP-7_MG-7_on_the_run_host", func(t *testing.T) {
 		f := newFixture(t)
 		h := want
-		h.Host = "host-a"
-		f.runner.Expect([]string{"herdr", "--machine", "host-a", "pane", "close", pane}, testutil.Reply{})
+		h.Host = remoteHost
+		f.runner.Expect(hdOn("pane", "close", pane), testutil.Reply{})
 		if err := f.rt.Stop(context.Background(), h); err != nil {
 			t.Fatalf("Stop: %v", err)
 		}

@@ -41,8 +41,8 @@ func TestStart(t *testing.T) {
 	t.Run("SP-1_creates_the_workspace_on_the_host_with_model", func(t *testing.T) {
 		f := newFixture(t)
 		s := spec
-		s.Host, s.Model, s.Title = "host-a", "opus", ""
-		m := func(args ...string) []string { return append([]string{"herdr", "--machine", "host-a"}, args...) }
+		s.Host, s.Model, s.Title = remoteHost, "opus", ""
+		m := hdOn
 		f.runner.Expect(m("workspace", "list"), testutil.Reply{Stdout: wsNone})
 		f.runner.Expect(m("workspace", "create", "--cwd", worktree, "--label", project, "--no-focus"),
 			testutil.Reply{Stdout: wsCreated})
@@ -58,7 +58,7 @@ func TestStart(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Start: %v", err)
 		}
-		if h.Host != "host-a" || h.Pane != pane {
+		if h.Host != remoteHost || h.Pane != pane {
 			t.Errorf("handle = %+v", h)
 		}
 	})

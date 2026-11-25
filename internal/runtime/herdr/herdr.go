@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/polandy/fanin/internal/clock"
+	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/runtime"
 )
 
@@ -45,12 +46,12 @@ const (
 	permissionArg = "auto"
 )
 
-// The agent statuses herdr reports, plus Gone for an agent herdr no longer lists.
+// The agent statuses herdr reports, plus Gone for an agent herdr no longer lists; two share the model's words.
 const (
-	StatusWorking = "working"
+	StatusWorking = string(model.RunWorking)
 	StatusBlocked = "blocked"
 	StatusIdle    = "idle"
-	StatusDone    = "done"
+	StatusDone    = string(model.TaskDone)
 	StatusGone    = "gone"
 )
 

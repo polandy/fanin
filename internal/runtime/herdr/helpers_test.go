@@ -16,16 +16,17 @@ import (
 )
 
 const (
-	project  = "proj"
-	worktree = "/path/to/proj-wt"
-	agent    = "proj-3"
-	title    = "Add the herdr runtime"
-	prompt   = "do the task"
-	mcpFile  = "/path/to/worker-mcp.json"
-	ws       = "w1"
-	tab      = "w1:t5"
-	pane     = "w1:p9"
-	session  = project + " · " + title + " · " + agent
+	project    = "proj"
+	remoteHost = "host-a"
+	worktree   = "/path/to/proj-wt"
+	agent      = "proj-3"
+	title      = "Add the herdr runtime"
+	prompt     = "do the task"
+	mcpFile    = "/path/to/worker-mcp.json"
+	ws         = "w1"
+	tab        = "w1:t5"
+	pane       = "w1:p9"
+	session    = project + " · " + title + " · " + agent
 
 	wsList     = `{"result":{"workspaces":[{"label":"other","workspace_id":"w0"},{"label":"proj","workspace_id":"w1"}]}}`
 	wsNone     = `{"result":{"workspaces":[]}}`
@@ -56,7 +57,12 @@ var (
 	closeArgv  = hd("pane", "close", pane)
 )
 
-func hd(args ...string) []string { return append([]string{"herdr"}, args...) }
+func hd(args ...string) []string { return append([]string{herdr.Program}, args...) }
+
+// hdOn is hd on remoteHost.
+func hdOn(args ...string) []string {
+	return hd(append([]string{herdr.FlagMachine, remoteHost}, args...)...)
+}
 
 // signalClock is a Manual clock that reports every wait it is asked for.
 type signalClock struct {
