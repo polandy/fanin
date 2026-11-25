@@ -68,6 +68,8 @@ type harness struct {
 	rt      *fakeRuntime
 	pk      *fakePicker
 	up      *fakeUnpushed
+	nt      *fakeNotifier
+	gates   PRGates
 	files   RunFiles
 	logs    *syncBuffer
 	s       *Scheduler
@@ -87,7 +89,7 @@ func newHarness(t *testing.T, cfg config.Config) *harness {
 		t.Fatal(err)
 	}
 	h := &harness{t: t, cfg: cfg, path: path, st: st, clk: clk, rt: newFakeRuntime(), pk: &fakePicker{},
-		up: &fakeUnpushed{}, files: Files{Dir: t.TempDir(), DaemonURL: "http://127.0.0.1:1"}, logs: &syncBuffer{}}
+		up: &fakeUnpushed{}, nt: &fakeNotifier{}, files: Files{Dir: t.TempDir(), DaemonURL: "http://127.0.0.1:1"}, logs: &syncBuffer{}}
 	t.Cleanup(func() {
 		h.stop()
 		if err := h.st.Close(); err != nil {
@@ -103,7 +105,7 @@ func (h *harness) start() {
 	ctx, cancel := context.WithCancel(h.t.Context())
 	h.cancel, h.waiting, h.done = cancel, make(chan struct{}), make(chan error, 1)
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
-		Unpushed: h.up, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
+		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)
 			select {
 			case h.waiting <- struct{}{}:
