@@ -34,6 +34,11 @@ const (
 	prSecond   = 43
 	prThird    = 44
 	checkBuild = "build"
+	// The merge log lines of the two PRs.
+	merged42 = "merge #42"
+	hooked42 = "hook #42"
+	merged43 = "merge #43"
+	hooked43 = "hook #43"
 )
 
 var (
@@ -271,7 +276,7 @@ func TestMerge(t *testing.T) {
 		reads := r.f.prReads()
 		r.goMerge("a1")
 		r.until(r.taskIn("a1", model.TaskDone))
-		if diff := cmp.Diff([]string{"merge #42", "hook #42"}, r.log.all()); diff != "" {
+		if diff := cmp.Diff([]string{merged42, hooked42}, r.log.all()); diff != "" {
 			t.Errorf("merges (-want +got):\n%s", diff)
 		}
 		want := []runtime.Cmd{{Argv: []string{hook.Shell, hook.ShellFlag, hookCmd}, Dir: stateDir,
@@ -323,12 +328,12 @@ func TestMerge(t *testing.T) {
 		r.goMerge("a2")
 		r.await(r.waits)
 		reads := r.f.prReads()
-		if diff := cmp.Diff([]string{"merge #42", "hook #42"}, r.log.all()); diff != "" {
+		if diff := cmp.Diff([]string{merged42, hooked42}, r.log.all()); diff != "" {
 			t.Errorf("merges while #42's hook runs (-want +got):\n%s", diff)
 		}
 		release()
 		r.until(r.taskIn("a2", model.TaskDone))
-		if diff := cmp.Diff([]string{"merge #42", "hook #42", "merge #43", "hook #43"}, r.log.all()); diff != "" {
+		if diff := cmp.Diff([]string{merged42, hooked42, merged43, hooked43}, r.log.all()); diff != "" {
 			t.Errorf("merges (-want +got):\n%s", diff)
 		}
 		if got := r.f.prReads(); got != reads+1 {
@@ -362,12 +367,12 @@ func TestMerge(t *testing.T) {
 		if diff := cmp.Diff([]string{string(prompt.NudgeRegate)}, r.events("a2", model.EventWorkerNudged)); diff != "" {
 			t.Errorf("nudges (-want +got):\n%s", diff)
 		}
-		if got := r.log.all(); slices.Contains(got, "merge #43") {
+		if got := r.log.all(); slices.Contains(got, merged43) {
 			t.Fatalf("merges = %v, want no merge of a red #43", got)
 		}
 		r.report(run, model.Result{Kind: model.ResultDonePR, PR: prSecond})
 		r.until(r.taskIn("a2", model.TaskDone))
-		if got := r.log.all(); !slices.Contains(got, "merge #43") {
+		if got := r.log.all(); !slices.Contains(got, merged43) {
 			t.Errorf("merges = %v, want #43 merged on the standing go", got)
 		}
 	})
@@ -389,7 +394,7 @@ func TestMerge(t *testing.T) {
 		}
 		r.advance(30 * time.Minute)
 		r.until(r.taskIn("a1", model.TaskDone))
-		if diff := cmp.Diff([]string{"merge #42", "hook #42"}, r.log.all()); diff != "" {
+		if diff := cmp.Diff([]string{merged42, hooked42}, r.log.all()); diff != "" {
 			t.Errorf("merges (-want +got):\n%s", diff)
 		}
 	})
@@ -414,7 +419,7 @@ func TestMerge(t *testing.T) {
 				t.Errorf("task detail = %q, want it to name %q", got, part)
 			}
 		}
-		if got := r.log.all(); slices.Contains(got, "merge #43") {
+		if got := r.log.all(); slices.Contains(got, merged43) {
 			t.Errorf("merges = %v, want no merge of #43", got)
 		}
 	})
@@ -450,7 +455,7 @@ func TestMerge(t *testing.T) {
 		r.await(r.waits)
 		r.advance(lockLease)
 		r.until(r.taskIn("a1", model.TaskDone))
-		if diff := cmp.Diff([]string{"merge #42", "hook #42"}, r.log.all()); diff != "" {
+		if diff := cmp.Diff([]string{merged42, hooked42}, r.log.all()); diff != "" {
 			t.Errorf("merges (-want +got):\n%s", diff)
 		}
 	})
@@ -489,7 +494,7 @@ func TestMerge(t *testing.T) {
 		if !strings.HasPrefix(held, PausedDetail+"#43"+MergeHeldNote) || !strings.Contains(held, hs[0].Reason) {
 			t.Errorf("held = %q, want paused #43 merge held with the reason", held)
 		}
-		if diff := cmp.Diff([]string{"merge #42", "hook #42"}, r.log.all()); diff != "" {
+		if diff := cmp.Diff([]string{merged42, hooked42}, r.log.all()); diff != "" {
 			t.Errorf("merges while held (-want +got):\n%s", diff)
 		}
 		r.hr.set(nil)
@@ -521,7 +526,7 @@ func TestMerge(t *testing.T) {
 		r.await(r.waits)
 		r.advance(lockLease)
 		r.until(r.hasEvent("a2", model.EventMergeHeld))
-		if got := r.log.all(); slices.Contains(got, "merge #43") {
+		if got := r.log.all(); slices.Contains(got, merged43) {
 			t.Errorf("merges = %v, want #43 paused", got)
 		}
 	})
@@ -639,7 +644,7 @@ func TestMergeCIHold(t *testing.T) {
 			t.Errorf("nudges of w1 (-want +got):\n%s", diff)
 		}
 		r.until(r.taskIn("a1", model.TaskDone))
-		if diff := cmp.Diff([]string{"merge #44", "hook #44", "merge #42", "hook #42"}, r.log.all()); diff != "" {
+		if diff := cmp.Diff([]string{"merge #44", "hook #44", merged42, hooked42}, r.log.all()); diff != "" {
 			t.Errorf("merges (-want +got):\n%s", diff)
 		}
 		if hs := r.holds(); len(hs) != 0 {
