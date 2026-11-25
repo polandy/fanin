@@ -24,6 +24,8 @@ var (
 	ErrNotOpen = errors.New("forge: PR is not open")
 	// ErrInvalidRequest is a request fanin must not send, such as a merge without a head branch.
 	ErrInvalidRequest = errors.New("forge: invalid request")
+	// ErrRunFailed is a workflow run that ended without success.
+	ErrRunFailed = errors.New("forge: workflow run failed")
 )
 
 // PRState is the lifecycle state of a pull request.
@@ -187,4 +189,12 @@ func NewSquash(pr PR, trailers []Trailer) (MergeRequest, error) {
 		Body:    strings.Join(lines, "\n"),
 		HeadSHA: pr.HeadSHA,
 	}, nil
+}
+
+// Workflows reads a repo's CI workflow runs (see SCENARIOS DR-1).
+type Workflows interface {
+	// LatestRun returns the newest run of the workflow file on sha; ErrNotFound when it has none yet.
+	LatestRun(ctx context.Context, repo, workflow, sha string) (int64, error)
+	// WatchRun waits for the run to end; a run that did not succeed is ErrRunFailed.
+	WatchRun(ctx context.Context, repo string, id int64) error
 }

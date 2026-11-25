@@ -15,6 +15,8 @@ const (
 	CodeTooLarge     = "too_large"
 	CodeInternal     = "internal"
 	CodeConflict     = "conflict"
+	// CodeBusy is a queue that is full; the caller retries later.
+	CodeBusy = "busy"
 	// CodeDeliveryFailed is an answer that could not reach the worker; nothing was recorded.
 	CodeDeliveryFailed = "delivery_failed"
 )
@@ -28,6 +30,14 @@ type Error struct {
 // ErrorBody is the JSON document of a failed call.
 type ErrorBody struct {
 	Error Error `json:"error"`
+}
+
+// WebhookResult is the answer of POST /api/v1/webhooks/{name}.
+type WebhookResult struct {
+	// Outcome is queued, duplicate, ignored or deploying.
+	Outcome string `json:"outcome"`
+	// Task is the queued or already queued task.
+	Task string `json:"task,omitempty"`
 }
 
 // Health is the answer of GET /api/v1/health.

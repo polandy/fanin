@@ -95,6 +95,8 @@ type Config struct {
 	Picker Picker
 	// Projects are the project files with defaults applied, sorted by name.
 	Projects []Project
+	// Triggers are the intake sources of triggers.yaml.
+	Triggers Triggers
 	// lines maps each file (relative to Dir) to the line of every key in it, for the effective config.
 	lines map[string]map[string]int
 }

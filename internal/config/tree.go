@@ -42,6 +42,8 @@ const (
 	ruleKindKnown  = "kind-known"
 	ruleModelKnown = "model-known"
 	ruleRetired    = "retired-key"
+	// ruleProjectKnown is a trigger that names no configured project.
+	ruleProjectKnown = "project-known"
 )
 
 // doc is one parsed, schema-valid config file.
@@ -253,6 +255,9 @@ func (t tree) build() (Config, error) {
 		}
 		p.Name = projectName(d.path)
 		cfg.Projects = append(cfg.Projects, p)
+	}
+	if cfg.Triggers, err = t.buildTriggers(); err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }

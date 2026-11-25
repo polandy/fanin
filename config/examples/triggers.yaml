@@ -1,2 +1,25 @@
-# No trigger keys yet.
-{}
+# Intake sources besides the CLI (docs/dev/spec/config.md#triggersyaml). Secrets are named, never written here.
+webhooks:
+  # A forge issue labelled fanin queues a task on alpha.
+  issues:
+    kind: forge
+    project: alpha
+    secret_env: FANIN_HOOK_ISSUES
+    label: fanin
+  # A firing alert queues an analysis on beta.
+  alerts:
+    kind: alert
+    project: beta
+    secret_env: FANIN_HOOK_ALERTS
+  # A published release of alpha bumps its image in the config repo (release.project).
+  releases:
+    kind: release
+    project: alpha
+    secret_env: FANIN_HOOK_RELEASES
+cron:
+  dependencies:
+    project: alpha
+    every: 168h
+    task: Update the Go dependencies and fix what breaks.
+release:
+  project: alpha

@@ -72,6 +72,8 @@ type Config struct {
 	Fleet Fleet
 	// Intake queues tasks; without it POST /api/v1/tasks answers 500 and queues nothing.
 	Intake Intake
+	// Webhooks checks and maps signed deliveries; without it every webhook name is unknown.
+	Webhooks Webhooks
 }
 
 // Owner is the owner channel the command endpoints call (internal/owner).
@@ -135,9 +137,14 @@ func isCommand(pattern string) bool {
 	return method != http.MethodGet && method != http.MethodHead
 }
 
-// guard checks the token auth asks for, refuses webhook deliveries and caps the body.
+// guard checks the token auth asks for, refuses webhook deliveries outside AuthWebhook and caps the body.
 func (s *Server) guard(auth Auth, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if auth == AuthWebhook {
+			r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+			next.ServeHTTP(w, r)
+			return
+		}
 		got, ok := strings.CutPrefix(r.Header.Get("Authorization"), bearerPrefix)
 		switch auth {
 		case AuthRun:
