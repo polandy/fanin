@@ -44,3 +44,5 @@ jobs:
         run: make private-check
       - name: private data (history)
         run: make private-check-history
+      - name: scenario coverage (report)
+        run: make scenario-check

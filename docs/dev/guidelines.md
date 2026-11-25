@@ -245,7 +245,7 @@ coverage:        ; scripts/check-coverage.sh cover.out 90 internal/gate internal
 lint:            ; golangci-lint config verify && golangci-lint run
 vuln:            ; govulncheck $(GO_PKGS)
 schema-check:    ; go run ./internal/config/cmd/schemacheck config/   # every example config validates
-scenario-check:  ; scripts/check-scenarios.sh docs/dev/scenarios.md   # every ID has a test name, no unknown IDs
+scenario-check:  ; scripts/check-scenarios.sh --report docs/dev/scenarios.md   # every ID has a test name, no unknown IDs
 ```
 
 Notes on the targets:
