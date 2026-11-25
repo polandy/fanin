@@ -645,7 +645,7 @@ These scenarios cover how a hung loop is detected and killed.
 
 **WD-4**
 - It works when started by systemd with a bare environment.
-- Test: `watchdog.sh#7`. Mark: PARITY (fanin's unit).
+- Test: `watchdog.sh#7`. Mark: PARITY (fanin's unit, `deploy/systemd/fanind.service`).
 
 ## 12. Opencode path + review
 

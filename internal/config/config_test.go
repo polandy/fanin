@@ -291,3 +291,15 @@ func TestExamplesLoad(t *testing.T) {
 		t.Fatalf("config/examples: %v", err)
 	}
 }
+
+func TestLoadSchemasIndependentOfCwd(t *testing.T) {
+	dir := writeTree(t, map[string]string{fileFanin: faninYAML})
+	t.Chdir(t.TempDir())
+	if _, err := Load(dir); err != nil {
+		t.Fatalf("Load from a directory without schemas: %v", err)
+	}
+	t.Chdir(t.TempDir())
+	if err := validateDoc(schemaProject, map[string]any{}); err != nil && strings.Contains(err.Error(), "embedded schema") {
+		t.Fatalf("validateDoc after a cwd change: %v", err)
+	}
+}

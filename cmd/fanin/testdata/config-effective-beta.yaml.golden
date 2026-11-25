@@ -1,0 +1,50 @@
+daemon:
+  listen: 127.0.0.1:7420 # fanin.yaml:2
+  store: <config>/fanin.db # fanin.yaml:3
+  log:
+    format: json # fanin.yaml:5
+    level: info # fanin.yaml:6
+  owner_token:
+    env: FANIN_OWNER_TOKEN # fanin.yaml:7
+    set: false # environment
+project: beta # projects/beta.yaml
+settings:
+  path: /path/to/repo # projects/beta.yaml:1
+  host: host-a # projects/beta.yaml:2
+  forge: gitea # projects/beta.yaml:3
+  base: main # default
+  worker_kind: opencode # projects/beta.yaml:4
+  review_skill: /pr-review # fanin.yaml:9
+  max_parallel: 1 # projects/beta.yaml:5
+  budgets:
+    fix_rounds_per_run: 2 # default
+    rollover_pct: 75 # default
+    max_tokens_per_run: 3000000 # default
+    max_runs_per_task: 3 # fanin.yaml:11
+  stall_after: 15m0s # default
+  worker_timeout: 45m0s # default
+  gate:
+    github:
+      watch_timeout: 30m0s # default
+      settle: 20s # default
+      max_waits: 12 # default
+      max_watch_failures: 6 # default
+    gitea:
+      poll_interval: 1m0s # default
+      noci_after_polls: 5 # default
+      max_polls: 20 # projects/beta.yaml:10
+  oc_merge: manual # projects/beta.yaml:6
+  pre_go_check: /path/to/repo/scripts/dry-activate.sh # projects/beta.yaml:7
+host:
+  name: host-a # hosts.yaml:3
+  address: host-a.example.com # hosts.yaml:4
+  local: false # default
+forge:
+  name: gitea # projects/beta.yaml:3
+  kind: gitea # forges.yaml:7
+  url: https://git.example.com # forges.yaml:8
+  token:
+    env: GITEA_TOKEN # forges.yaml:9
+    set: false # environment
+worker_kind:
+  runtime: herdr # worker-kinds.yaml:7

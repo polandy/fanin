@@ -4,10 +4,10 @@ COVERAGE_PKGS := internal/gate internal/sched internal/store internal/hook
 COVERAGE_EXISTING := $(sort $(patsubst %/,%,$(dir $(wildcard $(addsuffix /*.go,$(COVERAGE_PKGS))))))
 
 .PHONY: ci build vet test test-shuffle coverage integration fmt-check shell-check script-test check-no-sleeps \
-	check-file-size private-check private-check-history scenario-check vendor-check lint vuln schema-check
+	check-file-size docs-check private-check private-check-history scenario-check vendor-check lint vuln schema-check
 
 # The local CI mirror: green before every push.
-ci: fmt-check shell-check script-test vet check-no-sleeps check-file-size vendor-check build test test-shuffle \
+ci: fmt-check shell-check script-test vet check-no-sleeps check-file-size docs-check vendor-check build test test-shuffle \
 	coverage lint vuln schema-check private-check private-check-history scenario-check
 
 vendor-check:
@@ -60,6 +60,9 @@ check-no-sleeps:
 
 check-file-size:
 	scripts/check-file-size.sh 400 scripts/file-size-exceptions.txt $(GO_DIRS)
+
+docs-check:
+	scripts/check-docs-links.sh
 
 private-check:
 	scripts/check-private-data.sh

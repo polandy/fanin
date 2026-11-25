@@ -61,11 +61,16 @@ type daemon struct {
 
 func start(t *testing.T, cfgPath string, extra ...string) *daemon {
 	t.Helper()
+	return startEnv(t, cfgPath, map[string]string{tokenEnv: token})
+}
+
+// startEnv starts fanind with exactly env as its environment.
+func startEnv(t *testing.T, cfgPath string, env map[string]string) *daemon {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	d := &daemon{done: make(chan error, 1), cancel: cancel, logs: &bytes.Buffer{}}
 	ready := make(chan string, 1)
-	env := map[string]string{tokenEnv: token}
 	deps := deps{getenv: func(k string) string { return env[k] }, logOut: d.logs, clock: clock.NewManual(t0),
 		ready: func(addr string) { ready <- addr }, probe: freeLocks{}}
 	safego.Go(ctx, slog.New(slog.DiscardHandler), func(ctx context.Context) {

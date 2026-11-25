@@ -2,6 +2,9 @@
 
 ## Starting fanind
 
+Under systemd (see [Install](install.md)): `sudo systemctl start|stop|restart fanind` and `systemctl status
+fanind`. By hand:
+
 ```sh
 export FANIN_OWNER_TOKEN=...        # the name set in owner_token_env
 fanind --config /path/to/config
@@ -62,6 +65,28 @@ fanin wait --owner             # block until something needs the owner; prints o
 - `go` records the go as an `owner_go` event; a task outside its gates is refused.
 - `wait` prints `<seq> <type> <project> <task> <run>: <detail>`. `--after <seq>` starts after that event instead
   of waiting only for new ones, so a loop of `wait --after <last seq>` misses nothing.
+
+## Holds and pauses
+
+A hold stops a task or project until the owner lifts it; `fanin status` lists the active holds under `open:` with
+their ids, and the board of the web UI shows them with a Lift button. Fix the cause the hold names, then
+`fanin hold lift <id>`. A refused lift names the reason.
+
+`fanin pause <project>` keeps the project from starting its next worker, once; workers already running finish.
+`fanin resume <project>` clears it.
+
+## Logs
+
+`fanind` logs to stderr, so under systemd `journalctl -u fanind` reads them (`-f` follows, `--since "1 hour ago"`
+narrows). `log.format: json` (default) prints one object per line; `jq` filters it:
+
+```sh
+journalctl -u fanind -o cat | jq 'select(.project == "alpha")'
+journalctl -u fanind -o cat | jq 'select(.task_id == "t1")'
+```
+
+Lines carry `task_id`, `run_id` and `project` where they apply; `log.level` sets the detail. Tokens are never
+logged.
 
 ## Web UI
 
