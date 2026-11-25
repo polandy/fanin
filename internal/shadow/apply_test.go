@@ -125,7 +125,7 @@ func TestApplyFixtures(t *testing.T) {
 	apply(t, st, projects)
 
 	t.Run("SH-1_tasks_and_runs_match_the_golden_file", func(t *testing.T) {
-		got := dump(t, st, alpha, beta, "delta", "gamma")
+		got := dump(t, st, alpha, beta, delta, gamma)
 		if *update {
 			if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
 				t.Fatal(err)

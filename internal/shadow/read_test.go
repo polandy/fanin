@@ -17,6 +17,8 @@ import (
 const (
 	alpha     = "alpha"
 	beta      = "beta"
+	gamma     = "gamma"
+	delta     = "delta"
 	alphaLog  = "alpha.md"
 	alphaCI   = ".alpha.ci-hold"
 	alphaLock = ".alpha.merge.lock"
@@ -69,17 +71,17 @@ func TestReadFixtures(t *testing.T) {
 	for _, p := range projects {
 		labels = append(labels, p.Label)
 	}
-	if diff := cmp.Diff([]string{alpha, beta, "delta", "gamma"}, labels); diff != "" {
+	if diff := cmp.Diff([]string{alpha, beta, delta, gamma}, labels); diff != "" {
 		t.Errorf("labels (-want +got), the archive and other files are not projects:\n%s", diff)
 	}
 	got := byLabel(t, projects)
 
 	t.Run("SH-2_holds", func(t *testing.T) {
 		want := map[string][]model.Hold{
-			alpha:   nil,
-			beta:    {{Project: beta, Kind: model.HoldMerge, Reason: "post-merge of beta #433 failed: note 1"}},
-			"delta": nil,
-			"gamma": {{Project: "gamma", Kind: model.HoldCI, FixTask: "shadow-gamma-f-7",
+			alpha: nil,
+			beta:  {{Project: beta, Kind: model.HoldMerge, Reason: "post-merge of beta #433 failed: note 1"}},
+			delta: nil,
+			gamma: {{Project: gamma, Kind: model.HoldCI, FixTask: "shadow-gamma-f-7",
 				Reason: "gamma/f task 2 (gamma-f-6): red CI not caused by this diff: note 2"}},
 		}
 		for label, holds := range want {
@@ -90,10 +92,10 @@ func TestReadFixtures(t *testing.T) {
 	})
 	t.Run("SH-3_merge_lock_held_by_the_PR's_task", func(t *testing.T) {
 		want := &Lock{Lane: "a", PR: 1349, Since: "2026-11-25 08:50", Holder: "shadow-delta-183"}
-		if diff := cmp.Diff(want, got["delta"].Lock); diff != "" {
+		if diff := cmp.Diff(want, got[delta].Lock); diff != "" {
 			t.Errorf("delta lock (-want +got):\n%s", diff)
 		}
-		for _, label := range []string{alpha, beta, "gamma"} {
+		for _, label := range []string{alpha, beta, gamma} {
 			if got[label].Lock != nil {
 				t.Errorf("%s lock = %+v, want none", label, got[label].Lock)
 			}

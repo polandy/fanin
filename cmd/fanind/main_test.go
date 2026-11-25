@@ -61,11 +61,11 @@ type daemon struct {
 
 func start(t *testing.T, cfgPath string, extra ...string) *daemon {
 	t.Helper()
-	return startEnv(t, cfgPath, map[string]string{tokenEnv: token})
+	return startEnv(t, cfgPath, map[string]string{tokenEnv: token}, extra...)
 }
 
-// startEnv starts fanind with exactly env as its environment.
-func startEnv(t *testing.T, cfgPath string, env map[string]string) *daemon {
+// startEnv starts fanind with exactly env as its environment and extra flags.
+func startEnv(t *testing.T, cfgPath string, env map[string]string, extra ...string) *daemon {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
