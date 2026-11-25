@@ -199,4 +199,21 @@ func TestRender(t *testing.T) {
 			t.Errorf("file = %q, %v; want the rendered Markdown", got, err)
 		}
 	})
+
+	t.Run("RS-1_unreadable_store_is_an_error_and_keeps_the_file", func(t *testing.T) {
+		e := newEnv(t)
+		if err := e.store.Close(); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+		path := filepath.Join(t.TempDir(), "proj-a.md")
+		if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := New(e.store, e.clock).Write(context.Background(), project, path); err == nil {
+			t.Fatal("Write with a closed store returned nil")
+		}
+		if got, err := os.ReadFile(path); err != nil || string(got) != "old" {
+			t.Errorf("file = %q, %v; want old", got, err)
+		}
+	})
 }
