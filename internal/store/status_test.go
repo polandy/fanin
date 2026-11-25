@@ -78,3 +78,43 @@ func TestStatusReadsFailOnAClosedStore(t *testing.T) {
 		t.Error("LatestEvents on a closed store: nil error, want the read error")
 	}
 }
+
+// TestDoneTasksListsOnlyDoneOldestUpdateFirst covers the board's Erledigt data (see SCENARIOS ST-2).
+func TestDoneTasksListsOnlyDoneOldestUpdateFirst(t *testing.T) {
+	s, clk := newStore(t)
+	ctx := context.Background()
+	finish := func(id string) {
+		mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+			if err := tx.CreateTask(ctx, task(id)); err != nil {
+				return err
+			}
+			for _, st := range []model.TaskState{model.TaskRunning, model.TaskGating, model.TaskDone} {
+				if err := tx.SetTaskState(ctx, model.TaskID(id), st, ""); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		clk.Advance(lease)
+	}
+	finish("t2")
+	finish("t1")
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error { return tx.CreateTask(ctx, task("t3")) })
+	got, err := s.DoneTasks(ctx)
+	if err != nil {
+		t.Fatalf("DoneTasks: %v", err)
+	}
+	var ids []model.TaskID
+	for _, tk := range got {
+		ids = append(ids, tk.ID)
+	}
+	if diff := cmp.Diff([]model.TaskID{"t2", "t1"}, ids); diff != "" {
+		t.Errorf("DoneTasks ids (-want +got):\n%s", diff)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.DoneTasks(ctx); err == nil {
+		t.Error("DoneTasks on a closed store: nil error, want the read error")
+	}
+}

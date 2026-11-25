@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fanin</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>fanin</h1>
+  <nav>
+    <a href="#inbox" data-view="inbox">Inbox <span id="inbox-count" class="badge" hidden></span></a>
+    <a href="#board" data-view="board">Board</a>
+    <a href="#hosts" data-view="hosts">Hosts</a>
+  </nav>
+  <span id="live" class="live" title="event stream">offline</span>
+</header>
+<p id="notice" class="notice" role="alert" hidden></p>
+<main id="main"></main>
+<script src="app.js"></script>
+</body>
+</html>

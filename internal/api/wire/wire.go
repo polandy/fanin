@@ -134,7 +134,70 @@ type Snapshot struct {
 	Holds     []Hold     `json:"holds"`
 	Locks     []Lock     `json:"locks"`
 	Latest    []Event    `json:"latest"`
-	LastSeq   int64      `json:"last_seq"`
+	// Board is the owner board, one entry per project in Projects order.
+	Board []BoardProject `json:"board"`
+	// Hosts are the worker hosts with their agents; empty when the daemon has no fleet view.
+	Hosts   []Host `json:"hosts"`
+	LastSeq int64  `json:"last_seq"`
+}
+
+// BoardTask is a task as the board lists it.
+type BoardTask struct {
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	State     string    `json:"state"`
+	Shape     string    `json:"shape"`
+	UpdatedAt time.Time `json:"updated_at"`
+	// Blocked is set on a queued task with a dependency that is still open.
+	Blocked bool `json:"blocked,omitempty"`
+	// QuestionID names the open owner question of a task that waits for the owner.
+	QuestionID string `json:"question_id,omitempty"`
+}
+
+// BoardDone is the Erledigt section: the tasks done in the project's current batch.
+type BoardDone struct {
+	Count  int         `json:"count"`
+	Newest []BoardTask `json:"newest"`
+}
+
+// BoardProject is the board of one project (SCENARIOS ST-2).
+type BoardProject struct {
+	Project string `json:"project"`
+	// Done counts the tasks done since the oldest task that is still open was created, and lists the newest few.
+	Done BoardDone `json:"done"`
+	// Next are the queued tasks that have not started.
+	Next []BoardTask `json:"next"`
+	// Waiting are the tasks that wait on the owner: needs_owner or paused.
+	Waiting []BoardTask `json:"waiting"`
+	// Holds are the project's active CI and merge holds; each can be lifted.
+	Holds []Hold `json:"holds"`
+	// Decisions are the open decision-shaped tasks that are not already in Waiting.
+	Decisions []BoardTask `json:"decisions"`
+}
+
+// Worker is one agent on a host. Kind is "managed" for a fanin worker and "owner" for an owner session.
+type Worker struct {
+	Agent   string `json:"agent"`
+	Project string `json:"project"`
+	Session string `json:"session"`
+	Status  string `json:"status"`
+	Kind    string `json:"kind"`
+	TaskID  string `json:"task_id,omitempty"`
+	// WaitingOwner is set while the agent waits on the owner.
+	WaitingOwner bool `json:"waiting_owner"`
+}
+
+// The worker kinds.
+const (
+	WorkerManaged = "managed"
+	WorkerOwner   = "owner"
+)
+
+// Host is one machine and its agents. A non-empty Warning means the host could not be read; Workers is then empty.
+type Host struct {
+	Name    string   `json:"name"`
+	Warning string   `json:"warning,omitempty"`
+	Workers []Worker `json:"workers"`
 }
 
 // Event is one entry of the event log, the data of a server-sent event.

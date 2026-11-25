@@ -36,7 +36,8 @@ none of the existing ones.
 | Route | Answer |
 |---|---|
 | `GET /api/v1/health` | `{"status": "ok"}` |
-| `GET /api/v1/snapshot` | `wire.Snapshot`: open tasks, their runs, open questions, active holds, project locks with `stale`, the newest event per project, the projects (config order first, see [daemon](daemon.md)), and `last_seq` |
+| `GET /api/v1/snapshot` | `wire.Snapshot`: open tasks, their runs, open questions, active holds, project locks with `stale`, the newest event per project, the owner board per project and the hosts ([ui](ui.md)), the projects (config order first, see [daemon](daemon.md)), and `last_seq` |
+| `GET /ui/` | the embedded web UI, see [ui](ui.md); `GET /` redirects there |
 | `GET /api/v1/events` | server-sent events, see below |
 | `GET /api/v1/questions` | `wire.Questions`: the open owner questions, oldest first |
 | `GET /api/v1/wait?owner=&after=` | one `wire.Event`, see [owner](owner.md) |
