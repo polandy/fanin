@@ -177,7 +177,7 @@ are used (see Budgets). A paused review or conflict reads `paused <agent>: #<n> 
 spent: 3 of 3` or `…; still conflicting after 1 nudge; merge origin/<base> by hand`.
 
 A ready PR waits gating for the owner's go. A red re-gate under the merge (see Merge) takes the same nudges; the
-go stands, so a ready PR after the fix merges without a new go. A PR task never merges without `Deps.Merger`.
+go stands, so a ready PR after the fix merges without a new go; a conflict there is CF-3.
 
 ## Merge (MG-1 to MG-5, MG-8, LN-6)
 
@@ -256,6 +256,5 @@ A stop by ctx is never a task failure:
 - A store error inside a merge is logged as a failed step and the merge is not retried; the owner gives the go again.
 - AP-32b: the forge's auto-merge and the wait for `MERGED`, the go as the commit status `fanin/owner-go`, the
   squash title with the PR number (MG-6), the branch, worktree and pane cleanup (MG-7), remote git through the
-  host runner (FP-4) and a conflict reported at finish (CF-3). Until then a green PR merges through
-  `Deps.Merger`.
+  host runner (FP-4). Until then a green PR merges through `Deps.Merger`, and without one it stays gating.
 - A stop between the end of an analysis and its pane close leaves the pane open.
