@@ -99,6 +99,8 @@ A restart opens the same file and reads:
   to its run.
 - `ArmedTimers(ctx)` to re-arm every timer, and `DueTimers(ctx)` for those already due at the clock's now.
 - `OpenQuestions(ctx)` for the questions still waiting for the owner.
+- `ProjectTasks(ctx, project)`, `ProjectQuestions(ctx, project)` and `Projects(ctx)` for the per-project Markdown render
+  (`docs/dev/spec/render.md`); they return every row, whatever its age or state.
 
 ## Retention
 
