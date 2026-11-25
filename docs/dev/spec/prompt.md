@@ -18,7 +18,9 @@ people.
 Shared text lives in `templates/parts/` (`owner-input`, `no-herdr-no-ssh`, `hard-limits-hosts`, `status-line`).
 
 The nudges (`prompt.Nudges`) are templates of their own: `nudge-stall` (no progress), `nudge-continue`
-(NUDGE_CONTINUE, a stop without a result) and `nudge-secure` (NUDGE_SECURE, push the unpushed commits).
+(NUDGE_CONTINUE, a stop without a result), `nudge-secure` (NUDGE_SECURE, push the unpushed commits),
+`nudge-regate` (HINT, the re-gate before the merge was not green) and `nudge-ci-fixed` (BASE, the base branch is
+green again; merge it in).
 
 ## Rendering
 

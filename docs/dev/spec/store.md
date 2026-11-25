@@ -83,7 +83,7 @@ One row per project in `project_locks`, with a holder (a task or run ID) and a l
 - `WaitLock(ctx, req, timeout)` retries until the lock is free. A release by the same store wakes it at once;
   a release by another process or an expired lease is seen within `store.LockPoll` (1 s). After `timeout` on the
   store clock it returns a `*LockHeldError` with the holder and the time waited, matching `ErrLockHeld` and
-  `ErrLockTimeout` (SCENARIOS MG-2).
+  `ErrLockTimeout` (SCENARIOS MG-2). `OnLockWait(fn)` calls fn each time it blocks, so a test can advance the clock.
 - A lease that is not renewed in time frees the lock: a holder that died stops renewing (SCENARIOS MG-3).
   `RenewLock` extends a live lease; `ReleaseLock` frees it, and both return `store.ErrLockNotHeld` for a holder
   that does not hold it (the scheduler releases a run it knows is dead the same way).
@@ -96,6 +96,8 @@ One row per project in `project_locks`, with a holder (a task or run ID) and a l
 - `DispatchHold(ctx, project, task)` returns the oldest `ci` hold that stops a fresh worker for `task`; its fix
   task is let through (SCENARIOS MG-8).
 - `LiftHold` lifts one hold by ID; the project's other holds stay.
+- `Tx.SetHoldReason` rewrites the reason of an active hold, as a failed post-merge hook does with its last output
+  line (SCENARIOS MG-4); it writes no event.
 
 ## Restart
 
