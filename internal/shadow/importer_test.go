@@ -43,7 +43,7 @@ func TestImporterRun(t *testing.T) {
 	clk := clock.NewManual(t0)
 	st := openStore(t, clk)
 	log, logs := logBuffer()
-	files := fstest.MapFS{"alpha.md": {Data: []byte("2026-01-02 03:04 spawned alpha-1 (sonnet): p\n")}}
+	files := fstest.MapFS{alphaLog: {Data: []byte("2026-01-02 03:04 spawned alpha-1 (sonnet): p\n")}}
 	src := &switchFS{fsys: files}
 	waiting := make(chan struct{})
 	im := &Importer{Dir: "state", FS: src, Probe: fakeProbe{}, Store: st, Clock: clk, Log: log,
@@ -59,11 +59,11 @@ func TestImporterRun(t *testing.T) {
 	<-waiting
 
 	t.Run("SH-1_each_interval_imports_the_directory", func(t *testing.T) {
-		files["alpha.md"] = &fstest.MapFile{Data: []byte("2026-01-02 03:04 spawned alpha-1 (sonnet): p\n" +
+		files[alphaLog] = &fstest.MapFile{Data: []byte("2026-01-02 03:04 spawned alpha-1 (sonnet): p\n" +
 			"2026-01-02 03:05 pr #7 alpha-1 feat/x\n")}
 		clk.Advance(Interval)
 		<-waiting
-		if got := dump(t, st, "alpha"); got != "alpha shadow-alpha-1 gating model=sonnet owner=false run1=working\n" {
+		if got := dump(t, st, alpha); got != "alpha shadow-alpha-1 gating model=sonnet owner=false run1=working\n" {
 			t.Errorf("store after a tick:\n%s", got)
 		}
 	})

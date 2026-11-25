@@ -3,11 +3,13 @@ package shadow
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +23,12 @@ import (
 
 var t0 = time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
 
-const lease = 90 * time.Second
+const (
+	lease  = 90 * time.Second
+	golden = "testdata/golden/store.txt"
+)
+
+var update = flag.Bool("update", false, "rewrite "+golden+" from the fixtures")
 
 func openStore(t *testing.T, clk clock.Clock) *store.Store {
 	t.Helper()
@@ -118,11 +125,17 @@ func TestApplyFixtures(t *testing.T) {
 	apply(t, st, projects)
 
 	t.Run("SH-1_tasks_and_runs_match_the_golden_file", func(t *testing.T) {
-		want, err := os.ReadFile("testdata/golden/store.txt")
+		got := dump(t, st, alpha, beta, "delta", "gamma")
+		if *update {
+			if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		want, err := os.ReadFile(golden)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if diff := cmp.Diff(string(want), dump(t, st, "alpha", "beta", "delta", "gamma")); diff != "" {
+		if diff := cmp.Diff(string(want), got); diff != "" {
 			t.Errorf("store (-want +got):\n%s", diff)
 		}
 	})
@@ -152,8 +165,8 @@ func task(agent string, state model.TaskState, line string) Task {
 func TestApplyMovesTasks(t *testing.T) {
 	ctx := context.Background()
 	st := openStore(t, clock.NewManual(t0))
-	apply(t, st, []Project{{Label: "alpha", Tasks: []Task{task("alpha-1", model.TaskNeedsOwner, "blocked")}}})
-	apply(t, st, []Project{{Label: "alpha", Tasks: []Task{task("alpha-1", model.TaskGating, "pr #7")}}})
+	apply(t, st, []Project{{Label: alpha, Tasks: []Task{task("alpha-1", model.TaskNeedsOwner, "blocked")}}})
+	apply(t, st, []Project{{Label: alpha, Tasks: []Task{task("alpha-1", model.TaskGating, "pr #7")}}})
 
 	t.Run("SH-1_shortest_path_with_the_line_as_detail", func(t *testing.T) {
 		events, err := st.Events(ctx, "shadow-alpha-1")
@@ -172,27 +185,27 @@ func TestApplyMovesTasks(t *testing.T) {
 			}
 		}
 		if diff := cmp.Diff("alpha shadow-alpha-1 gating model=sonnet owner=false run1=working\n",
-			dump(t, st, "alpha")); diff != "" {
+			dump(t, st, alpha)); diff != "" {
 			t.Errorf("store (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("SH-1_done_ends_the_run", func(t *testing.T) {
-		apply(t, st, []Project{{Label: "alpha", Tasks: []Task{task("alpha-1", model.TaskDone, "merged #7")}}})
+		apply(t, st, []Project{{Label: alpha, Tasks: []Task{task("alpha-1", model.TaskDone, "merged #7")}}})
 		if diff := cmp.Diff("alpha shadow-alpha-1 done model=sonnet owner=false run1=succeeded\n",
-			dump(t, st, "alpha")); diff != "" {
+			dump(t, st, alpha)); diff != "" {
 			t.Errorf("store (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("SH-1_a_store_ahead_of_the_file_is_skipped", func(t *testing.T) {
 		seq := lastSeq(t, st)
-		apply(t, st, []Project{{Label: "alpha", Tasks: []Task{task("alpha-1", model.TaskRunning, "spawned")}}})
+		apply(t, st, []Project{{Label: alpha, Tasks: []Task{task("alpha-1", model.TaskRunning, "spawned")}}})
 		if got := lastSeq(t, st); got != seq {
 			t.Errorf("last event %d, want %d: a done task stays done", got, seq)
 		}
 	})
 	t.Run("SH-1_canceled_ends_the_run", func(t *testing.T) {
-		apply(t, st, []Project{{Label: "alpha", Tasks: []Task{task("alpha-2", model.TaskRunning, "spawned")}}})
-		apply(t, st, []Project{{Label: "alpha", Tasks: []Task{task("alpha-2", model.TaskCanceled, "spawned alpha-3")}}})
+		apply(t, st, []Project{{Label: alpha, Tasks: []Task{task("alpha-2", model.TaskRunning, "spawned")}}})
+		apply(t, st, []Project{{Label: alpha, Tasks: []Task{task("alpha-2", model.TaskCanceled, "spawned alpha-3")}}})
 		r, err := st.Run(ctx, "shadow-alpha-2-run-1")
 		if err != nil || r.State != model.RunCanceled {
 			t.Errorf("run = %s, %v; want canceled", r.State, err)
@@ -203,11 +216,11 @@ func TestApplyMovesTasks(t *testing.T) {
 func TestApplyHolds(t *testing.T) {
 	ctx := context.Background()
 	st := openStore(t, clock.NewManual(t0))
-	merge := model.Hold{Project: "alpha", Kind: model.HoldMerge, Reason: "post-merge failed"}
-	ci := model.Hold{Project: "alpha", Kind: model.HoldCI, Reason: "red CI", FixTask: PendingFix}
+	merge := model.Hold{Project: alpha, Kind: model.HoldMerge, Reason: "post-merge failed"}
+	ci := model.Hold{Project: alpha, Kind: model.HoldCI, Reason: redCI, FixTask: PendingFix}
 	active := func(t *testing.T) []string {
 		t.Helper()
-		holds, err := st.Holds(ctx, "alpha")
+		holds, err := st.Holds(ctx, alpha)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -215,33 +228,34 @@ func TestApplyHolds(t *testing.T) {
 		for _, h := range holds {
 			out = append(out, fmt.Sprintf("%s %s %s", h.Kind, h.Reason, h.FixTask))
 		}
+		slices.Sort(out)
 		return out
 	}
 
-	apply(t, st, []Project{{Label: "alpha", Holds: []model.Hold{merge, ci}}})
+	apply(t, st, []Project{{Label: alpha, Holds: []model.Hold{merge, ci}}})
 	t.Run("SH-2_holds_are_set", func(t *testing.T) {
-		want := []string{"merge post-merge failed ", "ci red CI shadow-pending-fix"}
+		want := []string{"ci red CI shadow-pending-fix", "merge post-merge failed "}
 		if diff := cmp.Diff(want, active(t)); diff != "" {
 			t.Errorf("holds (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("SH-2_an_unchanged_hold_stays", func(t *testing.T) {
 		seq := lastSeq(t, st)
-		apply(t, st, []Project{{Label: "alpha", Holds: []model.Hold{merge, ci}}})
+		apply(t, st, []Project{{Label: alpha, Holds: []model.Hold{merge, ci}}})
 		if got := lastSeq(t, st); got != seq {
 			t.Errorf("last event %d, want %d", got, seq)
 		}
 	})
 	t.Run("SH-2_a_changed_hold_is_set_again", func(t *testing.T) {
 		ci.FixTask = "shadow-alpha-4"
-		apply(t, st, []Project{{Label: "alpha", Holds: []model.Hold{merge, ci}}})
-		want := []string{"merge post-merge failed ", "ci red CI shadow-alpha-4"}
+		apply(t, st, []Project{{Label: alpha, Holds: []model.Hold{merge, ci}}})
+		want := []string{"ci red CI shadow-alpha-4", "merge post-merge failed "}
 		if diff := cmp.Diff(want, active(t)); diff != "" {
 			t.Errorf("holds (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("SH-2_a_removed_hold_file_lifts_the_hold", func(t *testing.T) {
-		apply(t, st, []Project{{Label: "alpha"}})
+		apply(t, st, []Project{{Label: alpha}})
 		if got := active(t); len(got) != 0 {
 			t.Errorf("holds %q, want none", got)
 		}
@@ -260,19 +274,19 @@ func TestApplyLock(t *testing.T) {
 		}
 		return got
 	}
-	held := &Lock{Lane: "a", PR: 7, Since: "2026-11-25 11:59", Holder: "lane a #7"}
+	held := &Lock{Lane: "a", PR: 7, Since: "2026-11-25 11:59", Holder: holderA7}
 
-	apply(t, st, []Project{{Label: "alpha", Lock: held}})
+	apply(t, st, []Project{{Label: alpha, Lock: held}})
 	t.Run("SH-3_a_held_flock_takes_the_lock", func(t *testing.T) {
-		want := []model.Lock{{Project: "alpha", Holder: "lane a #7", AcquiredAt: t0, ExpiresAt: t0.Add(lease)}}
+		want := []model.Lock{{Project: alpha, Holder: holderA7, AcquiredAt: t0, ExpiresAt: t0.Add(lease)}}
 		if diff := cmp.Diff(want, locks(t)); diff != "" {
 			t.Errorf("locks (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("SH-3_each_import_renews_the_lease", func(t *testing.T) {
 		clk.Advance(time.Minute)
-		apply(t, st, []Project{{Label: "alpha", Lock: held}})
-		want := []model.Lock{{Project: "alpha", Holder: "lane a #7", AcquiredAt: t0,
+		apply(t, st, []Project{{Label: alpha, Lock: held}})
+		want := []model.Lock{{Project: alpha, Holder: holderA7, AcquiredAt: t0,
 			ExpiresAt: t0.Add(time.Minute + lease)}}
 		if diff := cmp.Diff(want, locks(t)); diff != "" {
 			t.Errorf("locks (-want +got):\n%s", diff)
@@ -280,13 +294,13 @@ func TestApplyLock(t *testing.T) {
 	})
 	t.Run("SH-3_a_new_holder_replaces_the_row", func(t *testing.T) {
 		next := &Lock{Lane: "b", PR: 8, Since: "2026-11-25 12:01", Holder: "lane b #8"}
-		apply(t, st, []Project{{Label: "alpha", Lock: next}})
+		apply(t, st, []Project{{Label: alpha, Lock: next}})
 		if got := locks(t); len(got) != 1 || got[0].Holder != "lane b #8" {
 			t.Errorf("locks %+v, want one held by lane b #8", got)
 		}
 	})
 	t.Run("SH-3_a_free_flock_releases_the_lock", func(t *testing.T) {
-		apply(t, st, []Project{{Label: "alpha"}})
+		apply(t, st, []Project{{Label: alpha}})
 		if got := locks(t); len(got) != 0 {
 			t.Errorf("locks %+v, want none", got)
 		}

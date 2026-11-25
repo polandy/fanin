@@ -13,6 +13,17 @@ or the address is taken.
 
 SIGINT or SIGTERM stops it: open requests end, the store is closed and the exit code is 0. A stop changes no task.
 
+### Following the bash orchestrator
+
+```sh
+fanind --config /path/to/config --shadow /path/to/orchestrator/state   # or FANIN_SHADOW=...
+```
+
+With `--shadow`, `fanind` reads the bash orchestrator's state directory (`<project>.md`, hold and merge-lock files)
+every 30 s and mirrors it into the store, so `fanin status` shows the bash state. It never writes to that
+directory. An unreadable directory or file stops the start with exit 1 and a message naming it; later failures are
+logged at `ERROR` and the next import tries again. Imported task IDs start with `shadow-`.
+
 ## fanin status
 
 ```sh

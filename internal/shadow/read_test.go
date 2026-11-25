@@ -13,6 +13,21 @@ import (
 	"github.com/polandy/fanin/internal/model"
 )
 
+// Test fixtures shared by the shadow tests.
+const (
+	alpha     = "alpha"
+	beta      = "beta"
+	alphaLog  = "alpha.md"
+	alphaCI   = ".alpha.ci-hold"
+	alphaLock = ".alpha.merge.lock"
+	redCI     = "red CI"
+	holderA7  = "lane a #7"
+	a1Gating  = "alpha-1=gating"
+	a1Done    = "alpha-1=done"
+	a1Owner   = "alpha-1=needs_owner"
+	a2Running = "alpha-2=running"
+)
+
 const fixtures = "testdata/state"
 
 // fakeProbe reports the lock files in held as flock-held; err fails every check.
@@ -54,15 +69,15 @@ func TestReadFixtures(t *testing.T) {
 	for _, p := range projects {
 		labels = append(labels, p.Label)
 	}
-	if diff := cmp.Diff([]string{"alpha", "beta", "delta", "gamma"}, labels); diff != "" {
+	if diff := cmp.Diff([]string{alpha, beta, "delta", "gamma"}, labels); diff != "" {
 		t.Errorf("labels (-want +got), the archive and other files are not projects:\n%s", diff)
 	}
 	got := byLabel(t, projects)
 
 	t.Run("SH-2_holds", func(t *testing.T) {
 		want := map[string][]model.Hold{
-			"alpha": nil,
-			"beta":  {{Project: "beta", Kind: model.HoldMerge, Reason: "post-merge of beta #433 failed: note 1"}},
+			alpha:   nil,
+			beta:    {{Project: beta, Kind: model.HoldMerge, Reason: "post-merge of beta #433 failed: note 1"}},
 			"delta": nil,
 			"gamma": {{Project: "gamma", Kind: model.HoldCI, FixTask: "shadow-gamma-f-7",
 				Reason: "gamma/f task 2 (gamma-f-6): red CI not caused by this diff: note 2"}},
@@ -78,7 +93,7 @@ func TestReadFixtures(t *testing.T) {
 		if diff := cmp.Diff(want, got["delta"].Lock); diff != "" {
 			t.Errorf("delta lock (-want +got):\n%s", diff)
 		}
-		for _, label := range []string{"alpha", "beta", "gamma"} {
+		for _, label := range []string{alpha, beta, "gamma"} {
 			if got[label].Lock != nil {
 				t.Errorf("%s lock = %+v, want none", label, got[label].Lock)
 			}
@@ -96,27 +111,27 @@ func TestReadHoldsAndLocks(t *testing.T) {
 		lock  *Lock
 	}{
 		{"SH-2_ci_hold_without_a_fix_has_the_pending_fix_task",
-			fstest.MapFS{".alpha.ci-hold": {Data: []byte("red CI\n")}}, false,
-			[]model.Hold{{Project: "alpha", Kind: model.HoldCI, Reason: "red CI", FixTask: PendingFix}}, nil},
+			fstest.MapFS{alphaCI: {Data: []byte("red CI\n")}}, false,
+			[]model.Hold{{Project: alpha, Kind: model.HoldCI, Reason: redCI, FixTask: PendingFix}}, nil},
 		{"SH-2_ci_hold_takes_the_last_fix_line",
-			fstest.MapFS{".alpha.ci-hold": {Data: []byte("red CI\nci-fix: alpha-2\nci-fix: alpha-3\n")}}, false,
-			[]model.Hold{{Project: "alpha", Kind: model.HoldCI, Reason: "red CI", FixTask: "shadow-alpha-3"}}, nil},
+			fstest.MapFS{alphaCI: {Data: []byte("red CI\nci-fix: alpha-2\nci-fix: alpha-3\n")}}, false,
+			[]model.Hold{{Project: alpha, Kind: model.HoldCI, Reason: redCI, FixTask: "shadow-alpha-3"}}, nil},
 		{"SH-2_empty_merge_hold_still_holds",
 			fstest.MapFS{".alpha.merge-hold": {Data: nil}}, false,
-			[]model.Hold{{Project: "alpha", Kind: model.HoldMerge}}, nil},
+			[]model.Hold{{Project: alpha, Kind: model.HoldMerge}}, nil},
 		{"SH-3_lock_file_without_a_flock_is_free",
-			fstest.MapFS{".alpha.merge.lock": {Data: []byte("a 1 7 2026-01-02 03:06\n")}}, false, nil, nil},
+			fstest.MapFS{alphaLock: {Data: []byte("a 1 7 2026-01-02 03:06\n")}}, false, nil, nil},
 		{"SH-3_lock_of_an_unknown_PR_names_the_lane",
-			fstest.MapFS{".alpha.merge.lock": {Data: []byte("b 1 77 2026-01-02 03:06\n")}}, true, nil,
+			fstest.MapFS{alphaLock: {Data: []byte("b 1 77 2026-01-02 03:06\n")}}, true, nil,
 			&Lock{Lane: "b", PR: 77, Since: "2026-01-02 03:06", Holder: "lane b #77"}},
 		{"SH-3_lock_of_a_known_PR_names_its_task",
-			fstest.MapFS{".alpha.merge.lock": {Data: []byte("a 1 7 2026-01-02 03:06\n")}}, true, nil,
+			fstest.MapFS{alphaLock: {Data: []byte("a 1 7 2026-01-02 03:06\n")}}, true, nil,
 			&Lock{Lane: "a", PR: 7, Since: "2026-01-02 03:06", Holder: "shadow-alpha-1"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.files["alpha.md"] = &fstest.MapFile{Data: log}
-			projects, err := Read(tc.files, fakeProbe{held: map[string]bool{".alpha.merge.lock": tc.held}})
+			tc.files[alphaLog] = &fstest.MapFile{Data: log}
+			projects, err := Read(tc.files, fakeProbe{held: map[string]bool{alphaLock: tc.held}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -142,15 +157,15 @@ func TestReadUnreadable(t *testing.T) {
 		in    string
 	}{
 		{"SH-4_missing_directory", os.DirFS("testdata/none"), fakeProbe{}, "."},
-		{"SH-4_unreadable_state_file", failFS{fstest.MapFS{"alpha.md": {Data: ok}}, "alpha.md"}, fakeProbe{},
-			"alpha.md"},
-		{"SH-4_unreadable_hold_file", failFS{fstest.MapFS{"alpha.md": {Data: ok}, ".alpha.ci-hold": {Data: ok}},
-			".alpha.ci-hold"}, fakeProbe{}, ".alpha.ci-hold"},
-		{"SH-4_non_UTF-8_state_file", fstest.MapFS{"alpha.md": {Data: []byte("\xfe\xff")}}, fakeProbe{}, "alpha"},
-		{"SH-4_held_lock_with_bad_content", fstest.MapFS{"alpha.md": {Data: ok},
-			".alpha.merge.lock": {Data: []byte("garbage\n")}},
-			fakeProbe{held: map[string]bool{".alpha.merge.lock": true}}, ".alpha.merge.lock"},
-		{"SH-4_lock_check_fails", fstest.MapFS{"alpha.md": {Data: ok}, ".alpha.merge.lock": {Data: ok}},
+		{"SH-4_unreadable_state_file", failFS{fstest.MapFS{alphaLog: {Data: ok}}, alphaLog}, fakeProbe{},
+			alphaLog},
+		{"SH-4_unreadable_hold_file", failFS{fstest.MapFS{alphaLog: {Data: ok}, alphaCI: {Data: ok}},
+			alphaCI}, fakeProbe{}, alphaCI},
+		{"SH-4_non_UTF-8_state_file", fstest.MapFS{alphaLog: {Data: []byte("\xfe\xff")}}, fakeProbe{}, alpha},
+		{"SH-4_held_lock_with_bad_content", fstest.MapFS{alphaLog: {Data: ok},
+			alphaLock: {Data: []byte("garbage\n")}},
+			fakeProbe{held: map[string]bool{alphaLock: true}}, alphaLock},
+		{"SH-4_lock_check_fails", fstest.MapFS{alphaLog: {Data: ok}, alphaLock: {Data: ok}},
 			fakeProbe{err: errors.New("no /proc/locks")}, "no /proc/locks"},
 	}
 	for _, tc := range cases {

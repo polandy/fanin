@@ -24,6 +24,7 @@ const (
 	tokenEnv   = "TEST_FANIN_OWNER_TOKEN"
 	token      = "owner-secret"
 	flagConfig = "--config"
+	project    = "alpha"
 )
 
 var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
@@ -36,7 +37,7 @@ func writeConfig(t *testing.T, dir, listen string) string {
 		"forges.yaml":       "forges:\n  github:\n    kind: github\n    token_env: GH_TOKEN\n",
 		"worker-kinds.yaml": "kinds:\n  claude:\n    runtime: herdr\n",
 	}
-	for _, p := range []string{"beta", "alpha"} {
+	for _, p := range []string{"beta", project} {
 		files["projects/"+p+".yaml"] = "path: /path/to/" + p + "\nhost: local\nforge: github\nmax_parallel: 1\n"
 	}
 	for rel, body := range files {
@@ -117,7 +118,7 @@ func TestDaemonCancelLeavesTasksAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := st.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
-		if err := tx.CreateTask(ctx, model.Task{ID: "t1", Project: "alpha", Title: "work", Shape: model.ShapePR}); err != nil {
+		if err := tx.CreateTask(ctx, model.Task{ID: "t1", Project: project, Title: "work", Shape: model.ShapePR}); err != nil {
 			return err
 		}
 		if err := tx.SetTaskState(ctx, "t1", model.TaskRunning, ""); err != nil {

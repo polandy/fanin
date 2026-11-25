@@ -11,7 +11,7 @@ import (
 
 func TestProcLocksHeld(t *testing.T) {
 	dir := t.TempDir()
-	lock := filepath.Join(dir, ".alpha.merge.lock")
+	lock := filepath.Join(dir, alphaLock)
 	if err := os.WriteFile(lock, []byte("a 1 7 2026-01-02 03:06\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestProcLocksHeld(t *testing.T) {
 			if err := os.WriteFile(proc, []byte(tc.locks), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			got, err := ProcLocks{Dir: dir, Locks: proc}.Held(".alpha.merge.lock")
+			got, err := ProcLocks{Dir: dir, Locks: proc}.Held(alphaLock)
 			if err != nil || got != tc.want {
 				t.Errorf("Held = %t, %v; want %t", got, err, tc.want)
 			}
@@ -56,7 +56,7 @@ func TestProcLocksHeld(t *testing.T) {
 		}
 	})
 	t.Run("SH-4_unreadable_proc_locks", func(t *testing.T) {
-		_, err := ProcLocks{Dir: dir, Locks: filepath.Join(dir, "none")}.Held(".alpha.merge.lock")
+		_, err := ProcLocks{Dir: dir, Locks: filepath.Join(dir, "none")}.Held(alphaLock)
 		if !errors.Is(err, ErrUnreadable) {
 			t.Errorf("Held: %v, want ErrUnreadable", err)
 		}

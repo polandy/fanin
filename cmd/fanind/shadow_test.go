@@ -12,6 +12,7 @@ import (
 
 	"github.com/polandy/fanin/internal/api/client"
 	"github.com/polandy/fanin/internal/clock"
+	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/shadow"
 )
 
@@ -32,15 +33,15 @@ func TestDaemonShadow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Snapshot: %v", err)
 		}
-		if diff := cmp.Diff([]string{"alpha", "beta", "delta", "gamma"}, snap.Projects); diff != "" {
+		if diff := cmp.Diff([]string{project, "beta", "delta", "gamma"}, snap.Projects); diff != "" {
 			t.Errorf("projects (-want +got):\n%s", diff)
 		}
 		states := map[string]string{}
 		for _, task := range snap.Tasks {
 			states[task.ID] = task.State
 		}
-		if states["shadow-delta-183"] != "needs_owner" {
-			t.Errorf("task shadow-delta-183 = %q, want needs_owner from the state file", states["shadow-delta-183"])
+		if states["shadow-delta-183"] != string(model.TaskGating) {
+			t.Errorf("task shadow-delta-183 = %q, want gating after the owner's go", states["shadow-delta-183"])
 		}
 		var holds []string
 		for _, h := range snap.Holds {
