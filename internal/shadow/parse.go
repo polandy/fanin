@@ -1,5 +1,4 @@
-// Package shadow mirrors the bash orchestrator's state directory into the store, read-only (spec in
-// docs/dev/spec/shadow.md).
+// Package shadow mirrors the bash orchestrator's state directory into the store (docs/dev/spec/shadow.md).
 package shadow
 
 import (
@@ -14,8 +13,7 @@ import (
 	"github.com/polandy/fanin/internal/model"
 )
 
-// ErrUnreadable is returned when the state directory or a file in it cannot be read or parsed; never an empty
-// status (see SCENARIOS SH-4).
+// ErrUnreadable marks a state directory or file that cannot be read or parsed (see SCENARIOS SH-4).
 var ErrUnreadable = errors.New("shadow: unreadable bash state")
 
 // The bash orchestrator's line formats (lib.sh, status.sh).
@@ -144,8 +142,7 @@ func (p *parser) event(line, lane, text string) {
 	}
 }
 
-// laneWorker returns the lane's newest running or gating task without a PR line and gives it pr; older state
-// files log a merge without one.
+// laneWorker gives pr to the lane's newest running or gating task without one (older files lack pr lines).
 func (p *parser) laneWorker(lane string, pr int) *Task {
 	for _, t := range slices.Backward(p.tasks) {
 		if t.Lane == lane && t.PR == 0 && (t.State == model.TaskRunning || t.State == model.TaskGating) {

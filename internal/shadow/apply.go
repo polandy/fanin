@@ -26,8 +26,7 @@ type current struct {
 	holds []model.Hold
 }
 
-// Apply writes projects to st: tasks, runs and holds in one transaction, then the merge locks with lease. An
-// unchanged import writes nothing (see SCENARIOS SH-5).
+// Apply writes tasks, runs and holds in one transaction, then the locks; unchanged input writes nothing (SH-5).
 func Apply(ctx context.Context, st *store.Store, log *slog.Logger, projects []Project, lease time.Duration) error {
 	cur := make(map[string]current, len(projects))
 	for _, p := range projects {

@@ -49,7 +49,7 @@ func (im *Importer) Import(ctx context.Context) error {
 	return nil
 }
 
-// Run imports every Interval until ctx ends; a failed import is logged and the next tick tries again.
+// Run imports every Interval until ctx ends; a failed import is logged unless ctx ended, and the next tick retries.
 func (im *Importer) Run(ctx context.Context) {
 	for {
 		tick := im.Clock.After(Interval)
@@ -61,7 +61,7 @@ func (im *Importer) Run(ctx context.Context) {
 			return
 		case <-tick:
 		}
-		if err := im.Import(ctx); err != nil {
+		if err := im.Import(ctx); err != nil && ctx.Err() == nil {
 			im.Log.ErrorContext(ctx, "shadow: import failed", "dir", im.Dir, "err", err)
 		}
 	}

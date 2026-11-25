@@ -19,8 +19,7 @@ const (
 	procLockKind   = "FLOCK"
 )
 
-// ProcLocks is the Probe of a real state directory: it looks the file's device and inode up in the Locks table, as
-// lib.sh's lock_pids does.
+// ProcLocks is the Probe of a real state directory: it finds the file's device and inode in the Locks table.
 type ProcLocks struct {
 	Dir   string
 	Locks string
