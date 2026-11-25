@@ -73,3 +73,19 @@ func TestAllHoldsSpansProjectsAndSkipsLifted(t *testing.T) {
 		t.Errorf("AllHolds projects (-want +got):\n%s", diff)
 	}
 }
+
+func TestLastEventSeqTracksTheNewestEvent(t *testing.T) {
+	s, _ := newStore(t)
+	ctx := context.Background()
+	if got, err := s.LastEventSeq(ctx); err != nil || got != 0 {
+		t.Fatalf("LastEventSeq on an empty log = %d, %v; want 0", got, err)
+	}
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error { return tx.CreateTask(ctx, task("t1")) })
+	evs, err := s.EventsAfter(ctx, 0, 10)
+	if err != nil {
+		t.Fatalf("EventsAfter: %v", err)
+	}
+	if got, err := s.LastEventSeq(ctx); err != nil || got != evs[len(evs)-1].Seq {
+		t.Errorf("LastEventSeq = %d, %v; want %d", got, err, evs[len(evs)-1].Seq)
+	}
+}
