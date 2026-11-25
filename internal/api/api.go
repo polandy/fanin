@@ -17,6 +17,7 @@ import (
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/owner"
+	"github.com/polandy/fanin/pkg/faninmcp"
 )
 
 // MaxBodyBytes caps the body of a command request.
@@ -65,6 +66,8 @@ type Config struct {
 	Projects []string
 	// Owner runs the owner commands; without it they answer 500 and change nothing.
 	Owner Owner
+	// Reports records worker reports; without it the worker routes answer 500 and record nothing.
+	Reports Reports
 	// Fleet feeds the hosts view; without it the snapshot lists no hosts.
 	Fleet Fleet
 }
@@ -114,7 +117,7 @@ func New(cfg Config) (http.Handler, error) {
 	for _, rt := range cfg.Registry.Routes() {
 		h := rt.Handler(s)
 		if isCommand(rt.Pattern) {
-			h = s.ownerOnly(h)
+			h = s.guard(rt.Auth, h)
 		}
 		mux.Handle(rt.Pattern, h)
 	}
@@ -130,14 +133,24 @@ func isCommand(pattern string) bool {
 	return method != http.MethodGet && method != http.MethodHead
 }
 
-func (s *Server) ownerOnly(next http.Handler) http.Handler {
+// guard checks the token auth asks for, refuses webhook deliveries and caps the body.
+func (s *Server) guard(auth Auth, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got, ok := strings.CutPrefix(r.Header.Get("Authorization"), bearerPrefix)
-		sum := sha256.Sum256([]byte(got))
-		if !ok || subtle.ConstantTimeCompare(sum[:], s.tokenHash[:]) != 1 {
-			WriteError(w, http.StatusUnauthorized, wire.CodeUnauthorized,
-				"command endpoints need the owner token; send it as 'Authorization: Bearer <token>'")
-			return
+		switch auth {
+		case AuthRun:
+			if !ok || got == "" {
+				WriteError(w, http.StatusUnauthorized, wire.CodeUnauthorized,
+					"worker endpoints need the run token; send $"+faninmcp.EnvRunToken+" as 'Authorization: Bearer <token>'")
+				return
+			}
+		default:
+			sum := sha256.Sum256([]byte(got))
+			if !ok || subtle.ConstantTimeCompare(sum[:], s.tokenHash[:]) != 1 {
+				WriteError(w, http.StatusUnauthorized, wire.CodeUnauthorized,
+					"command endpoints need the owner token; send it as 'Authorization: Bearer <token>'")
+				return
+			}
 		}
 		if hasWebhookHeader(r.Header) {
 			WriteError(w, http.StatusForbidden, wire.CodeForbidden,

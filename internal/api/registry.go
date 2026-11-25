@@ -6,12 +6,23 @@ import (
 	"sync"
 )
 
+// Auth is who may call a command endpoint.
+type Auth int
+
+// The command endpoint guards; the zero value is the owner token.
+const (
+	// AuthOwner needs the owner token.
+	AuthOwner Auth = iota
+	// AuthRun needs a bearer token that the handler checks against the run in the path.
+	AuthRun
+)
+
 // Route is one endpoint: a Go 1.22 mux pattern ("GET /api/v1/health") and the handler built for a Server.
-// Every pattern whose method is not GET or HEAD is a command endpoint and needs the owner token; the route
-// cannot opt out.
+// A pattern whose method is not GET or HEAD is a command endpoint and always needs the token Auth names.
 type Route struct {
 	Pattern string
 	Handler func(*Server) http.Handler
+	Auth    Auth
 }
 
 // Registry collects the routes of the API. Each file adds its own, so strands never edit one shared list.
