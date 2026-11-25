@@ -10,7 +10,8 @@ tags C-STORE and C-LOCK.
   Write transactions start with `BEGIN IMMEDIATE`, so two writers never deadlock on a lock upgrade.
 - `Open` refuses a file whose journal mode does not become `wal` (for example on a file system without shared
   memory), and a path with `?` or `#`.
-- The store holds one connection; `fanind` is the only writer.
+- The store holds one connection; `fanind` is the only writer. Inside `Transition`, read and write through the
+  `Tx` only: a `Store` method called there waits for the connection the transaction holds.
 - Times are stored as Unix nanoseconds in UTC; `0` means unset. They come from the injected `clock.Clock`, never
   from the wall clock.
 

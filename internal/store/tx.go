@@ -20,7 +20,7 @@ type Tx struct {
 func (t *Tx) Now() time.Time { return t.now }
 
 // Transition runs fn in one transaction. It commits when fn returns nil and rolls back every row and event
-// otherwise.
+// otherwise. fn reads and writes only through tx: a Store method called inside fn blocks on the one connection.
 func (s *Store) Transition(ctx context.Context, fn func(ctx context.Context, tx *Tx) error) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		return fn(ctx, &Tx{tx: tx, now: s.clock.Now()})
