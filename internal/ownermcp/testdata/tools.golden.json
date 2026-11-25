@@ -1,0 +1,63 @@
+[
+  {
+    "description": "Answer the open question of a task. An option number must name one of the question's options; an invalid answer is refused with the options and nothing is sent.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "answer": {
+          "description": "option number 1-9, or free text when the question allows text",
+          "type": "string"
+        },
+        "task": {
+          "description": "task id of the open question",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task",
+        "answer"
+      ],
+      "type": "object"
+    },
+    "name": "fanin_answer"
+  },
+  {
+    "description": "Release a ready task (state gating) for merge.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "task": {
+          "description": "task id, e.g. the task_id of a question",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "name": "fanin_go"
+  },
+  {
+    "description": "List the open owner questions, oldest first, with their options and the recommended one.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "name": "fanin_questions"
+  },
+  {
+    "description": "Read what is open: tasks, runs, questions, holds, project locks and the newest event per project.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "description": "limit the answer to one project; default all projects",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "fanin_status"
+  }
+]
