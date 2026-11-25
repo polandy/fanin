@@ -108,14 +108,27 @@ type Hold struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// Snapshot is the answer of GET /api/v1/snapshot: everything open right now. LastSeq is the newest event the
-// snapshot already reflects; open the event stream with after=LastSeq to see only later changes.
+// Lock is a project lock. It is stale when its lease ran out or its holder is no open task or live run.
+type Lock struct {
+	Project    string    `json:"project"`
+	Holder     string    `json:"holder"`
+	AcquiredAt time.Time `json:"acquired_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	Stale      bool      `json:"stale"`
+}
+
+// Snapshot is the answer of GET /api/v1/snapshot: everything open right now. Projects lists the configured
+// projects in config order, then any other project the store names, sorted. Latest holds the newest event of
+// each project. LastSeq is the newest event the snapshot already reflects; open the event stream with
+// after=LastSeq to see only later changes.
 type Snapshot struct {
 	Projects  []string   `json:"projects"`
 	Tasks     []Task     `json:"tasks"`
 	Runs      []Run      `json:"runs"`
 	Questions []Question `json:"questions"`
 	Holds     []Hold     `json:"holds"`
+	Locks     []Lock     `json:"locks"`
+	Latest    []Event    `json:"latest"`
 	LastSeq   int64      `json:"last_seq"`
 }
 

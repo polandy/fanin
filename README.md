@@ -18,7 +18,8 @@ fanin runs coding agents on your projects' task lists and brings their work back
 starts one fresh worker (Claude Code, opencode, …) in its own [herdr](https://github.com/herdrdev/herdr) pane and
 worktree, watches it until it reports, and turns the result into one reviewable pull request.
 
-> **Status: concept.** `fanind` is a stub and `fanin` has only `fanin version`. See [Status](#status).
+> **Status: concept.** `fanind` serves its store over a read-only API and `fanin status` reads it; no workers run
+> yet. See [Status](#status).
 
 ## Why fanin
 
@@ -76,6 +77,7 @@ The full plan is in [`docs/dev/concept.md`](docs/dev/concept.md#migration).
 - [Concept and decisions](docs/dev/concept.md)
 - [Acceptance scenarios](docs/dev/scenarios.md)
 - [Coding guidelines](docs/dev/guidelines.md)
+- [Configuration](docs/user/configuration.md) and [operation](docs/user/operation.md)
 - [Brand files](docs/brand/README.md)
 
 ## Contributing

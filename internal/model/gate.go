@@ -46,3 +46,15 @@ type Hold struct {
 	CreatedAt time.Time
 	LiftedAt  time.Time
 }
+
+// Lock is one project lock row: the holder and its lease (concept C-LOCK).
+type Lock struct {
+	Project string
+	// Holder is the task or run ID that took the lock.
+	Holder     string
+	AcquiredAt time.Time
+	ExpiresAt  time.Time
+}
+
+// Expired reports whether the lease has run out at now; an expired lock is free to take.
+func (l Lock) Expired(now time.Time) bool { return !now.Before(l.ExpiresAt) }

@@ -27,7 +27,7 @@ client for the CLI). Direction: [concept](../concept.md), owner UI. Rules: [guid
 
 A file adds its endpoints with `api.RegisterBuiltin(fn)` from `init`; `fn` calls `Registry.Add(api.Route{Pattern,
 Handler})`. `api.RegisterBuiltins(reg)` applies every such function, and `api.New` serves the registry. Handlers get
-the `*api.Server` (`Source()`, `Clock()`, `Logger()`). Other strands add endpoints in their own files and touch
+the `*api.Server` (`Source()`, `Clock()`, `Logger()`, `Projects()`). Other strands add endpoints in their own files and touch
 none of the existing ones.
 
 ## Endpoints
@@ -35,7 +35,7 @@ none of the existing ones.
 | Route | Answer |
 |---|---|
 | `GET /api/v1/health` | `{"status": "ok"}` |
-| `GET /api/v1/snapshot` | `wire.Snapshot`: open tasks, their runs, open questions, active holds, the projects they name, and `last_seq` |
+| `GET /api/v1/snapshot` | `wire.Snapshot`: open tasks, their runs, open questions, active holds, project locks with `stale`, the newest event per project, the projects (config order first, see [daemon](daemon.md)), and `last_seq` |
 | `GET /api/v1/events` | server-sent events, see below |
 
 The snapshot never carries a run's report token. `last_seq` is read before the rest, so a client that opens the

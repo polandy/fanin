@@ -37,6 +37,8 @@ type Source interface {
 	Runs(ctx context.Context, task model.TaskID) ([]model.Run, error)
 	OpenQuestions(ctx context.Context) ([]model.OwnerQuestion, error)
 	AllHolds(ctx context.Context) ([]model.Hold, error)
+	Locks(ctx context.Context) ([]model.Lock, error)
+	LatestEvents(ctx context.Context) ([]model.Event, error)
 	EventsAfter(ctx context.Context, seq int64, limit int) ([]model.Event, error)
 	LastEventSeq(ctx context.Context) (int64, error)
 	// Changed returns a channel closed after the next committed change.
@@ -51,6 +53,8 @@ type Config struct {
 	Clock      clock.Clock
 	Logger     *slog.Logger
 	Registry   *Registry
+	// Projects are the configured project names in config order.
+	Projects []string
 }
 
 // Server is the state the route handlers share.
@@ -64,6 +68,9 @@ func (s *Server) Source() Source { return s.cfg.Source }
 
 // Clock returns the injected clock.
 func (s *Server) Clock() clock.Clock { return s.cfg.Clock }
+
+// Projects returns the configured project names in config order.
+func (s *Server) Projects() []string { return s.cfg.Projects }
 
 // Logger returns the server's logger.
 func (s *Server) Logger() *slog.Logger { return s.cfg.Logger }

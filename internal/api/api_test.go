@@ -32,6 +32,8 @@ var update = flag.Bool("update", false, "rewrite the golden files")
 const (
 	ownerToken = "owner-secret"
 	projAlpha  = "alpha"
+	projBeta   = "beta"
+	projGamma  = "gamma"
 )
 
 var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
@@ -60,7 +62,7 @@ func newEnv(t *testing.T, extra ...func(*Registry)) *env {
 	for _, f := range extra {
 		f(reg)
 	}
-	h, err := New(Config{Source: st, OwnerToken: ownerToken, Clock: clk, Registry: reg})
+	h, err := New(Config{Source: st, OwnerToken: ownerToken, Clock: clk, Registry: reg, Projects: configured})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -246,7 +248,7 @@ func fill(t *testing.T, e *env) {
 	e.tx(t, func(ctx context.Context, tx *store.Tx) error {
 		for _, task := range []model.Task{
 			{ID: "t1", Project: projAlpha, Title: "first", Shape: model.ShapePR, After: []model.TaskID{"t0"}},
-			{ID: "t2", Project: "beta", Title: "second", Shape: model.ShapePR},
+			{ID: "t2", Project: projBeta, Title: "second", Shape: model.ShapePR},
 		} {
 			if err := tx.CreateTask(ctx, task); err != nil {
 				return err
@@ -259,14 +261,22 @@ func fill(t *testing.T, e *env) {
 			State: model.RunStarting}); err != nil {
 			return err
 		}
-		if _, err := tx.AskQuestion(ctx, model.OwnerQuestion{ID: "q1", TaskID: "t2", Project: "beta",
+		if _, err := tx.AskQuestion(ctx, model.OwnerQuestion{ID: "q1", TaskID: "t2", Project: projBeta,
 			Question: "beta: which?", Options: []model.Option{{Label: "a"}, {Label: "b"}}, Recommended: 1}); err != nil {
 			return err
 		}
-		_, err := tx.SetHold(ctx, model.Hold{ID: "h1", Project: "gamma", Kind: model.HoldCI, Reason: "main is red",
+		_, err := tx.SetHold(ctx, model.Hold{ID: "h1", Project: projGamma, Kind: model.HoldCI, Reason: "main is red",
 			FixTask: "t9"})
 		return err
 	})
+	for _, l := range []store.LockRequest{
+		{Project: projAlpha, Holder: "r1", Lease: time.Hour},
+		{Project: projGamma, Holder: "r0", Lease: time.Hour},
+	} {
+		if err := e.st.AcquireLock(context.Background(), l); err != nil {
+			t.Fatalf("AcquireLock: %v", err)
+		}
+	}
 }
 
 // TestSnapshotGolden covers the snapshot view of status (see SCENARIOS ST-1).
