@@ -89,7 +89,7 @@ func TestTransitionRejectsWhatTheModelForbids(t *testing.T) {
 		{"task transition", func(ctx context.Context, tx *Tx) error {
 			return tx.SetTaskState(ctx, "t1", model.TaskDone, "")
 		}, model.ErrTransition},
-		{"missing task", func(ctx context.Context, tx *Tx) error {
+		{caseNoTask, func(ctx context.Context, tx *Tx) error {
 			return tx.SetTaskState(ctx, "nope", model.TaskRunning, "")
 		}, ErrNotFound},
 		{"duplicate task", func(ctx context.Context, tx *Tx) error { return tx.CreateTask(ctx, task("t1")) }, nil},
@@ -100,10 +100,10 @@ func TestTransitionRejectsWhatTheModelForbids(t *testing.T) {
 			return tx.CreateTask(ctx, model.Task{ID: "x", Project: project, Shape: "blob"})
 		}, model.ErrUnknownValue},
 		{"unknown state", func(ctx context.Context, tx *Tx) error {
-			return tx.CreateTask(ctx, model.Task{ID: "x", Project: project, Shape: model.ShapePR, State: "nap"})
+			return tx.CreateTask(ctx, model.Task{ID: "x", Project: project, Shape: model.ShapePR, State: unknownValue})
 		}, model.ErrUnknownValue},
 		{"unknown event", func(ctx context.Context, tx *Tx) error {
-			_, err := tx.AppendEvent(ctx, model.Event{Type: "nap", Project: project})
+			_, err := tx.AppendEvent(ctx, model.Event{Type: unknownValue, Project: project})
 			return err
 		}, model.ErrUnknownValue},
 		{"event without project", func(ctx context.Context, tx *Tx) error {
@@ -186,9 +186,9 @@ func TestRunFailures(t *testing.T) {
 			return tx.CreateRun(ctx, model.Run{ID: "r2", TaskID: "t1"})
 		}, ErrInvalid},
 		{"unknown state", func(ctx context.Context, tx *Tx) error {
-			return tx.CreateRun(ctx, model.Run{ID: "r2", TaskID: "t1", Number: 2, State: "nap"})
+			return tx.CreateRun(ctx, model.Run{ID: "r2", TaskID: "t1", Number: 2, State: unknownValue})
 		}, model.ErrUnknownValue},
-		{"missing task", func(ctx context.Context, tx *Tx) error {
+		{caseNoTask, func(ctx context.Context, tx *Tx) error {
 			return tx.CreateRun(ctx, model.Run{ID: "r2", TaskID: "nope", Number: 1})
 		}, ErrNotFound},
 		{"duplicate number", func(ctx context.Context, tx *Tx) error {

@@ -26,16 +26,16 @@ func goWait(ctx context.Context, s *Store, r LockRequest) <-chan error {
 }
 
 func TestLock(t *testing.T) {
-	t.Run("MG-1_FP-1_second_acquire_is_ErrLockHeld", func(t *testing.T) {
+	t.Run("MG-1 FP-1 second acquire is ErrLockHeld", func(t *testing.T) {
 		s, _ := newStore(t)
 		ctx := context.Background()
-		if err := s.AcquireLock(ctx, req("task-a")); err != nil {
+		if err := s.AcquireLock(ctx, req(holderA)); err != nil {
 			t.Fatalf("first acquire: %v", err)
 		}
-		for _, holder := range []string{"task-b", "task-a"} {
+		for _, holder := range []string{"task-b", holderA} {
 			err := s.AcquireLock(ctx, req(holder))
 			var held *LockHeldError
-			if !errors.Is(err, ErrLockHeld) || !errors.As(err, &held) || held.Holder != "task-a" {
+			if !errors.Is(err, ErrLockHeld) || !errors.As(err, &held) || held.Holder != holderA {
 				t.Errorf("acquire by %s: %v, want ErrLockHeld naming task-a", holder, err)
 			}
 			if errors.Is(err, ErrLockTimeout) {
@@ -56,14 +56,14 @@ func TestLock(t *testing.T) {
 	t.Run("MG-2_waiting_acquire_succeeds_after_release", func(t *testing.T) {
 		s, _ := newStore(t)
 		ctx := context.Background()
-		if err := s.AcquireLock(ctx, req("task-a")); err != nil {
+		if err := s.AcquireLock(ctx, req(holderA)); err != nil {
 			t.Fatal(err)
 		}
 		waiting := make(chan struct{}, 1)
 		s.waiting = func() { waiting <- struct{}{} }
 		done := goWait(ctx, s, req("task-b"))
 		<-waiting
-		if err := s.ReleaseLock(ctx, project, "task-a"); err != nil {
+		if err := s.ReleaseLock(ctx, project, holderA); err != nil {
 			t.Fatal(err)
 		}
 		if err := <-done; err != nil {
@@ -77,7 +77,7 @@ func TestLock(t *testing.T) {
 	t.Run("MG-2_wait_timeout_names_holder_and_duration", func(t *testing.T) {
 		s, clk := newStore(t)
 		ctx := context.Background()
-		long := LockRequest{Project: project, Holder: "task-a", Lease: 2 * lockTimeout}
+		long := LockRequest{Project: project, Holder: holderA, Lease: 2 * lockTimeout}
 		if err := s.AcquireLock(ctx, long); err != nil {
 			t.Fatal(err)
 		}
@@ -91,7 +91,7 @@ func TestLock(t *testing.T) {
 		if !errors.Is(err, ErrLockTimeout) || !errors.Is(err, ErrLockHeld) || !errors.As(err, &held) {
 			t.Fatalf("WaitLock: %v, want a timeout LockHeldError", err)
 		}
-		if held.Holder != "task-a" || held.Waited != lockTimeout {
+		if held.Holder != holderA || held.Waited != lockTimeout {
 			t.Errorf("holder %q waited %s, want task-a %s", held.Holder, held.Waited, lockTimeout)
 		}
 		want := `store: lock of project "proj-a" held for over 1h0m0s by "task-a" (since 2026-03-04T05:06:07Z); ` +
@@ -103,7 +103,7 @@ func TestLock(t *testing.T) {
 
 	t.Run("MG-2_wait_ends_with_ctx", func(t *testing.T) {
 		s, _ := newStore(t)
-		if err := s.AcquireLock(context.Background(), req("task-a")); err != nil {
+		if err := s.AcquireLock(context.Background(), req(holderA)); err != nil {
 			t.Fatal(err)
 		}
 		ctx, cancel := context.WithCancel(context.Background())
@@ -116,7 +116,7 @@ func TestLock(t *testing.T) {
 	t.Run("MG-3_expired_lease_frees_the_lock", func(t *testing.T) {
 		s, clk := newStore(t)
 		ctx := context.Background()
-		if err := s.AcquireLock(ctx, req("task-a")); err != nil {
+		if err := s.AcquireLock(ctx, req(holderA)); err != nil {
 			t.Fatal(err)
 		}
 		clk.Advance(lease - time.Second)
@@ -127,7 +127,7 @@ func TestLock(t *testing.T) {
 		if err := s.AcquireLock(ctx, req("task-b")); err != nil {
 			t.Fatalf("acquire after expiry: %v, want nil", err)
 		}
-		if err := s.RenewLock(ctx, req("task-a")); !errors.Is(err, ErrLockNotHeld) {
+		if err := s.RenewLock(ctx, req(holderA)); !errors.Is(err, ErrLockNotHeld) {
 			t.Errorf("renew by the expired holder: %v, want ErrLockNotHeld", err)
 		}
 	})
@@ -135,7 +135,7 @@ func TestLock(t *testing.T) {
 	t.Run("MG-3_wait_takes_an_expiring_lease", func(t *testing.T) {
 		s, clk := newStore(t)
 		ctx := context.Background()
-		short := LockRequest{Project: project, Holder: "task-a", Lease: LockPoll}
+		short := LockRequest{Project: project, Holder: holderA, Lease: LockPoll}
 		if err := s.AcquireLock(ctx, short); err != nil {
 			t.Fatal(err)
 		}
@@ -152,11 +152,11 @@ func TestLock(t *testing.T) {
 	t.Run("MG-3_renew_keeps_the_lease", func(t *testing.T) {
 		s, clk := newStore(t)
 		ctx := context.Background()
-		if err := s.AcquireLock(ctx, req("task-a")); err != nil {
+		if err := s.AcquireLock(ctx, req(holderA)); err != nil {
 			t.Fatal(err)
 		}
 		clk.Advance(lease - time.Second)
-		if err := s.RenewLock(ctx, req("task-a")); err != nil {
+		if err := s.RenewLock(ctx, req(holderA)); err != nil {
 			t.Fatal(err)
 		}
 		clk.Advance(lease - time.Second)
@@ -180,7 +180,7 @@ func TestLockFailures(t *testing.T) {
 	if err := s.WaitLock(ctx, LockRequest{}, lockTimeout); !errors.Is(err, ErrInvalid) {
 		t.Errorf("WaitLock: %v, want ErrInvalid", err)
 	}
-	if err := s.AcquireLock(ctx, req("task-a")); err != nil {
+	if err := s.AcquireLock(ctx, req(holderA)); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.ReleaseLock(ctx, project, "task-b"); !errors.Is(err, ErrLockNotHeld) {
@@ -189,10 +189,10 @@ func TestLockFailures(t *testing.T) {
 	if err := s.AcquireLock(ctx, req("task-b")); !errors.Is(err, ErrLockHeld) {
 		t.Errorf("acquire after a refused release: %v, want ErrLockHeld", err)
 	}
-	if err := s.ReleaseLock(ctx, project, "task-a"); err != nil {
+	if err := s.ReleaseLock(ctx, project, holderA); err != nil {
 		t.Errorf("release by the holder: %v", err)
 	}
-	if err := s.ReleaseLock(ctx, project, "task-a"); !errors.Is(err, ErrLockNotHeld) {
+	if err := s.ReleaseLock(ctx, project, holderA); !errors.Is(err, ErrLockNotHeld) {
 		t.Errorf("second release: %v, want ErrLockNotHeld", err)
 	}
 }

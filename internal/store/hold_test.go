@@ -77,7 +77,7 @@ func TestHolds(t *testing.T) {
 		}
 	})
 
-	t.Run("MG-4_MG-8_holds_are_lifted_one_by_one", func(t *testing.T) {
+	t.Run("MG-4 MG-8 holds are lifted one by one", func(t *testing.T) {
 		s, _ := newStore(t)
 		ci := setHold(t, s, model.Hold{Project: project, Kind: model.HoldCI, FixTask: "fix"})
 		merge := setHold(t, s, model.Hold{ID: "merge-1", Project: project, Kind: model.HoldMerge})
@@ -104,7 +104,7 @@ func TestHoldFailures(t *testing.T) {
 		want error
 	}{
 		{"unknown kind", func(ctx context.Context, tx *Tx) error {
-			return second(tx.SetHold(ctx, model.Hold{Project: project, Kind: "nap"}))
+			return second(tx.SetHold(ctx, model.Hold{Project: project, Kind: unknownValue}))
 		}, model.ErrUnknownValue},
 		{"no project", func(ctx context.Context, tx *Tx) error {
 			return second(tx.SetHold(ctx, model.Hold{Kind: model.HoldMerge}))
@@ -112,7 +112,7 @@ func TestHoldFailures(t *testing.T) {
 		{"ci without fix task", func(ctx context.Context, tx *Tx) error {
 			return second(tx.SetHold(ctx, model.Hold{Project: project, Kind: model.HoldCI}))
 		}, ErrInvalid},
-		{"duplicate id", func(ctx context.Context, tx *Tx) error {
+		{caseDup, func(ctx context.Context, tx *Tx) error {
 			return second(tx.SetHold(ctx, model.Hold{ID: "h1", Project: project, Kind: model.HoldMerge}))
 		}, nil},
 		{"lift twice", func(ctx context.Context, tx *Tx) error { return tx.LiftHold(ctx, "h1") }, ErrNotFound},

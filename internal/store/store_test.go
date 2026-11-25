@@ -10,6 +10,11 @@ import (
 	"github.com/polandy/fanin/internal/clock"
 )
 
+const (
+	mig1 = "migrations/0001_a.sql"
+	mig2 = "migrations/0002_b.sql"
+)
+
 func TestOpenUsesWALAndBusyTimeout(t *testing.T) {
 	s, _ := newStore(t)
 	ctx := context.Background()
@@ -44,7 +49,7 @@ func TestOpenAppliesMigrationsOnce(t *testing.T) {
 }
 
 func TestOpenFailures(t *testing.T) {
-	good := fstest.MapFS{"migrations/0001_a.sql": {Data: []byte("CREATE TABLE a (x INTEGER);")}}
+	good := fstest.MapFS{mig1: {Data: []byte("CREATE TABLE a (x INTEGER);")}}
 	tests := []struct {
 		name string
 		path string
@@ -54,10 +59,10 @@ func TestOpenFailures(t *testing.T) {
 		{"empty path", "", good, ErrInvalid},
 		{"path with query", "x.db?mode=ro", good, ErrInvalid},
 		{"failed migration", "", fstest.MapFS{
-			"migrations/0001_a.sql": {Data: []byte("CREATE TABLE a (x INTEGER);")},
-			"migrations/0002_b.sql": {Data: []byte("CREATE TABLE broken (;")},
+			mig1: {Data: []byte("CREATE TABLE a (x INTEGER);")},
+			mig2: {Data: []byte("CREATE TABLE broken (;")},
 		}, ErrMigration},
-		{"migration gap", "", fstest.MapFS{"migrations/0002_a.sql": {Data: []byte("SELECT 1;")}}, ErrMigration},
+		{"migration gap", "", fstest.MapFS{"migrations/0002_gap.sql": {Data: []byte("SELECT 1;")}}, ErrMigration},
 		{"bad migration name", "", fstest.MapFS{"migrations/init.sql": {Data: []byte("SELECT 1;")}}, ErrMigration},
 		{"no migration dir", "", fstest.MapFS{}, ErrMigration},
 		{"not a directory", filepath.Join(t.TempDir(), "missing", "fanin.db"), good, nil},
@@ -65,7 +70,7 @@ func TestOpenFailures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path := tt.path
-			if path == "" && tt.want != ErrInvalid {
+			if path == "" && !errors.Is(tt.want, ErrInvalid) {
 				path = filepath.Join(t.TempDir(), "fanin.db")
 			}
 			s, err := open(context.Background(), path, clock.NewManual(t0), tt.fsys)
@@ -84,21 +89,21 @@ func TestFailedMigrationKeepsEarlierOnesAndRollsBackItself(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fanin.db")
 	ctx := context.Background()
 	bad := fstest.MapFS{
-		"migrations/0001_a.sql": {Data: []byte("CREATE TABLE a (x INTEGER);")},
-		"migrations/0002_b.sql": {Data: []byte("CREATE TABLE b (x INTEGER); INSERT INTO nope VALUES (1);")},
+		mig1: {Data: []byte("CREATE TABLE a (x INTEGER);")},
+		mig2: {Data: []byte("CREATE TABLE b (x INTEGER); INSERT INTO nope VALUES (1);")},
 	}
 	if _, err := open(ctx, path, clock.NewManual(t0), bad); !errors.Is(err, ErrMigration) {
 		t.Fatalf("open: %v, want ErrMigration", err)
 	}
 	fixed := fstest.MapFS{
-		"migrations/0001_a.sql": bad["migrations/0001_a.sql"],
-		"migrations/0002_b.sql": {Data: []byte("CREATE TABLE b (x INTEGER);")},
+		mig1: bad[mig1],
+		mig2: {Data: []byte("CREATE TABLE b (x INTEGER);")},
 	}
 	s, err := open(ctx, path, clock.NewManual(t0), fixed)
 	if err != nil {
 		t.Fatalf("open after fix: %v (table b of the failed run must have rolled back)", err)
 	}
-	defer s.Close()
+	closeOnCleanup(t, s)
 	var v int
 	if err := s.db.QueryRowContext(ctx, "SELECT MAX(version) FROM schema_migrations").Scan(&v); err != nil {
 		t.Fatal(err)
@@ -112,8 +117,8 @@ func TestOpenRefusesNewerSchema(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fanin.db")
 	ctx := context.Background()
 	two := fstest.MapFS{
-		"migrations/0001_a.sql": {Data: []byte("CREATE TABLE a (x INTEGER);")},
-		"migrations/0002_b.sql": {Data: []byte("CREATE TABLE b (x INTEGER);")},
+		mig1: {Data: []byte("CREATE TABLE a (x INTEGER);")},
+		mig2: {Data: []byte("CREATE TABLE b (x INTEGER);")},
 	}
 	s, err := open(ctx, path, clock.NewManual(t0), two)
 	if err != nil {
@@ -122,7 +127,7 @@ func TestOpenRefusesNewerSchema(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	one := fstest.MapFS{"migrations/0001_a.sql": two["migrations/0001_a.sql"]}
+	one := fstest.MapFS{mig1: two[mig1]}
 	if _, err := open(ctx, path, clock.NewManual(t0), one); !errors.Is(err, ErrMigration) {
 		t.Errorf("open with an older build: %v, want ErrMigration", err)
 	}

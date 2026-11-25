@@ -138,9 +138,12 @@ func boolToDB(b bool) int64 {
 }
 
 // scanAll reads every row with scan and closes rows.
-func scanAll[T any](rows *sql.Rows, scan func(scanner) (T, error)) ([]T, error) {
-	defer rows.Close()
-	var out []T
+func scanAll[T any](rows *sql.Rows, scan func(scanner) (T, error)) (out []T, err error) {
+	defer func() {
+		if cerr := rows.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("store: close rows: %w", cerr)
+		}
+	}()
 	for rows.Next() {
 		v, err := scan(rows)
 		if err != nil {

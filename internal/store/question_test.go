@@ -78,10 +78,10 @@ func TestOwnerQuestionFailures(t *testing.T) {
 	}{
 		{"invalid question", func(ctx context.Context, tx *Tx) error { return second(tx.AskQuestion(ctx, invalid)) },
 			model.ErrInvalidQuestion},
-		{"missing task", func(ctx context.Context, tx *Tx) error {
+		{caseNoTask, func(ctx context.Context, tx *Tx) error {
 			return second(tx.AskQuestion(ctx, question("nope")))
 		}, ErrNotFound},
-		{"duplicate id", func(ctx context.Context, tx *Tx) error { return second(tx.AskQuestion(ctx, answered)) }, nil},
+		{caseDup, func(ctx context.Context, tx *Tx) error { return second(tx.AskQuestion(ctx, answered)) }, nil},
 		{"empty answer", func(ctx context.Context, tx *Tx) error { return tx.AnswerQuestion(ctx, "q1", " ") },
 			ErrInvalid},
 		{"answered twice", func(ctx context.Context, tx *Tx) error { return tx.AnswerQuestion(ctx, "q1", "now") },

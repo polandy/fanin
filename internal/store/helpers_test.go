@@ -12,7 +12,15 @@ import (
 
 var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 
-const project = "proj-a"
+// Shared test values.
+const (
+	project      = "proj-a"
+	holderA      = "task-a"
+	unknownValue = "nap"
+	timerPoll    = "poll"
+	caseDup      = "duplicate id"
+	caseNoTask   = "missing task"
+)
 
 func openStore(t *testing.T, path string, clk clock.Clock) *Store {
 	t.Helper()
@@ -20,8 +28,18 @@ func openStore(t *testing.T, path string, clk clock.Clock) *Store {
 	if err != nil {
 		t.Fatalf("Open(%s): %v", path, err)
 	}
-	t.Cleanup(func() { _ = s.Close() })
+	closeOnCleanup(t, s)
 	return s
+}
+
+// closeOnCleanup closes s at the end of the test; closing an already closed store is a no-op.
+func closeOnCleanup(t *testing.T, s *Store) {
+	t.Helper()
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	})
 }
 
 func newStore(t *testing.T) (*Store, *clock.Manual) {

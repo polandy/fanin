@@ -13,32 +13,34 @@ import (
 	"github.com/polandy/fanin/internal/model"
 )
 
+const tRunning = "t-running"
+
 func TestRestartReloadsOpenTasksAndTimers(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fanin.db")
 	clk := clock.NewManual(t0)
 	s := openStore(t, path, clk)
-	createTasks(t, s, "queued", "running", "done")
+	createTasks(t, s, "t-queued", tRunning, "t-done")
 	var due, later string
 	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
-		if err := tx.SetTaskState(ctx, "running", model.TaskRunning, ""); err != nil {
+		if err := tx.SetTaskState(ctx, tRunning, model.TaskRunning, ""); err != nil {
 			return err
 		}
-		if err := tx.SetTaskState(ctx, "done", model.TaskRunning, ""); err != nil {
+		if err := tx.SetTaskState(ctx, "t-done", model.TaskRunning, ""); err != nil {
 			return err
 		}
-		if err := tx.SetTaskState(ctx, "done", model.TaskDone, ""); err != nil {
+		if err := tx.SetTaskState(ctx, "t-done", model.TaskDone, ""); err != nil {
 			return err
 		}
 		var err error
-		if due, err = tx.ArmTimer(ctx, Timer{Project: project, TaskID: "running", Kind: "stall",
+		if due, err = tx.ArmTimer(ctx, Timer{Project: project, TaskID: tRunning, Kind: "stall",
 			DueAt: tx.Now().Add(time.Minute)}); err != nil {
 			return err
 		}
-		if later, err = tx.ArmTimer(ctx, Timer{ID: "later", Project: project, Kind: "poll",
+		if later, err = tx.ArmTimer(ctx, Timer{ID: "later", Project: project, Kind: timerPoll,
 			DueAt: t0.Add(time.Hour)}); err != nil {
 			return err
 		}
-		gone, err := tx.ArmTimer(ctx, Timer{Project: project, Kind: "poll", DueAt: t0})
+		gone, err := tx.ArmTimer(ctx, Timer{Project: project, Kind: timerPoll, DueAt: t0})
 		if err != nil {
 			return err
 		}
@@ -59,7 +61,7 @@ func TestRestartReloadsOpenTasksAndTimers(t *testing.T) {
 	for _, task := range open {
 		ids = append(ids, task.ID)
 	}
-	if d := cmp.Diff([]model.TaskID{"queued", "running"}, ids); d != "" {
+	if d := cmp.Diff([]model.TaskID{"t-queued", tRunning}, ids); d != "" {
 		t.Errorf("open tasks after restart (-want +got):\n%s", d)
 	}
 	armed, err := s.ArmedTimers(ctx)
@@ -67,8 +69,8 @@ func TestRestartReloadsOpenTasksAndTimers(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantArmed := []Timer{
-		{ID: due, Project: project, TaskID: "running", Kind: "stall", DueAt: t0.Add(time.Minute), CreatedAt: t0},
-		{ID: later, Project: project, Kind: "poll", DueAt: t0.Add(time.Hour), CreatedAt: t0},
+		{ID: due, Project: project, TaskID: tRunning, Kind: "stall", DueAt: t0.Add(time.Minute), CreatedAt: t0},
+		{ID: later, Project: project, Kind: timerPoll, DueAt: t0.Add(time.Hour), CreatedAt: t0},
 	}
 	if d := cmp.Diff(wantArmed, armed); d != "" {
 		t.Errorf("armed timers after restart (-want +got):\n%s", d)
@@ -90,19 +92,19 @@ func TestTimerFailures(t *testing.T) {
 		want error
 	}{
 		{"no project", func(ctx context.Context, tx *Tx) error {
-			return second(tx.ArmTimer(ctx, Timer{Kind: "poll", DueAt: t0}))
+			return second(tx.ArmTimer(ctx, Timer{Kind: timerPoll, DueAt: t0}))
 		}, ErrInvalid},
 		{"no kind", func(ctx context.Context, tx *Tx) error {
 			return second(tx.ArmTimer(ctx, Timer{Project: project, DueAt: t0}))
 		}, ErrInvalid},
 		{"no due time", func(ctx context.Context, tx *Tx) error {
-			return second(tx.ArmTimer(ctx, Timer{Project: project, Kind: "poll"}))
+			return second(tx.ArmTimer(ctx, Timer{Project: project, Kind: timerPoll}))
 		}, ErrInvalid},
-		{"duplicate id", func(ctx context.Context, tx *Tx) error {
-			if _, err := tx.ArmTimer(ctx, Timer{ID: "x", Project: project, Kind: "poll", DueAt: t0}); err != nil {
+		{caseDup, func(ctx context.Context, tx *Tx) error {
+			if _, err := tx.ArmTimer(ctx, Timer{ID: "x", Project: project, Kind: timerPoll, DueAt: t0}); err != nil {
 				return err
 			}
-			return second(tx.ArmTimer(ctx, Timer{ID: "x", Project: project, Kind: "poll", DueAt: t0}))
+			return second(tx.ArmTimer(ctx, Timer{ID: "x", Project: project, Kind: timerPoll, DueAt: t0}))
 		}, nil},
 		{"disarm unknown", func(ctx context.Context, tx *Tx) error { return tx.DisarmTimer(ctx, "nope") }, ErrNotFound},
 	}
