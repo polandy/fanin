@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +28,10 @@ import (
 
 var update = flag.Bool("update", false, "rewrite the golden files")
 
-const ownerToken = "owner-secret"
+const (
+	ownerToken = "owner-secret"
+	projAlpha  = "alpha"
+)
 
 var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 
@@ -71,7 +75,14 @@ func (e *env) tx(t *testing.T, fn func(ctx context.Context, tx *store.Tx) error)
 	}
 }
 
-func (e *env) do(t *testing.T, method, path, token string, hdr map[string]string) *http.Response {
+// reply is a finished answer: the body is read and closed.
+type reply struct {
+	StatusCode int
+	Header     http.Header
+	Body       []byte
+}
+
+func (e *env) do(t *testing.T, method, path, token string, hdr map[string]string) reply {
 	t.Helper()
 	req, err := http.NewRequestWithContext(context.Background(), method, e.srv.URL+path, strings.NewReader(`{}`))
 	if err != nil {
@@ -87,16 +98,20 @@ func (e *env) do(t *testing.T, method, path, token string, hdr map[string]string
 	if err != nil {
 		t.Fatalf("%s %s: %v", method, path, err)
 	}
-	t.Cleanup(func() { _ = resp.Body.Close() })
-	return resp
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("%s %s: read body: %v", method, path, err)
+	}
+	return reply{StatusCode: resp.StatusCode, Header: resp.Header, Body: body}
 }
 
-func decodeError(t *testing.T, resp *http.Response) wire.Error {
+func decodeError(t *testing.T, resp reply) wire.Error {
 	t.Helper()
 	var body struct {
 		Error wire.Error `json:"error"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.Unmarshal(resp.Body, &body); err != nil {
 		t.Fatalf("decode error body: %v", err)
 	}
 	return body.Error
@@ -109,7 +124,7 @@ func TestHealth(t *testing.T) {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
 	var h wire.Health
-	if err := json.NewDecoder(resp.Body).Decode(&h); err != nil || h.Status != wire.StatusOK {
+	if err := json.Unmarshal(resp.Body, &h); err != nil || h.Status != wire.StatusOK {
 		t.Errorf("health = %+v, %v; want status %q", h, err, wire.StatusOK)
 	}
 }
@@ -229,7 +244,7 @@ func fill(t *testing.T, e *env) {
 	t.Helper()
 	e.tx(t, func(ctx context.Context, tx *store.Tx) error {
 		for _, task := range []model.Task{
-			{ID: "t1", Project: "alpha", Title: "first", Shape: model.ShapePR, After: []model.TaskID{"t0"}},
+			{ID: "t1", Project: projAlpha, Title: "first", Shape: model.ShapePR, After: []model.TaskID{"t0"}},
 			{ID: "t2", Project: "beta", Title: "second", Shape: model.ShapePR},
 		} {
 			if err := tx.CreateTask(ctx, task); err != nil {
@@ -261,7 +276,7 @@ func TestSnapshotGolden(t *testing.T) {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
 	var snap wire.Snapshot
-	if err := json.NewDecoder(resp.Body).Decode(&snap); err != nil {
+	if err := json.Unmarshal(resp.Body, &snap); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	got, err := json.MarshalIndent(snap, "", "  ")
@@ -337,7 +352,7 @@ func TestSSEDeliversAnEventAfterAStoreWrite(t *testing.T) {
 	events := openStream(t, e, "/api/v1/events")
 	// The handler has taken its change channel by the time the response headers arrive, so this write is seen.
 	e.tx(t, func(ctx context.Context, tx *store.Tx) error {
-		return tx.CreateTask(ctx, model.Task{ID: "t1", Project: "alpha", Title: "first", Shape: model.ShapePR})
+		return tx.CreateTask(ctx, model.Task{ID: "t1", Project: projAlpha, Title: "first", Shape: model.ShapePR})
 	})
 	ev := <-events
 	if ev.event != string(model.EventTaskCreated) || ev.id == "" {
@@ -347,7 +362,7 @@ func TestSSEDeliversAnEventAfterAStoreWrite(t *testing.T) {
 	if err := json.Unmarshal([]byte(ev.data), &got); err != nil {
 		t.Fatalf("decode data: %v", err)
 	}
-	if got.TaskID != "t1" || got.Project != "alpha" || got.Type != string(model.EventTaskCreated) {
+	if got.TaskID != "t1" || got.Project != projAlpha || got.Type != string(model.EventTaskCreated) {
 		t.Errorf("data = %+v, want the t1 task_created of alpha", got)
 	}
 }
@@ -356,7 +371,7 @@ func TestSSEResumesAfterTheGivenSeq(t *testing.T) {
 	e := newEnv(t)
 	for _, id := range []string{"t1", "t2"} {
 		e.tx(t, func(ctx context.Context, tx *store.Tx) error {
-			return tx.CreateTask(ctx, model.Task{ID: model.TaskID(id), Project: "alpha", Title: id, Shape: model.ShapePR})
+			return tx.CreateTask(ctx, model.Task{ID: model.TaskID(id), Project: projAlpha, Title: id, Shape: model.ShapePR})
 		})
 	}
 	evs, err := e.st.EventsAfter(context.Background(), 0, 10)

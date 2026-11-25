@@ -3,7 +3,7 @@ package wire
 
 import "time"
 
-// Health statuses.
+// StatusOK is the status of a healthy fanind.
 const StatusOK = "ok"
 
 // Error codes of the JSON error format.
