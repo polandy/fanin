@@ -182,6 +182,7 @@ type faninFile struct {
 	Store         string         `yaml:"store"`
 	Log           Log            `yaml:"log"`
 	OwnerTokenEnv string         `yaml:"owner_token_env"`
+	Notify        Notify         `yaml:"notify"`
 	Defaults      map[string]any `yaml:"defaults"`
 }
 
@@ -206,13 +207,19 @@ func (t tree) build() (Config, error) {
 	if err := decodeStrict(t.path(fileFanin), t.root[fileFanin].m, &f); err != nil {
 		return Config{}, err
 	}
-	cfg := Config{Dir: t.dir, lines: t.keyLines(), Listen: f.Listen, Store: f.Store, Log: f.Log, OwnerTokenEnv: f.OwnerTokenEnv,
+	cfg := Config{Dir: t.dir, lines: t.keyLines(), Listen: f.Listen, Store: f.Store, Log: f.Log, OwnerTokenEnv: f.OwnerTokenEnv, Notify: f.Notify,
 		Hosts: map[string]Host{}, Forges: map[string]Forge{}, WorkerKinds: map[string]WorkerKind{}}
 	if !filepath.IsAbs(cfg.Store) {
 		cfg.Store = filepath.Join(t.dir, cfg.Store)
 	}
 	if cfg.Log.Format == "" {
 		cfg.Log.Format = LogJSON
+	}
+	if cfg.Notify.Kind == "" {
+		cfg.Notify.Kind = NotifyLog
+	}
+	if cfg.Notify.SignalCLI == "" {
+		cfg.Notify.SignalCLI = DefaultSignalCLI
 	}
 	if cfg.Log.Level == "" {
 		cfg.Log.Level = LevelInfo

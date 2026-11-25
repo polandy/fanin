@@ -101,7 +101,7 @@ const EVENT_TYPES = [
   'task_created', 'task_state', 'run_started', 'run_state', 'progress', 'token_usage', 'result_reported',
   'gate_verdict', 'question_asked', 'question_answered', 'hold_set', 'hold_lifted', 'hook_started',
   'hook_finished', 'hook_failed', 'worker_nudged', 'pr_opened', 'merged', 'owner_go', 'project_paused',
-  'project_resumed', 'pause_consumed',
+  'project_resumed', 'pause_consumed', 'notified', 'notify_failed',
 ];
 
 function route() {

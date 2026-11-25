@@ -57,7 +57,7 @@ nil and rolls back every row and event otherwise. Each `Tx` write appends its ev
 | `SetHold` / `LiftHold` | `hold_set` / `hold_lifted` |
 | `AskQuestion` (validated) / `AnswerQuestion` | `question_asked` / `question_answered` |
 | `RequestPause` / `Resume` / `ConsumePause` | `project_paused` / `project_resumed` / `pause_consumed` |
-| `AppendEvent` | any other event type |
+| `AppendEvent` | any other event type, such as `notified` and `notify_failed` |
 
 `Tx.Run`, `Tx.LatestRun` (the task's run with the highest number) and `Tx.Task` read inside the transaction, so a
 check and the write it guards see the same rows. `ArmTimer` and `DisarmTimer` write no event; they ride in the transaction of the state change they belong to.

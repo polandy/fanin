@@ -29,6 +29,8 @@ const (
 	EventProjectPaused    EventType = "project_paused"
 	EventProjectResumed   EventType = "project_resumed"
 	EventPauseConsumed    EventType = "pause_consumed"
+	EventNotified         EventType = "notified"
+	EventNotifyFailed     EventType = "notify_failed"
 )
 
 // AllEventTypes lists every EventType.
@@ -37,6 +39,7 @@ var AllEventTypes = []EventType{
 	EventResultReported, EventGateVerdict, EventQuestionAsked, EventQuestionAnswered, EventHoldSet, EventHoldLifted,
 	EventHookStarted, EventHookFinished, EventHookFailed, EventWorkerNudged, EventPROpened, EventMerged,
 	EventOwnerGo, EventProjectPaused, EventProjectResumed, EventPauseConsumed,
+	EventNotified, EventNotifyFailed,
 }
 
 // ParseEventType reads a stored event type; an unknown value is ErrUnknownValue.
