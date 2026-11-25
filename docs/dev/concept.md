@@ -78,7 +78,7 @@ fanin does not run merges itself. It combines existing building blocks and stays
   further merges when such a hook fails.
 - Why: the merge path is the most delicate part of the bash orchestrator. On the forge it becomes configuration
   that the forge enforces for humans and agents alike.
-- The forge interface and the GitHub client: [`spec/forge.md`](spec/forge.md).
+- The forge interface, the resolver and the GitHub and Gitea clients: [`spec/forge.md`](spec/forge.md).
 
 ### D5. The review is a required check
 
