@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/polandy/fanin/internal/model"
+	"github.com/polandy/fanin/internal/notify"
 	"github.com/polandy/fanin/internal/store"
 )
 
@@ -23,6 +24,8 @@ const (
 	unreadableDialog = "dialog: unreadable"
 	askedPrefix      = "asks the owner: "
 	answeredDetail   = "owner answered"
+	notifiedDetail   = "owner notified of question "
+	notifyFailedText = "owner note for question %s failed: %v"
 )
 
 // Errors of the owner channel; the API maps them to status codes.
@@ -77,6 +80,8 @@ type Service struct {
 	store   *store.Store
 	deliver Deliverer
 	log     *slog.Logger
+	// notifier gets a note per new question; nil sends none.
+	notifier notify.Notifier
 	// answering serialises answers, so one question is never delivered twice.
 	answering sync.Mutex
 }
@@ -89,6 +94,9 @@ func New(st *store.Store, d Deliverer, log *slog.Logger) *Service {
 	return &Service{store: st, deliver: d, log: log}
 }
 
+// SetNotifier sets the push channel that gets a note per new question; call it before serving.
+func (s *Service) SetNotifier(n notify.Notifier) { s.notifier = n }
+
 // Dialog is a dialog read from a worker's pane: its text and the options it numbers.
 type Dialog struct {
 	TaskID  model.TaskID
@@ -99,12 +107,13 @@ type Dialog struct {
 
 // Ask stores q and moves its task to needs_owner in one transition (see SCENARIOS AW-9).
 func (s *Service) Ask(ctx context.Context, q model.OwnerQuestion) (string, error) {
-	var id string
+	var id, project string
 	err := s.store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
 		task, err := tx.Task(ctx, q.TaskID)
 		if err != nil {
 			return err
 		}
+		project = task.Project
 		if id, err = tx.AskQuestion(ctx, q); err != nil {
 			return err
 		}
@@ -116,7 +125,31 @@ func (s *Service) Ask(ctx context.Context, q model.OwnerQuestion) (string, error
 	if err != nil {
 		return "", fmt.Errorf("owner: ask for task %q: %w", q.TaskID, err)
 	}
+	s.notifyQuestion(ctx, project, id, q)
 	return id, nil
+}
+
+// notifyQuestion pushes a note about the stored question and logs the outcome as an event. A failed push
+// is logged and never undoes the question (see SCENARIOS OA-7).
+func (s *Service) notifyQuestion(ctx context.Context, project, id string, q model.OwnerQuestion) {
+	if s.notifier == nil {
+		return
+	}
+	ev := model.Event{Type: model.EventNotified, Project: project, TaskID: q.TaskID, RunID: q.RunID,
+		Detail: notifiedDetail + id}
+	if err := s.notifier.Notify(ctx, notify.Note{Project: project, TaskID: q.TaskID, Text: q.Question}); err != nil {
+		ev.Type = model.EventNotifyFailed
+		ev.Detail = fmt.Sprintf(notifyFailedText, id, err)
+		s.log.ErrorContext(ctx, "owner: note failed", "task_id", q.TaskID, "run_id", q.RunID, "project", project, "err", err)
+	}
+	err := s.store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
+		_, err := tx.AppendEvent(ctx, ev)
+		return err
+	})
+	if err != nil {
+		s.log.ErrorContext(ctx, "owner: note event not recorded", "task_id", q.TaskID, "run_id", q.RunID,
+			"project", project, "err", err)
+	}
 }
 
 // AskDialog turns a worker's dialog into a dialog question; unreadable text is said so (see SCENARIOS AW-9).

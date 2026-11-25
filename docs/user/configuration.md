@@ -25,9 +25,19 @@ log:
   format: json                      # json (default) or text
   level: info                       # debug, info (default), warn or error
 owner_token_env: FANIN_OWNER_TOKEN  # the variable that holds the owner token
+notify:                             # optional push channel for owner questions
+  kind: signal                      # log (default) or signal
+  signal_number: "+15550100"        # your own number: signal-cli account and the only recipient
+  ui_url: https://fanin.example/ui  # base URL of the web UI; the note links to <ui_url>/#/task/<id>
+  prefix: "[nuc/fanin]"             # optional; default [<hostname>/fanin]
 defaults:                           # project settings every project inherits
   review_skill: /pr-review
 ```
+
+With `notify.kind: signal`, `fanind` sends a Signal note to your own number whenever a task asks a question: the
+prefix, the question and the link to the task page, at most 600 characters. `signal-cli` must be registered for
+that number; `signal_cli` names another program. A failed send is logged as a `notify_failed` event and the
+question stays open. The number is never logged. With the default `log`, the note only goes to the log.
 
 ## hosts.yaml and forges.yaml
 

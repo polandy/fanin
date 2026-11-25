@@ -36,6 +36,15 @@ const (
 	LevelError = "error"
 )
 
+// Notify kinds.
+const (
+	NotifyLog    = "log"
+	NotifySignal = "signal"
+)
+
+// DefaultSignalCLI is the signal-cli program when notify.signal_cli is unset.
+const DefaultSignalCLI = "signal-cli"
+
 // HostLocal is the built-in host name for the host fanind runs on.
 const HostLocal = "local"
 
@@ -68,6 +77,8 @@ type Config struct {
 	Log   Log
 	// OwnerTokenEnv names the environment variable that holds the owner token; the token is never in the files.
 	OwnerTokenEnv string
+	// Notify is the push channel for owner notes.
+	Notify Notify
 	// Hosts are the remote hosts of hosts.yaml by name; local is not among them.
 	Hosts map[string]Host
 	// Forges are the forges of forges.yaml by name.
@@ -86,6 +97,15 @@ type Config struct {
 type Log struct {
 	Format string `yaml:"format"`
 	Level  string `yaml:"level"`
+}
+
+// Notify selects the push channel; SignalNumber is the owner's own number and never logged.
+type Notify struct {
+	Kind         string `yaml:"kind"`
+	UIURL        string `yaml:"ui_url,omitempty"`
+	Prefix       string `yaml:"prefix,omitempty"`
+	SignalNumber string `yaml:"signal_number,omitempty"`
+	SignalCLI    string `yaml:"signal_cli,omitempty"`
 }
 
 // Host is a worker host; Local marks this host.

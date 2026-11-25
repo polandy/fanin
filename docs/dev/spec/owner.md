@@ -13,6 +13,10 @@ Direction: [concept](../concept.md), C-LOOP, migration step 4.
 - Kinds: `dialog` (a worker's numbered menu; only an option number is a valid answer) and `transcript` (a
   question in the worker's output; free text too when `allow_text` is set).
 
+`Service.SetNotifier` sets the push channel ([notify](notify.md)). After the question is stored, `Ask` sends one
+note and logs `notified` or `notify_failed` with the project; a failed send never undoes the question
+(SCENARIOS OA-7).
+
 ## Answers
 
 `Service.Answer(ctx, task, raw)` takes the newest open question of the task:

@@ -44,6 +44,11 @@ secret-name rule is not repeated, since it may be a pasted token.
 | `log.format` | `json` \| `text` | `json` | |
 | `log.level` | `debug` \| `info` \| `warn` \| `error` | `info` | |
 | `owner_token_env` | secret name | required | variable that holds the owner token |
+| `notify.kind` | `log` \| `signal` | `log` | push channel for owner questions, see [notify](notify.md) |
+| `notify.ui_url` | URI | none | UI base URL for the task link; required with `signal` |
+| `notify.signal_number` | `+<6-15 digits>` | none | the owner's own number; required with `signal`; never echoed in an error |
+| `notify.prefix` | string | `[<hostname>/fanin]` | starts every note |
+| `notify.signal_cli` | string | `signal-cli` | the program |
 | `defaults` | settings | `{}` | any key of the project settings below, except the project-only ones |
 
 ## hosts.yaml

@@ -4,9 +4,12 @@ package notify
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
+	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/model"
+	"github.com/polandy/fanin/internal/runtime"
 )
 
 // MaxChars is the longest message an adapter sends, prefix and link included (see SCENARIOS OA-7).
@@ -20,6 +23,8 @@ const (
 
 // Errors of the push channel.
 var (
+	// ErrKind is an adapter kind the config names but fanin does not have.
+	ErrKind = errors.New("notify: unknown kind")
 	// ErrForeignRecipient is a note addressed to anyone but the owner's own number; nothing was sent.
 	ErrForeignRecipient = errors.New("notify: foreign recipient")
 	// ErrSend is a failed send; the message names the exit code, never the number.
@@ -56,4 +61,22 @@ func NewLog(log *slog.Logger) *Log {
 func (l *Log) Notify(ctx context.Context, n Note) error {
 	l.log.InfoContext(ctx, "notify: owner note", "project", n.Project, "task_id", n.TaskID, "text", n.Text)
 	return nil
+}
+
+// DefaultPrefix is the prefix when the config sets none: "[<host>/fanin]".
+func DefaultPrefix(host string) string { return "[" + host + "/fanin]" }
+
+// New builds the adapter the config names; host is this machine's name for the default prefix.
+func New(c config.Notify, r runtime.Runner, host string, log *slog.Logger) (Notifier, error) {
+	switch c.Kind {
+	case KindLog, "":
+		return NewLog(log), nil
+	case KindSignal:
+		prefix := c.Prefix
+		if prefix == "" {
+			prefix = DefaultPrefix(host)
+		}
+		return NewSignal(r, SignalConfig{CLI: c.SignalCLI, Number: c.SignalNumber, Prefix: prefix, UIURL: c.UIURL}, log), nil
+	}
+	return nil, fmt.Errorf("%w: notify.kind %q; use %q or %q", ErrKind, c.Kind, KindLog, KindSignal)
 }

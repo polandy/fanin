@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/notify"
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/runtime/testutil"
@@ -23,10 +25,12 @@ const (
 	prefix    = "[nuc/fanin]"
 	project   = "alpha"
 	taskID    = "t-42"
+	cli       = "signal-cli"
+	verbSend  = "send"
 )
 
 func cfg() notify.SignalConfig {
-	return notify.SignalConfig{CLI: "signal-cli", Number: ownNumber, Prefix: prefix, UIURL: uiURL}
+	return notify.SignalConfig{CLI: cli, Number: ownNumber, Prefix: prefix, UIURL: uiURL}
 }
 
 // fakeRunner records calls; with fail set it exits 3 and names the number in argv and stderr.
@@ -59,7 +63,7 @@ func TestNotify(t *testing.T) {
 	t.Run("OA-7_argv_is_exact_and_goes_to_the_own_number", func(t *testing.T) {
 		s, r, _ := signal(t)
 		want := prefix + " alpha: ship the cache now? " + uiURL + "/#/task/t-42"
-		r.Expect([]string{"signal-cli", "-a", ownNumber, "send", "-m", want, ownNumber}, testutil.Reply{})
+		r.Expect([]string{cli, "-a", ownNumber, verbSend, "-m", want, ownNumber}, testutil.Reply{})
 		if err := s.Notify(ctx, note); err != nil {
 			t.Fatalf("Notify: %v", err)
 		}
@@ -82,7 +86,7 @@ func TestNotify(t *testing.T) {
 
 	t.Run("OA-7_own_number_as_recipient_is_fine", func(t *testing.T) {
 		s, r, _ := signal(t)
-		r.Expect([]string{"signal-cli", "-a", ownNumber, "send", "-m", prefix + " hi " + uiURL + "/#/task/t-42", ownNumber},
+		r.Expect([]string{cli, "-a", ownNumber, verbSend, "-m", prefix + " hi " + uiURL + "/#/task/t-42", ownNumber},
 			testutil.Reply{})
 		n := notify.Note{Project: project, TaskID: taskID, Text: "hi", To: ownNumber}
 		if err := s.Notify(ctx, n); err != nil {
@@ -113,7 +117,7 @@ func TestNotify(t *testing.T) {
 
 	t.Run("OA-7_event_is_logged_with_the_project_and_no_number", func(t *testing.T) {
 		s, r, buf := signal(t)
-		r.Expect([]string{"signal-cli", "-a", ownNumber, "send", "-m", prefix + " alpha: ship the cache now? " + uiURL + "/#/task/t-42", ownNumber},
+		r.Expect([]string{cli, "-a", ownNumber, verbSend, "-m", prefix + " alpha: ship the cache now? " + uiURL + "/#/task/t-42", ownNumber},
 			testutil.Reply{})
 		if err := s.Notify(ctx, note); err != nil {
 			t.Fatalf("Notify: %v", err)
@@ -157,4 +161,34 @@ func assertNoNumber(t *testing.T, s string) {
 			t.Errorf("number %q leaked into %q", n, s)
 		}
 	}
+}
+
+func TestNew(t *testing.T) {
+	log := slog.New(slog.DiscardHandler)
+	t.Run("OA-7_kinds", func(t *testing.T) {
+		for kind, want := range map[string]string{config.NotifyLog: "*notify.Log", config.NotifySignal: "*notify.Signal"} {
+			n, err := notify.New(config.Notify{Kind: kind, SignalNumber: ownNumber, UIURL: uiURL}, &fakeRunner{}, "nuc", log)
+			if err != nil || fmt.Sprintf("%T", n) != want {
+				t.Errorf("New(%s) = %T, %v; want %s", kind, n, err, want)
+			}
+		}
+	})
+	t.Run("OA-7_unknown_kind", func(t *testing.T) {
+		if _, err := notify.New(config.Notify{Kind: "pager"}, &fakeRunner{}, "nuc", log); !errors.Is(err, notify.ErrKind) {
+			t.Errorf("err = %v, want ErrKind", err)
+		}
+	})
+	t.Run("OA-7_default_prefix_names_host_and_fanin", func(t *testing.T) {
+		f := &fakeRunner{}
+		n, err := notify.New(config.Notify{Kind: config.NotifySignal, SignalNumber: ownNumber, UIURL: uiURL, SignalCLI: "sc"}, f, "nuc", log)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := n.Notify(context.Background(), notify.Note{TaskID: taskID, Text: "x"}); err != nil {
+			t.Fatal(err)
+		}
+		if got := f.calls[0].Argv[5]; !strings.HasPrefix(got, "[nuc/fanin] x ") {
+			t.Errorf("message = %q", got)
+		}
+	})
 }

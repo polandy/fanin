@@ -16,6 +16,20 @@
         "level": {"enum": ["debug", "info", "warn", "error"], "default": "info"}
       }
     },
+    "notify": {
+      "description": "the push channel for owner notes",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["log", "signal"], "default": "log"},
+        "ui_url": {"description": "base URL of the web UI; notes link to <ui_url>/#/task/<id>", "type": "string", "format": "uri", "minLength": 1},
+        "prefix": {"description": "starts every note; default [<host>/fanin]", "type": "string", "minLength": 1},
+        "signal_number": {"description": "the owner's own number: signal-cli account and only recipient", "type": "string", "pattern": "^\\+[0-9]{6,15}$"},
+        "signal_cli": {"description": "the signal-cli program", "type": "string", "minLength": 1, "default": "signal-cli"}
+      },
+      "if": {"properties": {"kind": {"const": "signal"}}, "required": ["kind"]},
+      "then": {"required": ["signal_number", "ui_url"]}
+    },
     "owner_token_env": {"description": "environment variable that holds the owner token", "$ref": "secret.schema.json"},
     "defaults": {
       "description": "project settings every project file may override",

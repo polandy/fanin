@@ -112,7 +112,10 @@ func validateDoc(loc string, doc any) error {
 		case isUnknownKey(u.KeywordLocation):
 			msg = fmt.Sprintf("at %s: unknown key (rule %s: %s); remove it or fix its spelling", loc,
 				u.KeywordLocation, u.Error)
-		case loc != "/":
+		case loc == "/notify/signal_number":
+			msg = fmt.Sprintf("at %s: must be the own number as +<digits> (rule %s); the value is not repeated", loc,
+				u.KeywordLocation)
+		case loc != "/" && !strings.HasPrefix(loc, "/notify"):
 			if v, ok := lookup(inst, u.InstanceLocation); ok {
 				if js, err := json.Marshal(v); err == nil {
 					msg += "; got " + string(js)
