@@ -3,7 +3,8 @@
 `internal/forge` is the seam to a code forge (concept D4): fanin opens PRs, sets the merge intent, posts commit
 statuses and watches; the forge's branch protection decides green and the forge merges. `internal/forge/github`
 implements it over `gh` and `gh api`, called through `runtime.Runner`. `gh` owns the authentication, so fanin
-never reads or stores a GitHub token. A Gitea client follows with the Gitea gate.
+never reads or stores a GitHub token. `internal/forge/gitea` implements it for Gitea and Forgejo over the REST API
+with `net/http` (see Gitea below).
 
 ## Interface
 
@@ -25,6 +26,17 @@ Checks are normalised to `pending`, `success`, `failure`, `cancelled` and `skipp
 `STALE` count as failure. A commit status (`StatusContext`, such as the review verdict of D5) maps `EXPECTED` and
 `PENDING` to pending and `ERROR` to failure. `Check.UpdatedAt` is the completion time, the start time while a run
 is pending, and the post time of a status.
+
+A PR number a worker reports goes through `forge.ParseNumber` (`42` or `#42`); anything else is
+`ErrInvalidRequest` before any forge call (SCENARIOS GT-6).
+
+## Resolver (SCENARIOS GT-2)
+
+`forge.NewResolver(forges, projects)` takes the configured forges by name (kind `github` or `gitea`, Forgejo uses
+`gitea`, plus the client) and the forge name of each project. A forge without a client or with an unknown kind,
+and a project that names a missing forge, is `ErrInvalidRequest`. `For(project)` returns the client and kind;
+`Require(project, kind)` refuses a project of another kind with `ErrWrongForge`, such as
+`beta is not a gitea project`. An unknown project is `ErrUnknownProject`.
 
 ## Unreadable answers (SCENARIOS GH-5, GH-14)
 
@@ -51,6 +63,42 @@ that points at `gh auth status`. A request fanin must not send (a merge without 
   retry the PR is read again, and a PR merged meanwhile ends the loop without a second merge. After the last retry
   the network error is returned; any other error is returned at once.
 
+## Gitea and Forgejo
+
+`gitea.New(httpClient, url, token, log)` talks to `<url>/api/v1`. The token is a `forge.Secret`, read from the
+variable that `token_env` names (`forge.SecretFromEnv`), and goes only into `Authorization: token …`. A URL with
+credentials, query or fragment and an empty token are refused.
+
+| Method | Gitea call |
+|---|---|
+| `PR(repo, n)` | `GET repos/R/pulls/n`, then `GET repos/R/commits/SHA/status` (paged) |
+| `Files(repo, n)` | `GET repos/R/pulls/n/files` (paged) |
+| `ListOpen(repo)` | `GET repos/R/pulls?state=open` (paged) |
+| `Open(req)` | `POST repos/R/pulls {head, base, title, body}` |
+| `EnableAutoMerge(req)` | `POST repos/R/pulls/n/merge {do: squash, …, head_commit_id, merge_when_checks_succeed: true, delete_branch_after_merge: true}` |
+| `PostStatus(st)` | `POST repos/R/statuses/SHA {state, context, description[, target_url]}` |
+| `SquashMerge(req)` | `GET repos/R/pulls/n`, then the merge call without `merge_when_checks_succeed` |
+| `DeleteBranch(repo, b)` | `DELETE repos/R/branches/b` |
+
+- Every list is read in pages of 50; more than 20 pages is `ErrUnreadable`, never a truncated list.
+- State `open` is open, `closed` with `merged` is merged, `closed` alone is closed. `mergeable: false` counts as
+  conflicting, as in `gitea-gate.sh`; a missing `mergeable`, head branch, head SHA or base branch is unreadable.
+- Status states: `pending` and `running` are pending, `success` success, `skipped` skipped; `failure`, `error`
+  and `warning` count as failure. A status needs a context and a readable `updated_at` (or `created_at`).
+- `PR` fails with the plain error when the PR is unreadable. When only the statuses are unreadable it wraps
+  `forge.ErrChecksUnreadable`; the gate reads that, and an error from `Files`, as pending, never green
+  (SCENARIOS GT-6).
+- HTTP 404 wraps `ErrNotFound`; transport failures and HTTP 429, 502, 503 and 504 wrap `ErrNetwork`; 401 and
+  403 point at the token. Gitea merges are not retried (MG-6 retries on GitHub only); the merge always sets
+  `delete_branch_after_merge`.
+
+`OpenBranch(repo, base, branch)` handles a `PUSHED <branch>` (SCENARIOS GT-1): a branch outside
+`[A-Za-z0-9._/-]`, with `..`, a leading `-` or `/`, a trailing `/`, or the base itself is refused before any call.
+An open PR whose head is the branch is reused. If the open PRs cannot be listed, it is an error and no PR is
+opened. Otherwise the commits come from `GET repos/R/compare/base...branch` (Gitea 1.22 or later; it lists them
+newest first); the title is the oldest commit's subject, the body lists every subject with its body below, and
+ends with `Opened by fanin.`. No commits beyond the base is `ErrInvalidRequest`.
+
 ## Tokens (SCENARIOS GT-10)
 
 `forge.Redact` replaces GitHub tokens (`gh?_…`, `github_pat_…`), `Authorization` header values, `token=` style
@@ -58,3 +106,8 @@ parameters and URL credentials with `[REDACTED]`. The GitHub client redacts the 
 and never wraps the `runtime.ExitError` (its argv and stderr would reach callers raw); other runner errors are
 wrapped by `forge.RedactError`, which redacts the text and keeps the chain for `errors.Is`. Retry log lines carry
 only the redacted error.
+
+`forge.Secret` prints, logs and marshals (JSON, text, YAML) as `[REDACTED]`, and an unexported `Secret` field
+prints as a pointer, so neither logs nor config dumps carry the Gitea token. The Gitea client scrubs the literal
+token and every `Redact` pattern from answer bodies and transport errors before they enter an error or a log
+line.

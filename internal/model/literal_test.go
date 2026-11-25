@@ -7,12 +7,18 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/polandy/fanin/internal/model"
 )
+
+// wireValues are literals that spell a state but are a foreign API's value, by directory below the repo root.
+var wireValues = map[string][]string{
+	filepath.Join("internal", "forge", "gitea"): {"running"}, // a Gitea commit status state
+}
 
 // TestNoStateLiteralsOutsideModel fails when a Go file outside internal/model spells a task or run state as a
 // string literal instead of using the constant.
@@ -52,7 +58,11 @@ func TestNoStateLiteralsOutsideModel(t *testing.T) {
 				return nil
 			}
 			scanned++
-			return checkFile(t, path, states)
+			rel, err := filepath.Rel(root, filepath.Dir(path))
+			if err != nil {
+				return err
+			}
+			return checkFile(t, path, states, wireValues[rel])
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -63,7 +73,7 @@ func TestNoStateLiteralsOutsideModel(t *testing.T) {
 	}
 }
 
-func checkFile(t *testing.T, path string, states map[string]bool) error {
+func checkFile(t *testing.T, path string, states map[string]bool, allowed []string) error {
 	t.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
@@ -75,7 +85,7 @@ func checkFile(t *testing.T, path string, states map[string]bool) error {
 		if !ok || lit.Kind != token.STRING {
 			return true
 		}
-		if v, err := strconv.Unquote(lit.Value); err == nil && states[v] {
+		if v, err := strconv.Unquote(lit.Value); err == nil && states[v] && !slices.Contains(allowed, v) {
 			t.Errorf("%s: state literal %s; use the internal/model constant", fset.Position(lit.Pos()), lit.Value)
 		}
 		return true

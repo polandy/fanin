@@ -350,7 +350,7 @@ These scenarios cover `gitea-gate.sh`, `gitea-pr.sh` and the dry-activate step.
   - Otherwise a PR is opened against the base: titled by the oldest commit, the body lists every commit, plus
     the "Opened by the orchestrator" footer.
   - If the open PRs cannot be listed: an error, never a second PR.
-- Source: `gitea-pr.sh`. Test: `gitea-pr.sh#1-#6`. Mark: PARITY.
+- Source: `gitea-pr.sh`. Test: `gitea-pr.sh#1-#6`. Mark: PARITY (fanin's footer reads "Opened by fanin.").
 
 **GT-2**
 - Given: PUSHED on a GitHub project.
