@@ -1,0 +1,104 @@
+{
+  "daemon": {
+    "listen": "127.0.0.1:7420",
+    "log": {
+      "format": "json",
+      "level": "info"
+    },
+    "owner_token": {
+      "env": "FANIN_OWNER_TOKEN",
+      "set": false
+    },
+    "store": "<config>/fanin.db"
+  },
+  "forge": {
+    "kind": "gitea",
+    "name": "gitea",
+    "token": {
+      "env": "GITEA_TOKEN",
+      "set": false
+    },
+    "url": "https://git.example.com"
+  },
+  "host": {
+    "address": "host-a.example.com",
+    "local": false,
+    "name": "host-a"
+  },
+  "origins": {
+    "/daemon/listen": "fanin.yaml:2",
+    "/daemon/log/format": "fanin.yaml:5",
+    "/daemon/log/level": "fanin.yaml:6",
+    "/daemon/owner_token/env": "fanin.yaml:7",
+    "/daemon/owner_token/set": "environment",
+    "/daemon/store": "fanin.yaml:3",
+    "/forge/kind": "forges.yaml:7",
+    "/forge/name": "projects/beta.yaml:3",
+    "/forge/token/env": "forges.yaml:9",
+    "/forge/token/set": "environment",
+    "/forge/url": "forges.yaml:8",
+    "/host/address": "hosts.yaml:4",
+    "/host/local": "default",
+    "/host/name": "hosts.yaml:3",
+    "/project": "projects/beta.yaml",
+    "/settings/base": "default",
+    "/settings/budgets/fix_rounds_per_run": "default",
+    "/settings/budgets/max_runs_per_task": "fanin.yaml:11",
+    "/settings/budgets/max_tokens_per_run": "default",
+    "/settings/budgets/rollover_pct": "default",
+    "/settings/forge": "projects/beta.yaml:3",
+    "/settings/gate/gitea/max_polls": "projects/beta.yaml:10",
+    "/settings/gate/gitea/noci_after_polls": "default",
+    "/settings/gate/gitea/poll_interval": "default",
+    "/settings/gate/github/max_waits": "default",
+    "/settings/gate/github/max_watch_failures": "default",
+    "/settings/gate/github/settle": "default",
+    "/settings/gate/github/watch_timeout": "default",
+    "/settings/host": "projects/beta.yaml:2",
+    "/settings/max_parallel": "projects/beta.yaml:5",
+    "/settings/oc_merge": "projects/beta.yaml:6",
+    "/settings/path": "projects/beta.yaml:1",
+    "/settings/pre_go_check": "projects/beta.yaml:7",
+    "/settings/review_skill": "fanin.yaml:9",
+    "/settings/stall_after": "default",
+    "/settings/worker_kind": "projects/beta.yaml:4",
+    "/settings/worker_timeout": "default",
+    "/worker_kind/runtime": "worker-kinds.yaml:7"
+  },
+  "project": "beta",
+  "settings": {
+    "base": "main",
+    "budgets": {
+      "fix_rounds_per_run": 2,
+      "max_runs_per_task": 3,
+      "max_tokens_per_run": 3000000,
+      "rollover_pct": 75
+    },
+    "forge": "gitea",
+    "gate": {
+      "gitea": {
+        "max_polls": 20,
+        "noci_after_polls": 5,
+        "poll_interval": "1m0s"
+      },
+      "github": {
+        "max_waits": 12,
+        "max_watch_failures": 6,
+        "settle": "20s",
+        "watch_timeout": "30m0s"
+      }
+    },
+    "host": "host-a",
+    "max_parallel": 1,
+    "oc_merge": "manual",
+    "path": "/path/to/repo",
+    "pre_go_check": "/path/to/repo/scripts/dry-activate.sh",
+    "review_skill": "/pr-review",
+    "stall_after": "15m0s",
+    "worker_kind": "opencode",
+    "worker_timeout": "45m0s"
+  },
+  "worker_kind": {
+    "runtime": "herdr"
+  }
+}

@@ -38,6 +38,7 @@ type Source interface {
 	OpenTasks(ctx context.Context) ([]model.Task, error)
 	Runs(ctx context.Context, task model.TaskID) ([]model.Run, error)
 	OpenQuestions(ctx context.Context) ([]model.OwnerQuestion, error)
+	DoneTasks(ctx context.Context) ([]model.Task, error)
 	AllHolds(ctx context.Context) ([]model.Hold, error)
 	Locks(ctx context.Context) ([]model.Lock, error)
 	LatestEvents(ctx context.Context) ([]model.Event, error)
@@ -45,6 +46,12 @@ type Source interface {
 	LastEventSeq(ctx context.Context) (int64, error)
 	// Changed returns a channel closed after the next committed change.
 	Changed() <-chan struct{}
+}
+
+// Fleet lists the worker hosts and their agents. A host it cannot read comes back with Warning set; an error means
+// the whole view is unreadable.
+type Fleet interface {
+	Hosts(ctx context.Context) ([]wire.Host, error)
 }
 
 // Config is what New needs.
@@ -61,6 +68,8 @@ type Config struct {
 	Owner Owner
 	// Reports records worker reports; without it the worker routes answer 500 and record nothing.
 	Reports Reports
+	// Fleet feeds the hosts view; without it the snapshot lists no hosts.
+	Fleet Fleet
 }
 
 // Owner is the owner channel the command endpoints call (internal/owner).

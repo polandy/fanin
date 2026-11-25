@@ -41,6 +41,10 @@ func buildSnapshot(s *Server, r *http.Request) (wire.Snapshot, error) {
 	if err != nil {
 		return wire.Snapshot{}, fmt.Errorf("read questions: %w", err)
 	}
+	done, err := src.DoneTasks(ctx)
+	if err != nil {
+		return wire.Snapshot{}, fmt.Errorf("read done tasks: %w", err)
+	}
 	holds, err := src.AllHolds(ctx)
 	if err != nil {
 		return wire.Snapshot{}, fmt.Errorf("read holds: %w", err)
@@ -55,7 +59,7 @@ func buildSnapshot(s *Server, r *http.Request) (wire.Snapshot, error) {
 	}
 	snap := wire.Snapshot{
 		Tasks: []wire.Task{}, Runs: []wire.Run{}, Questions: []wire.Question{}, Holds: []wire.Hold{},
-		Locks: []wire.Lock{}, Latest: []wire.Event{}, LastSeq: seq,
+		Locks: []wire.Lock{}, Latest: []wire.Event{}, Board: []wire.BoardProject{}, Hosts: []wire.Host{}, LastSeq: seq,
 	}
 	projects := map[string]bool{}
 	// live are the holders a lock may name and still be held: open tasks and their unfinished runs.
@@ -94,6 +98,14 @@ func buildSnapshot(s *Server, r *http.Request) (wire.Snapshot, error) {
 		projects[ev.Project] = true
 	}
 	snap.Projects = projectOrder(s.Projects(), projects)
+	snap.Board = buildBoard(snap, done)
+	if s.cfg.Fleet != nil {
+		hosts, err := s.cfg.Fleet.Hosts(ctx)
+		if err != nil {
+			return wire.Snapshot{}, fmt.Errorf("read hosts: %w", err)
+		}
+		snap.Hosts = hostsDTO(hosts)
+	}
 	return snap, nil
 }
 

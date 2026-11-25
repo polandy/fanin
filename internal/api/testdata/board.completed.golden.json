@@ -1,0 +1,39 @@
+{
+  "alpha": {
+    "count": 5,
+    "newest": [
+      {
+        "id": "d5",
+        "title": "title d5",
+        "state": "done",
+        "shape": "pr",
+        "updated_at": "2026-03-04T06:18:07Z"
+      },
+      {
+        "id": "d4",
+        "title": "title d4",
+        "state": "done",
+        "shape": "pr",
+        "updated_at": "2026-03-04T06:16:07Z"
+      },
+      {
+        "id": "d3",
+        "title": "title d3",
+        "state": "done",
+        "shape": "pr",
+        "updated_at": "2026-03-04T06:14:07Z"
+      },
+      {
+        "id": "d2",
+        "title": "title d2",
+        "state": "done",
+        "shape": "pr",
+        "updated_at": "2026-03-04T06:12:07Z"
+      }
+    ]
+  },
+  "gamma": {
+    "count": 0,
+    "newest": []
+  }
+}
