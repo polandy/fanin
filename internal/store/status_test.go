@@ -118,3 +118,43 @@ func TestDoneTasksListsOnlyDoneOldestUpdateFirst(t *testing.T) {
 		t.Error("DoneTasks on a closed store: nil error, want the read error")
 	}
 }
+
+func TestCH2_ReadyHoldsOnlyTheDependents(t *testing.T) {
+	s, _ := newStore(t)
+	ctx := context.Background()
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		for _, tk := range []model.Task{
+			task("a"),
+			{ID: "b", Project: project, Title: "b", Shape: model.ShapePR, After: []model.TaskID{"a"}},
+			{ID: "c", Project: project, Title: "c", Shape: model.ShapePR, After: []model.TaskID{"b"}},
+			task("d"),
+			{ID: "e", Project: project, Title: "e", Shape: model.ShapePR, After: []model.TaskID{"d"}},
+		} {
+			if err := tx.CreateTask(ctx, tk); err != nil {
+				return err
+			}
+		}
+		for _, st := range []model.TaskState{model.TaskRunning, model.TaskGating, model.TaskPostMerge, model.TaskDone} {
+			if err := tx.SetTaskState(ctx, "d", st, ""); err != nil {
+				return err
+			}
+		}
+		for _, st := range []model.TaskState{model.TaskRunning, model.TaskFailed} {
+			if err := tx.SetTaskState(ctx, "a", st, ""); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	got, err := s.Ready(ctx, project)
+	if err != nil {
+		t.Fatalf("Ready: %v", err)
+	}
+	var ids []string
+	for _, tk := range got {
+		ids = append(ids, string(tk.ID))
+	}
+	if diff := cmp.Diff([]string{"e"}, ids); diff != "" {
+		t.Errorf("ready (-want +got): a failed task holds b and c; d is done, so e is free:\n%s", diff)
+	}
+}
