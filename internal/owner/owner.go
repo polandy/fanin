@@ -17,8 +17,13 @@ import (
 // MaxOptionNumber is the highest option number an answer can press (see SCENARIOS OA-1).
 const MaxOptionNumber = 9
 
-// unreadableDialog is the question text of a dialog whose text could not be read (see SCENARIOS AW-9).
-const unreadableDialog = "dialog: unreadable"
+// Texts the owner channel writes into questions and task_state events.
+const (
+	// unreadableDialog is the question text of a dialog whose text could not be read (see SCENARIOS AW-9).
+	unreadableDialog = "dialog: unreadable"
+	askedPrefix      = "asks the owner: "
+	answeredDetail   = "owner answered"
+)
 
 // Errors of the owner channel; the API maps them to status codes.
 var (
@@ -106,7 +111,7 @@ func (s *Service) Ask(ctx context.Context, q model.OwnerQuestion) (string, error
 		if task.State == model.TaskNeedsOwner {
 			return nil
 		}
-		return tx.SetTaskState(ctx, q.TaskID, model.TaskNeedsOwner, "asks the owner: "+q.Question)
+		return tx.SetTaskState(ctx, q.TaskID, model.TaskNeedsOwner, askedPrefix+q.Question)
 	})
 	if err != nil {
 		return "", fmt.Errorf("owner: ask for task %q: %w", q.TaskID, err)
@@ -172,7 +177,7 @@ func resumeTask(ctx context.Context, tx *store.Tx, q model.OwnerQuestion) error 
 	if q.RunID != "" {
 		to = model.TaskRunning
 	}
-	return tx.SetTaskState(ctx, q.TaskID, to, "owner answered")
+	return tx.SetTaskState(ctx, q.TaskID, to, answeredDetail)
 }
 
 // Parse reads raw as an answer to q: an option number 1..MaxOptionNumber that q has, or free text when q allows
