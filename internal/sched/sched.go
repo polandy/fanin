@@ -22,7 +22,14 @@ import (
 const (
 	TimerStall   = "stall"
 	TimerTimeout = "worker_timeout"
+	// TimerAwait looks again at a worker that stopped while its background footer was live (SCENARIOS AW-11).
+	TimerAwait = "await"
 )
+
+// ownTimer reports whether the scheduler arms and fires timers of kind.
+func ownTimer(kind string) bool {
+	return kind == TimerStall || kind == TimerTimeout || kind == TimerAwait
+}
 
 // BGFooterMax is how long a worker's own background-shell footer spares it from the timeout (SCENARIOS WD-2).
 const BGFooterMax = 180 * time.Minute
@@ -62,6 +69,8 @@ type Deps struct {
 	Files   RunFiles
 	Clock   clock.Clock
 	Log     *slog.Logger
+	// Unpushed lists a run's unpushed commits before NUDGE_SECURE (SCENARIOS AW-11, AW-12).
+	Unpushed Unpushed
 	// Waiting, when set, is called each time the loop is about to block.
 	Waiting func()
 }
@@ -183,7 +192,7 @@ func (s *Scheduler) nextWake(ctx context.Context) (<-chan time.Time, error) {
 			return nil, fmt.Errorf("sched: read the armed timers: %w", err)
 		}
 		for _, t := range timers {
-			if _, ok := s.project(t.Project); !ok || (t.Kind != TimerStall && t.Kind != TimerTimeout) {
+			if _, ok := s.project(t.Project); !ok || !ownTimer(t.Kind) {
 				continue
 			}
 			if next.IsZero() || t.DueAt.Before(next) {

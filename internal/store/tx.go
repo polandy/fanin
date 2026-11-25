@@ -151,10 +151,12 @@ func (t *Tx) CreateRun(ctx context.Context, run model.Run) error {
 	b, w := run.Budget, run.Worker
 	if _, err := t.tx.ExecContext(ctx, `INSERT INTO runs (id, task_id, number, slot, branch, token, fix_rounds,
 		review_nudges, stalls, input_tokens, output_tokens, total_tokens, state, result, started_at, ended_at,
-		host, agent, workspace, tab, pane) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 0, ?, ?, ?, ?, ?)`,
+		host, agent, workspace, tab, pane, context_pct, footer_waits, continue_nudges, secure_nudges, hint, tail)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		string(run.ID), string(run.TaskID), run.Number, run.Slot, run.Branch, string(run.Token), b.FixRounds,
 		b.ReviewNudges, b.Stalls, b.InputTokens, b.OutputTokens, b.TotalTokens, string(run.State),
-		toDB(run.StartedAt), w.Host, w.Agent, w.Workspace, w.Tab, w.Pane); err != nil {
+		toDB(run.StartedAt), w.Host, w.Agent, w.Workspace, w.Tab, w.Pane, b.ContextPct, b.FooterWaits,
+		b.ContinueNudges, b.SecureNudges, run.Hint, run.Tail); err != nil {
 		return fmt.Errorf("store: create run %q of task %q: %w", run.ID, run.TaskID, err)
 	}
 	_, err = t.AppendEvent(ctx, model.Event{
@@ -250,16 +252,53 @@ func (t *Tx) SetRunBudget(ctx context.Context, id model.RunID, b model.Budget) e
 	if err != nil {
 		return err
 	}
-	if _, err := t.tx.ExecContext(ctx, `UPDATE runs SET fix_rounds = ?, review_nudges = ?, stalls = ?,
-		input_tokens = ?, output_tokens = ?, total_tokens = ? WHERE id = ?`,
-		b.FixRounds, b.ReviewNudges, b.Stalls, b.InputTokens, b.OutputTokens, b.TotalTokens, string(id)); err != nil {
-		return fmt.Errorf("store: set budget of run %q: %w", id, err)
+	if err := t.writeBudget(ctx, id, b); err != nil {
+		return err
 	}
 	_, err = t.AppendEvent(ctx, model.Event{
 		Type: model.EventTokenUsage, Project: project, TaskID: run.TaskID, RunID: id,
 		Detail: fmt.Sprintf("%d tokens", b.TotalTokens),
 	})
 	return err
+}
+
+// SetRunCounts stores the run's budget like SetRunBudget but appends no event; the scheduler counts its stalls and
+// nudges with it.
+func (t *Tx) SetRunCounts(ctx context.Context, id model.RunID, b model.Budget) error {
+	return t.writeBudget(ctx, id, b)
+}
+
+func (t *Tx) writeBudget(ctx context.Context, id model.RunID, b model.Budget) error {
+	return t.setRun(ctx, id, "budget", `UPDATE runs SET fix_rounds = ?, review_nudges = ?, stalls = ?,
+		input_tokens = ?, output_tokens = ?, total_tokens = ?, context_pct = ?, footer_waits = ?, continue_nudges = ?,
+		secure_nudges = ? WHERE id = ?`, b.FixRounds, b.ReviewNudges, b.Stalls, b.InputTokens, b.OutputTokens,
+		b.TotalTokens, b.ContextPct, b.FooterWaits, b.ContinueNudges, b.SecureNudges, string(id))
+}
+
+// SetRunTail stores the worker's pane tail at its latest stop; it appends no event (SCENARIOS AW-12).
+func (t *Tx) SetRunTail(ctx context.Context, id model.RunID, tail string) error {
+	return t.setRun(ctx, id, "tail", `UPDATE runs SET tail = ? WHERE id = ?`, tail, string(id))
+}
+
+// SetRunBranch stores the branch the run's worker named; it appends no event.
+func (t *Tx) SetRunBranch(ctx context.Context, id model.RunID, branch string) error {
+	return t.setRun(ctx, id, "branch", `UPDATE runs SET branch = ? WHERE id = ?`, branch, string(id))
+}
+
+// setRun runs one UPDATE of a run row; a missing run is ErrNotFound.
+func (t *Tx) setRun(ctx context.Context, id model.RunID, what, query string, args ...any) error {
+	res, err := t.tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("store: set %s of run %q: %w", what, id, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: set %s of run %q: %w", what, id, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%w: run %q", ErrNotFound, id)
+	}
+	return nil
 }
 
 func (t *Tx) runWithProject(ctx context.Context, id model.RunID) (model.Run, string, error) {

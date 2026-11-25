@@ -61,6 +61,12 @@ type Budget struct {
 	InputTokens  int64
 	OutputTokens int64
 	TotalTokens  int64
+	// ContextPct is the share of the worker's context window in use, 0 to 100.
+	ContextPct int
+	// FooterWaits, ContinueNudges and SecureNudges count the steps of the silent-stop ladder (SCENARIOS AW-11).
+	FooterWaits    int
+	ContinueNudges int
+	SecureNudges   int
 }
 
 // Run is one worker session on a task; a spent run is replaced by a fresh one with a higher Number.
@@ -71,9 +77,13 @@ type Run struct {
 	Number int
 	Slot   int
 	Branch string
+	// Hint is the task hint the run's prompt carried; a follow-up run takes it over.
+	Hint   string
 	Token  Token
 	Budget Budget
 	State  RunState
+	// Tail is the worker's pane tail at its latest stop or stall (SCENARIOS AW-12).
+	Tail string
 	// Result is the worker's last report, nil before the first one.
 	Result    *Result
 	StartedAt time.Time

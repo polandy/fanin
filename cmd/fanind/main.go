@@ -186,7 +186,8 @@ func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.
 	}
 	rt, pk := workers(cfg, log)
 	s, err := sched.New(sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
-		Files: sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}})
+		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}},
+		Files:    sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}})
 	if err != nil {
 		return nil, err
 	}

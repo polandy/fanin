@@ -210,7 +210,8 @@ func (o *observation) idle(ctx context.Context, text string) error {
 		return nil
 	}
 	if o.move(ctx, phaseIdle, text) {
-		o.emit(ctx, runtime.RunEvent{Type: runtime.RunEventIdle, LastWords: lastWords(text), Tail: text})
+		o.emit(ctx, runtime.RunEvent{Type: runtime.RunEventIdle, LastWords: lastWords(text), Tail: text,
+			BGFooter: kind != footerNone})
 	}
 	return nil
 }

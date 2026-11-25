@@ -1,0 +1,1 @@
+You stopped without reporting a result. Carry on with your task from where you are. When it is done, call the MCP tool `fanin_report` once with your result (or run `fanin report` if you have no MCP), then end with your status line.

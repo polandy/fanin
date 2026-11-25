@@ -114,6 +114,8 @@ type RunEvent struct {
 	// LastWords (input box and footer dropped) and Tail are set on RunEventIdle and RunEventStalled.
 	LastWords string
 	Tail      string
+	// BGFooter is set on RunEventIdle when a live background footer outlasted the adapter's hold (SCENARIOS AW-11).
+	BGFooter bool
 	// Err is set on RunEventUnreachable; it wraps ErrUnreachable, or ErrPromptRefused for a failed Enter.
 	Err error
 }
