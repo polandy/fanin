@@ -41,12 +41,15 @@ none of the existing ones.
 | `GET /api/v1/events` | server-sent events, see below |
 | `GET /api/v1/questions` | `wire.Questions`: the open owner questions, oldest first |
 | `GET /api/v1/wait?owner=&after=` | one `wire.Event`, see [owner](owner.md) |
+| `GET /api/v1/tasks?project=` | `wire.Tasks`: the open tasks, optionally of one project |
+| `POST /api/v1/tasks` | body `wire.TaskRequest`; 201 `wire.Task`. 400 for a request that breaks an intake rule, 404 unknown project, 409 task ID exists, see [intake](intake.md) |
 | `POST /api/v1/tasks/{id}/answer` | body `{"answer": "2"}`; `wire.Ack`. 400 with the options, 404 no open question, 502 `delivery_failed` |
 | `POST /api/v1/tasks/{id}/go` | `wire.Ack`; 409 `conflict` when the task is not in `gating` |
 | `POST /api/v1/holds/{id}/lift` | `wire.Ack`; 404 for no active hold |
 | `POST /api/v1/projects/{p}/pause`, `/resume` | `wire.Ack`; 404 for a project outside the config |
 
-The command routes answer 500 when the server has no `Config.Owner`.
+The owner command routes answer 500 when the server has no `Config.Owner`; `POST /api/v1/tasks` answers 500 without
+`Config.Intake`.
 
 The snapshot never carries a run's report token. `last_seq` is read before the rest, so a client that opens the
 stream with `after=<last_seq>` sees every later change at least once.

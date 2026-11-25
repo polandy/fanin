@@ -17,10 +17,10 @@ import (
 )
 
 const (
-	projGH    = "alpha"
-	projGitea = "beta"
+	projGH     = "alpha"
+	projGitea  = "beta"
 	kindClaude = "claude"
-	modelOpus = "opus"
+	modelOpus  = "opus"
 )
 
 func testConfig() config.Config {
@@ -64,7 +64,7 @@ func openTasks(t *testing.T, st *store.Store) []model.Task {
 	return ts
 }
 
-func TestPK6_OwnerTaskIsMarked(t *testing.T) {
+func testPK6OwnerTaskIsMarked(t *testing.T) {
 	svc, _ := newService(t)
 	got, err := svc.Enqueue(context.Background(), TaskRequest{Project: projGH, Task: "fix the build\nmore", Model: modelOpus})
 	if err != nil {
@@ -76,7 +76,7 @@ func TestPK6_OwnerTaskIsMarked(t *testing.T) {
 	}
 }
 
-func TestPK6_AnalyzeMakesAnAnalysisTask(t *testing.T) {
+func testPK6AnalyzeMakesAnAnalysisTask(t *testing.T) {
 	svc, _ := newService(t)
 	got, err := svc.Enqueue(context.Background(), TaskRequest{Project: projGH, Analyze: "why is CI slow?"})
 	if err != nil {
@@ -87,7 +87,7 @@ func TestPK6_AnalyzeMakesAnAnalysisTask(t *testing.T) {
 	}
 }
 
-func TestPK7_UsageErrorsQueueNothing(t *testing.T) {
+func testPK7UsageErrorsQueueNothing(t *testing.T) {
 	tests := []struct {
 		name string
 		req  TaskRequest
@@ -113,14 +113,14 @@ func TestPK7_UsageErrorsQueueNothing(t *testing.T) {
 	}
 }
 
-func TestIntake_UnknownProject(t *testing.T) {
+func testIntakeUnknownProject(t *testing.T) {
 	svc, _ := newService(t)
 	if _, err := svc.Enqueue(context.Background(), TaskRequest{Project: "nope", Task: "a"}); !errors.Is(err, ErrUnknownProject) {
 		t.Errorf("Enqueue err = %v; want ErrUnknownProject", err)
 	}
 }
 
-func TestSP9_OpencodeOnlyForGitHubTasks(t *testing.T) {
+func testSP9OpencodeOnlyForGitHubTasks(t *testing.T) {
 	tests := []struct {
 		name    string
 		req     TaskRequest
@@ -146,7 +146,7 @@ func TestSP9_OpencodeOnlyForGitHubTasks(t *testing.T) {
 
 const chainFile = "# first batch\nopus|do one\n\nsonnet|do two\n"
 
-func TestCH1_ChainFileBecomesAfterChain(t *testing.T) {
+func testCH1ChainFileBecomesAfterChain(t *testing.T) {
 	svc, st := newService(t)
 	reqs, err := ChainRequests(projGH, "batch.chain", strings.NewReader(chainFile))
 	if err != nil {
@@ -171,7 +171,7 @@ func TestCH1_ChainFileBecomesAfterChain(t *testing.T) {
 	}
 }
 
-func TestCH1_ReimportOfAChangedFileAddsOnlyNew(t *testing.T) {
+func testCH1ReimportOfAChangedFileAddsOnlyNew(t *testing.T) {
 	svc, st := newService(t)
 	ctx := context.Background()
 	for i, file := range []string{chainFile, chainFile + "# tail\nopus|do three\n"} {
@@ -191,9 +191,20 @@ func TestCH1_ReimportOfAChangedFileAddsOnlyNew(t *testing.T) {
 	}
 }
 
-func TestCH1_MalformedChainLineNamesLine(t *testing.T) {
+func testCH1MalformedChainLineNamesLine(t *testing.T) {
 	_, err := ChainRequests(projGH, "batch.chain", strings.NewReader("opus|ok\nno separator here\n"))
 	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "line 2") {
 		t.Errorf("err = %v; want ErrInvalid naming line 2", err)
 	}
+}
+
+func TestIntake(t *testing.T) {
+	t.Run("PK-6_owner_task_is_marked", testPK6OwnerTaskIsMarked)
+	t.Run("PK-6_analyze_makes_an_analysis_task", testPK6AnalyzeMakesAnAnalysisTask)
+	t.Run("PK-7_usage_errors_queue_nothing", testPK7UsageErrorsQueueNothing)
+	t.Run("unknown_project", testIntakeUnknownProject)
+	t.Run("SP-9_opencode_only_for_github_tasks", testSP9OpencodeOnlyForGitHubTasks)
+	t.Run("CH-1_chain_file_becomes_after_chain", testCH1ChainFileBecomesAfterChain)
+	t.Run("CH-1_reimport_of_a_changed_file_adds_only_new", testCH1ReimportOfAChangedFileAddsOnlyNew)
+	t.Run("CH-1_malformed_chain_line_names_the_line", testCH1MalformedChainLineNamesLine)
 }

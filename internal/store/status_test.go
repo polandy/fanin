@@ -119,7 +119,11 @@ func TestDoneTasksListsOnlyDoneOldestUpdateFirst(t *testing.T) {
 	}
 }
 
-func TestCH2_ReadyHoldsOnlyTheDependents(t *testing.T) {
+func TestReady(t *testing.T) {
+	t.Run("CH-2_holds_only_the_dependents", testReadyHoldsOnlyDependents)
+}
+
+func testReadyHoldsOnlyDependents(t *testing.T) {
 	s, _ := newStore(t)
 	ctx := context.Background()
 	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
@@ -157,4 +161,19 @@ func TestCH2_ReadyHoldsOnlyTheDependents(t *testing.T) {
 	if diff := cmp.Diff([]string{"e"}, ids); diff != "" {
 		t.Errorf("ready (-want +got): a failed task holds b and c; d is done, so e is free:\n%s", diff)
 	}
+}
+
+func TestNextTaskIDSkipsTakenIDs(t *testing.T) {
+	s, _ := newStore(t)
+	createTasks(t, s, project+"-2")
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		id, err := tx.NextTaskID(ctx, project)
+		if err != nil {
+			return err
+		}
+		if id != project+"-3" {
+			t.Errorf("NextTaskID = %q; want the count-based %s-2 skipped as taken", id, project)
+		}
+		return tx.CreateTask(ctx, model.Task{ID: id, Project: project, Title: "n", Shape: model.ShapePR})
+	})
 }

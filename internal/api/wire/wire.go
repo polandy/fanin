@@ -46,6 +46,7 @@ type Task struct {
 	OwnerTask bool      `json:"owner_task"`
 	After     []string  `json:"after"`
 	Model     string    `json:"model"`
+	Worker    string    `json:"worker,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -226,4 +227,20 @@ type AnswerRequest struct {
 type Ack struct {
 	Status string `json:"status"`
 	Detail string `json:"detail,omitempty"`
+}
+
+// TaskRequest is the body of POST /api/v1/tasks: an owner task or an owner question.
+type TaskRequest struct {
+	ID      string   `json:"id,omitempty"`
+	Project string   `json:"project"`
+	Task    string   `json:"task,omitempty"`
+	Analyze string   `json:"analyze,omitempty"`
+	Model   string   `json:"model,omitempty"`
+	Worker  string   `json:"worker,omitempty"`
+	After   []string `json:"after,omitempty"`
+}
+
+// Tasks is the answer of GET /api/v1/tasks.
+type Tasks struct {
+	Tasks []Task `json:"tasks"`
 }

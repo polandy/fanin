@@ -29,7 +29,7 @@ tags C-STORE and C-LOCK.
 
 | Table | Key | Holds |
 |---|---|---|
-| `tasks` | `id` | `model.Task`; `after_ids` is a JSON array |
+| `tasks` | `id` | `model.Task`; `after_ids` is a JSON array, `worker_kind` (0003) the owner's worker kind or empty |
 | `runs` | `id`, unique (`task_id`, `number`) | `model.Run` with its budget columns; `result` is the JSON report or empty |
 | `events` | `seq` (autoincrement) | the append-only `model.Event` log; `task_id` is empty for project events |
 | `project_locks` | `project` | holder, `acquired_at`, `expires_at` |
@@ -101,6 +101,8 @@ A restart opens the same file and reads:
 
 - `OpenTasks(ctx)`: every task in a non-terminal state (`model.TaskState.Terminal`), oldest first, to re-attach
   to its run.
+- `Ready(ctx, project)`: the queued tasks whose `After` tasks are all done. A task that is not done holds back only
+  the tasks that name it (SCENARIOS CH-2). `Tx.NextTaskID` gives the next free `<project>-<n>`.
 - `ArmedTimers(ctx)` to re-arm every timer, and `DueTimers(ctx)` for those already due at the clock's now.
 - `OpenQuestions(ctx)` for the questions still waiting for the owner.
 - `ProjectTasks(ctx, project)`, `ProjectQuestions(ctx, project)` and `Projects(ctx)` for the per-project Markdown render
