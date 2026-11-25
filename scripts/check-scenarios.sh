@@ -13,7 +13,7 @@ case $mode in
 esac
 scenarios=${1:-docs/dev/scenarios.md}
 [ $# -gt 0 ] && shift
-[ $# -gt 0 ] || set -- .
+[ $# -gt 0 ] || set -- cmd internal pkg
 [ -r "$scenarios" ] || { echo "check-scenarios: cannot read $scenarios; pass the scenarios file as argument 2" >&2; exit 2; }
 
 id='[A-Z]+-[0-9]+'
@@ -22,7 +22,7 @@ cited=$(find "$@" \( -name vendor -o -name testdata -o -name .git \) -prune -o -
   grep -oE "(^|[^A-Z])$id" | grep -oE "$id" | sort -u || true)
 
 # Section lines: "<section>\t<ID>"; the section is the "## n. title" heading.
-defined=$(awk '/^## [0-9]+\. /{s=substr($0,4)} /^\*\*[A-Z]+-[0-9]+\*\*([ :].*)?$/{sub(/\*\*[ :].*$/,"**")} /^\*\*[A-Z]+-[0-9]+\*\*$/{gsub(/\*/,""); print s "\t" $0}' "$scenarios")
+defined=$(awk '/^## [0-9]+\. /{s=substr($0,4)} /^\*\*[A-Z]+-[0-9]+\*\*([ :].*)?$/{sub(/\*\*[ :].*$/,"**")} /^\*\*[A-Z]+-[0-9]+\*\*$/{gsub(/\*/,""); print s "\t" $0}' "$scenarios" | awk '!seen[$0]++')
 [ -n "$defined" ] || { echo "check-scenarios: no scenario IDs found in $scenarios" >&2; exit 2; }
 
 unknown=$(comm -23 <(printf '%s\n' "$cited" | sed '/^$/d') <(cut -f2 <<<"$defined" | sort -u))
