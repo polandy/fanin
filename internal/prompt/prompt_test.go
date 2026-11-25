@@ -17,6 +17,8 @@ import (
 
 var update = flag.Bool("update", false, "rewrite the golden files")
 
+const fixtureTemplate = "templates/x.md"
+
 var vars = Vars{Repo: "/r/repo", Base: "main", Hint: "fix it"}
 
 func mustRender(t *testing.T, n Name, v Vars) string {
@@ -57,7 +59,7 @@ func TestPrompt(t *testing.T) {
 	})
 
 	t.Run("SP-7_missing_part_fails", func(t *testing.T) {
-		fsys := fstest.MapFS{"templates/x.md": {Data: []byte("x\n{{INCLUDE:nope}}\n")}}
+		fsys := fstest.MapFS{fixtureTemplate: {Data: []byte("x\n{{INCLUDE:nope}}\n")}}
 		out, err := render(fsys, "x", vars)
 		if !errors.Is(err, ErrTemplate) || !errors.Is(err, fs.ErrNotExist) || out != "" {
 			t.Errorf("render = %q, %v; want ErrTemplate wrapping ErrNotExist and no output", out, err)
@@ -75,7 +77,7 @@ func TestPrompt(t *testing.T) {
 	})
 
 	t.Run("SP-7_unknown_placeholder_fails", func(t *testing.T) {
-		fsys := fstest.MapFS{"templates/x.md": {Data: []byte("x {{HOST}}\n")}}
+		fsys := fstest.MapFS{fixtureTemplate: {Data: []byte("x {{HOST}}\n")}}
 		if _, err := render(fsys, "x", vars); !errors.Is(err, ErrPlaceholder) {
 			t.Errorf("render err = %v, want ErrPlaceholder", err)
 		}
@@ -83,7 +85,7 @@ func TestPrompt(t *testing.T) {
 
 	t.Run("SP-7_include_cycle_fails", func(t *testing.T) {
 		fsys := fstest.MapFS{
-			"templates/x.md":       {Data: []byte("{{INCLUDE:a}}\n")},
+			fixtureTemplate:       {Data: []byte("{{INCLUDE:a}}\n")},
 			"templates/parts/a.md": {Data: []byte("{{INCLUDE:a}}\n")},
 		}
 		if _, err := render(fsys, "x", vars); !errors.Is(err, ErrTemplate) {
