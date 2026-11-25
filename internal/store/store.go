@@ -84,6 +84,9 @@ func (s *Store) init(ctx context.Context, path string, migrations fs.FS) error {
 	return migrate(ctx, s.db, migrations)
 }
 
+// OnLockWait sets fn to be called each time WaitLock blocks; set it before the first WaitLock.
+func (s *Store) OnLockWait(fn func()) { s.waiting = fn }
+
 // Close closes the database.
 func (s *Store) Close() error {
 	if err := s.db.Close(); err != nil {
