@@ -18,6 +18,8 @@ var (
 	ErrNotFound = errors.New("forge: not found")
 	// ErrUnreadable is an answer that cannot be parsed or misses a required field.
 	ErrUnreadable = errors.New("forge: unreadable answer")
+	// ErrChecksUnreadable is a readable PR whose checks or statuses cannot be read; a gate reads it as pending.
+	ErrChecksUnreadable = errors.New("forge: checks unreadable")
 	// ErrNotOpen is a merge of a PR that is closed without being merged.
 	ErrNotOpen = errors.New("forge: PR is not open")
 	// ErrInvalidRequest is a request fanin must not send, such as a merge without a head branch.
