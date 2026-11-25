@@ -17,6 +17,9 @@ const (
 	examplesDir = "../../config/examples"
 	dirMarker   = "<config>"
 	secretValue = "fake-secret-value-42"
+	flagConfig  = "--config"
+	subValidate = "validate"
+	cmdConfig   = "config"
 )
 
 func writeConfig(t *testing.T, files map[string]string) string {
@@ -36,7 +39,7 @@ func writeConfig(t *testing.T, files map[string]string) string {
 
 func effective(t *testing.T, dir string, args ...string) (int, string, string) {
 	t.Helper()
-	return runArgs(t, defaultRegistry, nil, append([]string{"--config", dir, "config", "effective"}, args...)...)
+	return runArgs(t, defaultRegistry, nil, append([]string{flagConfig, dir, cmdConfig, "effective"}, args...)...)
 }
 
 // TestConfigEffective covers SCENARIOS ST-4: the effective config shows which value wins and where it is set.
@@ -47,12 +50,13 @@ func TestConfigEffective(t *testing.T) {
 				"defaults:\n  review_skill: /from-defaults\n  base: trunk\n",
 			"projects/own.yaml":   "path: /path/to/repo\nhost: local\nforge: github\nmax_parallel: 1\nreview_skill: /from-project\n",
 			"projects/other.yaml": "path: /path/to/repo\nhost: local\nforge: github\nmax_parallel: 1\n",
+			"worker-kinds.yaml":   "kinds:\n  claude:\n    runtime: herdr\n",
 			"forges.yaml":         "forges:\n  github:\n    kind: github\n    token_env: GH_TOKEN\n",
 		})
 		for project, want := range map[string][]string{
-			"own": {"review_skill: /from-project # projects/own.yaml:5", "base: trunk # fanin.yaml:5",
+			"own": {"review_skill: /from-project # projects/own.yaml:5", "base: trunk # fanin.yaml:6",
 				"max_parallel: 1 # projects/own.yaml:4", "worker_timeout: 45m0s # default"},
-			"other": {"review_skill: /from-defaults # fanin.yaml:4"},
+			"other": {"review_skill: /from-defaults # fanin.yaml:5"},
 		} {
 			code, stdout, stderr := effective(t, dir, project)
 			if code != cli.ExitOK || stderr != "" {
@@ -88,8 +92,8 @@ func TestConfigEffective(t *testing.T) {
 			"projects/bad.yaml": "path: /path/to/repo\nhost: local\nforge: github\nmax_parallel: 0\n",
 		})
 		for _, args := range [][]string{
-			{"--config", dir, "config", "effective", "bad"},
-			{"config", "validate", dir},
+			{flagConfig, dir, cmdConfig, "effective", "bad"},
+			{cmdConfig, subValidate, dir},
 		} {
 			code, _, stderr := runArgs(t, defaultRegistry, nil, args...)
 			for _, w := range []string{filepath.Join(dir, "projects", "bad.yaml"), "/max_parallel", "rule"} {
@@ -101,7 +105,7 @@ func TestConfigEffective(t *testing.T) {
 	})
 
 	t.Run("ST-4_validate_reports_ok", func(t *testing.T) {
-		code, stdout, _ := runArgs(t, defaultRegistry, map[string]string{envConfig: examplesDir}, "config", "validate")
+		code, stdout, _ := runArgs(t, defaultRegistry, map[string]string{envConfig: examplesDir}, cmdConfig, subValidate)
 		if code != cli.ExitOK || !strings.Contains(stdout, "ok (2 projects)") {
 			t.Fatalf("code=%d stdout=%q", code, stdout)
 		}
@@ -109,9 +113,9 @@ func TestConfigEffective(t *testing.T) {
 
 	t.Run("ST-4_usage_errors", func(t *testing.T) {
 		for _, args := range [][]string{
-			{"config"}, {"config", "bogus"}, {"config", "validate"}, {"config", "effective", "alpha"},
-			{"--config", examplesDir, "config", "effective"}, {"--config", examplesDir, "config", "effective", "-x", "alpha"},
-			{"config", "validate", "a", "b"},
+			{cmdConfig}, {cmdConfig, "bogus"}, {cmdConfig, subValidate}, {cmdConfig, "effective", projAlpha},
+			{flagConfig, examplesDir, cmdConfig, "effective"}, {flagConfig, examplesDir, cmdConfig, "effective", "-x", "alpha"},
+			{cmdConfig, subValidate, "a", "b"},
 		} {
 			if code, _, _ := runArgs(t, defaultRegistry, nil, args...); code != cli.ExitUsage {
 				t.Errorf("%v: code=%d, want %d", args, code, cli.ExitUsage)
@@ -119,7 +123,7 @@ func TestConfigEffective(t *testing.T) {
 		}
 	})
 
-	for _, project := range []string{"alpha", "beta"} {
+	for _, project := range []string{projAlpha, "beta"} {
 		for _, format := range []string{"yaml", "json"} {
 			t.Run("ST-4_golden_"+project+"_"+format, func(t *testing.T) {
 				t.Setenv("GH_TOKEN", "")
