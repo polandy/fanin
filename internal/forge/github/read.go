@@ -62,6 +62,7 @@ type checkJSON struct {
 	Context     string `json:"context"`
 	State       string `json:"state"`
 	CreatedAt   string `json:"createdAt"`
+	Description string `json:"description"`
 }
 
 // PR reads one pull request; any missing or unknown field is forge.ErrUnreadable (see SCENARIOS GH-5).
@@ -207,7 +208,7 @@ func convertCheck(rc checkJSON) (forge.Check, error) {
 		if err != nil {
 			return forge.Check{}, fmt.Errorf("status %q time: %w", rc.Context, err)
 		}
-		return forge.Check{Name: rc.Context, State: state, UpdatedAt: posted}, nil
+		return forge.Check{Name: rc.Context, State: state, UpdatedAt: posted, Description: rc.Description}, nil
 	default:
 		return forge.Check{}, fmt.Errorf("unknown check type %q", rc.Type)
 	}

@@ -103,8 +103,8 @@ Settings, in a project file or under `defaults`:
 | `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | |
 | `budgets.max_runs_per_task` | integer ≥ 1 | `3` | |
 | `gate.github.watch_timeout` | duration | `30m` | longest wait on pending checks (GH-7) |
-| `gate.github.settle` | duration | `20s` | |
-| `gate.github.max_waits` | integer ≥ 1 | `12` | |
+| `gate.github.settle` | duration | `20s` | pause before the re-read once pending checks settled |
+| `gate.github.max_waits` | integer ≥ 1 | `12` | pending waits before RED; see [`gate.md`](gate.md) |
 | `gate.github.max_watch_failures` | integer ≥ 0 | `6` | failed waits that do not use up a wait |
 | `gate.gitea.poll_interval` | duration | `60s` | (GT-4) |
 | `gate.gitea.noci_after_polls` | integer ≥ 1 | `5` | polls without a status before `NOCI` |
