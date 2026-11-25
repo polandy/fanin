@@ -4,11 +4,24 @@ COVERAGE_PKGS := internal/gate internal/sched internal/store internal/hook
 COVERAGE_EXISTING := $(sort $(patsubst %/,%,$(dir $(wildcard $(addsuffix /*.go,$(COVERAGE_PKGS))))))
 
 .PHONY: ci build vet test test-shuffle coverage integration fmt-check shell-check script-test check-no-sleeps \
-	check-file-size private-check private-check-history scenario-check
+	check-file-size private-check private-check-history scenario-check vendor-check lint vuln
 
 # The local CI mirror: green before every push.
-ci: fmt-check shell-check script-test vet check-no-sleeps check-file-size build test test-shuffle coverage \
-	private-check private-check-history scenario-check
+ci: fmt-check shell-check script-test vet check-no-sleeps check-file-size vendor-check build test test-shuffle \
+	coverage lint vuln private-check private-check-history scenario-check
+
+vendor-check:
+	go mod tidy
+	go mod vendor
+	git diff --exit-code -- go.mod go.sum vendor
+	@if [ -n "$$(git ls-files --others --exclude-standard -- vendor)" ]; then echo "vendor/ has untracked files: git add vendor"; exit 1; fi
+
+lint:
+	golangci-lint config verify
+	golangci-lint run
+
+vuln:
+	govulncheck $(GO_PKGS)
 
 build:
 	go build -o bin/ ./cmd/...

@@ -42,10 +42,10 @@ fi
 # Prints candidate lines as "<where>:<text>": the tree as file:line, the history as commit:file.
 candidates() {
   if [[ $mode == tree ]]; then
-    git grep --untracked -nI -e '' -- . ":!$self" ':!.private-terms'
+    git grep --untracked -nI -e '' -- . ":!$self" ':!.private-terms' ':!vendor'
     [[ $? -le 1 ]] || die "git grep failed"
   else
-    git log --all -p --no-color --format='commit %H' -- . ":!$self" | awk '
+    git log --all -p --no-color --format='commit %H' -- . ":!$self" ":!vendor" | awk '
       /^commit [0-9a-f]+$/ { c = substr($2, 1, 12); next }
       /^\+\+\+ / { f = substr($0, 5); sub(/^b\//, "", f); next }
       /^\+/ { print c ":" f ":" substr($0, 2) }'
