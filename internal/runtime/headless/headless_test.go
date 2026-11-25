@@ -58,6 +58,19 @@ func TestRunArgvOutputAndUsage(t *testing.T) {
 	}
 }
 
+func TestRunPassesEnv(t *testing.T) {
+	rr := testutil.NewRecordingRunner(t)
+	rr.Expect(wantArgv, testutil.Reply{Stdout: okJSON})
+	s := spec()
+	s.Env = []string{"GIT_LFS_SKIP_SMUDGE=1"}
+	if _, err := newRuntime(rr, clock.NewManual(time.Unix(0, 0))).Run(context.Background(), s); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if diff := cmp.Diff(s.Env, rr.Calls()[0].Env); diff != "" {
+		t.Errorf("env (-want +got):\n%s", diff)
+	}
+}
+
 func TestRunWithoutToolsOmitsAllowedTools(t *testing.T) {
 	rr := testutil.NewRecordingRunner(t)
 	rr.Expect([]string{"claude", "-p", "--output-format", "json", "--model", model}, testutil.Reply{Stdout: okJSON})
