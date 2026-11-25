@@ -36,6 +36,7 @@ settings:
       noci_after_polls: 5 # default
       max_polls: 20 # projects/beta.yaml:10
   oc_merge: manual # projects/beta.yaml:6
+  loop: bash # default
   pre_go_check: /path/to/repo/scripts/dry-activate.sh # projects/beta.yaml:7
 host:
   name: host-a # hosts.yaml:3

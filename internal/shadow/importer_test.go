@@ -93,3 +93,16 @@ func TestImporterImportNamesTheDirectory(t *testing.T) {
 		t.Fatalf("Import: %v, want ErrUnreadable naming testdata/none", err)
 	}
 }
+
+func TestImporterSkipsProjectsFaninSchedules(t *testing.T) {
+	st := openStore(t, clock.NewManual(t0))
+	files := fstest.MapFS{alphaLog: {Data: []byte("2026-01-02 03:04 spawned alpha-1 (sonnet): p\n")}}
+	im := &Importer{Dir: "state", FS: files, Probe: fakeProbe{}, Store: st, Clock: clock.NewManual(t0),
+		Log: slog.New(slog.DiscardHandler), Skip: map[string]bool{alpha: true}}
+	if err := im.Import(context.Background()); err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	if got := dump(t, st, alpha); got != "" {
+		t.Errorf("store after importing a skipped project:\n%s", got)
+	}
+}

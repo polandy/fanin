@@ -96,7 +96,7 @@ The fallback file is `result.json` in the run directory: one JSON object with th
 
 ## Open
 
-- Wiring `resultwatch` to `report.Service` belongs to the scheduler, which does not exist yet.
+- Wiring `resultwatch` to `report.Service` belongs to the [scheduler](sched.md) and is still open there.
 - GH-14: the check that the PR's head is the run's branch belongs to the gate.
 - Whether a `progress` event moves a `stalled` run back to `working`, and how `stall_after` reads heartbeats
   (SCENARIOS AW-4), is decided with the await loop.

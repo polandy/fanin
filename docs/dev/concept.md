@@ -30,6 +30,7 @@ scenarios fanin must pass.
   tests run on an injected clock and fakes, without sleeps.
 - `fanind` is the event loop. No interactive agent session has to stay open for work to progress; a session
   becomes a client that answers questions through the CLI, MCP or UI.
+- The reactor, slots, timers and restart: [`spec/sched.md`](spec/sched.md). `loop: fanin` switches a project over.
 
 ### D2. herdr first, behind a `WorkerRuntime` interface
 

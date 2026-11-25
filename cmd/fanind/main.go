@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -22,9 +23,14 @@ import (
 	"github.com/polandy/fanin/internal/intake"
 	"github.com/polandy/fanin/internal/notify"
 	"github.com/polandy/fanin/internal/owner"
+	"github.com/polandy/fanin/internal/pick"
 	"github.com/polandy/fanin/internal/report"
+	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/runtime/exec"
+	"github.com/polandy/fanin/internal/runtime/headless"
+	"github.com/polandy/fanin/internal/runtime/herdr"
 	"github.com/polandy/fanin/internal/safego"
+	"github.com/polandy/fanin/internal/sched"
 	"github.com/polandy/fanin/internal/shadow"
 	"github.com/polandy/fanin/internal/store"
 	"github.com/polandy/fanin/internal/version"
@@ -45,6 +51,7 @@ var (
 	errNoConfig     = errors.New("fanind: no config")
 	errNoOwnerToken = errors.New("fanind: no owner token")
 	errListen       = errors.New("fanind: cannot listen")
+	errSchedStopped = errors.New("fanind: scheduler stopped")
 )
 
 // deps are the seams of run; main passes the real ones.
@@ -56,7 +63,12 @@ type deps struct {
 	ready func(addr string)
 	// probe replaces the shadow importer's flock check when set.
 	probe shadow.Probe
+	// workers replaces the scheduler's worker runtime and picker when set.
+	workers func(config.Config, *slog.Logger) (runtime.WorkerRuntime, sched.Picker)
 }
+
+// RunsDir is the directory next to the store that holds the per-run files (MCP config).
+const RunsDir = "runs"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -68,8 +80,20 @@ func main() {
 	}
 }
 
-// run serves until ctx ends; a stop by ctx is a clean exit, never a task failure.
+// run serves until ctx ends or the scheduler stops on an error; a stop by ctx is a clean exit, never a task
+// failure.
 func run(ctx context.Context, args []string, d deps) error {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	err := serveDaemon(ctx, cancel, args, d)
+	if cause := context.Cause(ctx); errors.Is(cause, errSchedStopped) {
+		return cause
+	}
+	return err
+}
+
+// serveDaemon is run with the cancel that the scheduler calls with its error.
+func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []string, d deps) error {
 	fs := flag.NewFlagSet("fanind", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	cfgPath := fs.String("config", d.getenv(envConfig), "path to the config directory ($"+envConfig+")")
@@ -99,8 +123,13 @@ func run(ctx context.Context, args []string, d deps) error {
 			log.Error("fanind: close the store", "err", err)
 		}
 	}()
+	stopSched, err := startSched(ctx, cancel, cfg, st, log, d)
+	if err != nil {
+		return fmt.Errorf("fanind: %w; fix loop in the project files of %s", err, *cfgPath)
+	}
+	defer stopSched()
 	if *shadowDir != "" {
-		stop, err := startShadow(ctx, *shadowDir, st, log, d)
+		stop, err := startShadow(ctx, *shadowDir, cfg, st, log, d)
 		if err != nil {
 			return err
 		}
@@ -131,9 +160,63 @@ func run(ctx context.Context, args []string, d deps) error {
 	return serve(ctx, ln, h, log, d)
 }
 
-// startShadow imports dir once, then keeps importing it until the returned stop, which waits for the loop.
-func startShadow(ctx context.Context, dir string, st *store.Store, log *slog.Logger, d deps) (func(), error) {
+// fanin names the projects with loop: fanin.
+func fanin(cfg config.Config) map[string]bool {
+	out := map[string]bool{}
+	for _, p := range cfg.Projects {
+		if p.Loop == config.LoopFanin {
+			out[p.Name] = true
+		}
+	}
+	return out
+}
+
+// startSched runs the scheduler when a project has loop: fanin; an error of the scheduler stops fanind through
+// cancel, and the returned stop waits for it.
+func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.Config, st *store.Store,
+	log *slog.Logger, d deps) (func(), error) {
+	if len(fanin(cfg)) == 0 {
+		return func() {}, nil
+	}
+	workers := d.workers
+	if workers == nil {
+		workers = func(cfg config.Config, log *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
+			return realWorkers(cfg, d.clock, log)
+		}
+	}
+	rt, pk := workers(cfg, log)
+	s, err := sched.New(sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
+		Files: sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}})
+	if err != nil {
+		return nil, err
+	}
+	loopCtx, stop := context.WithCancel(ctx)
+	done := make(chan struct{})
+	safego.Go(loopCtx, log, func(c context.Context) {
+		defer close(done)
+		if err := s.Run(c); err != nil {
+			cancel(fmt.Errorf("%w: %w; fix the store, then start fanind again", errSchedStopped, err))
+		}
+	})
+	log.Info("fanind: scheduler running", "projects", s.Projects())
+	return func() {
+		stop()
+		<-done
+	}, nil
+}
+
+// realWorkers is the herdr runtime and the headless picker.
+func realWorkers(cfg config.Config, clk clock.Clock, log *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
+	return herdr.New(exec.Runner{}, clk, log, herdr.DefaultConfig()),
+		pick.New(headless.New(exec.Runner{}, clk, log), pick.Config{Model: cfg.Picker.Model})
+}
+
+// startShadow imports dir once, then keeps importing it until the returned stop, which waits for the loop; the
+// projects with loop: fanin are skipped.
+func startShadow(ctx context.Context, dir string, cfg config.Config, st *store.Store, log *slog.Logger,
+	d deps) (func(), error) {
 	im := shadow.New(dir, st, d.clock, log)
+	im.Skip = fanin(cfg)
 	if d.probe != nil {
 		im.Probe = d.probe
 	}

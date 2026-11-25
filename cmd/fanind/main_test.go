@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	tokenEnv   = "TEST_FANIN_OWNER_TOKEN"
-	token      = "owner-secret"
-	flagConfig = "--config"
-	project    = "alpha"
+	tokenEnv    = "TEST_FANIN_OWNER_TOKEN"
+	token       = "owner-secret"
+	flagConfig  = "--config"
+	project     = "alpha"
+	projectBeta = "beta"
 )
 
 var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
@@ -37,7 +38,7 @@ func writeConfig(t *testing.T, dir, listen string) string {
 		"forges.yaml":       "forges:\n  github:\n    kind: github\n    token_env: GH_TOKEN\n",
 		"worker-kinds.yaml": "kinds:\n  claude:\n    runtime: herdr\n",
 	}
-	for _, p := range []string{"beta", project} {
+	for _, p := range []string{projectBeta, project} {
 		files["projects/"+p+".yaml"] = "path: /path/to/" + p + "\nhost: local\nforge: github\nmax_parallel: 1\n"
 	}
 	for rel, body := range files {

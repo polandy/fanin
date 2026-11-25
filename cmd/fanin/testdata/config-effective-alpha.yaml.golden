@@ -38,6 +38,7 @@ settings:
       noci_after_polls: 5 # default
       max_polls: 40 # default
   oc_merge: auto # default
+  loop: bash # default
   post_merge_hook: /path/to/repo/scripts/deploy.sh # projects/alpha.yaml:10
 host:
   name: local # built-in

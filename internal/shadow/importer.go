@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/polandy/fanin/internal/clock"
@@ -29,6 +30,8 @@ type Importer struct {
 	Log   *slog.Logger
 	// Waiting, when set, is called each time Run has armed the next tick.
 	Waiting func()
+	// Skip names the projects fanind schedules itself (loop: fanin); their bash state is not imported.
+	Skip map[string]bool
 }
 
 // New returns the importer of the state directory dir.
@@ -43,6 +46,7 @@ func (im *Importer) Import(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("shadow: import %s: %w", im.Dir, err)
 	}
+	projects = slices.DeleteFunc(projects, func(p Project) bool { return im.Skip[p.Label] })
 	if err := Apply(ctx, im.Store, im.Log, projects, LockLease); err != nil {
 		return fmt.Errorf("shadow: import %s: %w", im.Dir, err)
 	}

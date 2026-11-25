@@ -114,6 +114,7 @@ Settings, in a project file or under `defaults`:
 | `review_model` | string | `sonnet` | model of the review run |
 | `review_timeout` | duration | `30m` | longest review run |
 | `oc_merge` | `auto` \| `manual` | `auto` | a green opencode PR merges or waits for the go |
+| `loop` | `bash` \| `fanin` | `bash` | `fanin` lets `fanind` start the workers; local projects only for now |
 | `stall_after` | duration | `15m` | no heartbeat for this long is a stall |
 | `worker_timeout` | duration | `45m` | no heartbeat or result for this long ends the run |
 | `budgets.fix_rounds_per_run` | integer ≥ 0 | `2` | |

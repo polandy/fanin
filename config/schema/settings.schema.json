@@ -19,6 +19,7 @@
         "review_model": {"description": "model of the headless review run", "type": "string", "minLength": 1, "default": "sonnet"},
         "review_timeout": {"description": "a review run past this is killed (OC-3)", "$ref": "#/$defs/duration", "default": "30m"},
         "oc_merge": {"description": "auto merges a green opencode PR, manual leaves it ready", "enum": ["auto", "manual"], "default": "auto"},
+        "loop": {"description": "bash keeps the bash orchestrator and its shadow import; fanin lets fanind schedule the project", "enum": ["bash", "fanin"], "default": "bash"},
         "stall_after": {"description": "a run without a heartbeat for this long is stalled", "$ref": "#/$defs/duration", "default": "15m"},
         "worker_timeout": {"description": "a run without a heartbeat or result for this long is ended", "$ref": "#/$defs/duration", "default": "45m"},
         "budgets": {

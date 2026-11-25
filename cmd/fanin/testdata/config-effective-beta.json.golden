@@ -55,6 +55,7 @@
     "/settings/gate/github/settle": "default",
     "/settings/gate/github/watch_timeout": "default",
     "/settings/host": "projects/beta.yaml:2",
+    "/settings/loop": "default",
     "/settings/max_parallel": "projects/beta.yaml:5",
     "/settings/oc_merge": "projects/beta.yaml:6",
     "/settings/path": "projects/beta.yaml:1",
@@ -91,6 +92,7 @@
       }
     },
     "host": "host-a",
+    "loop": "bash",
     "max_parallel": 1,
     "oc_merge": "manual",
     "path": "/path/to/repo",

@@ -78,4 +78,15 @@ type Run struct {
 	Result    *Result
 	StartedAt time.Time
 	EndedAt   time.Time
+	// Worker names where the run's agent lives; Pane is empty until the start succeeded.
+	Worker Worker
+}
+
+// Worker is the stored handle of a run's agent: enough to observe it again after a restart.
+type Worker struct {
+	Host      string
+	Agent     string
+	Workspace string
+	Tab       string
+	Pane      string
 }
