@@ -24,12 +24,22 @@ jobs:
         run: make fmt-check
       - name: shell scripts
         run: make shell-check
+      - name: script negative tests
+        run: make script-test
+      - name: no sleeps in Go code
+        run: make check-no-sleeps
+      - name: file size
+        run: make check-file-size
       - name: go vet
         run: make vet
       - name: go build
         run: make build
       - name: go test
         run: make test
+      - name: go test (shuffled)
+        run: make test-shuffle
+      - name: coverage
+        run: make coverage
       - name: private data (tree)
         run: make private-check
       - name: private data (history)
