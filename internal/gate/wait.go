@@ -140,7 +140,7 @@ func (w *Watcher) githubNext(st State, res Result) Step {
 		return Step{Final: true, Result: res, State: st}
 	}
 	if st.Waits >= lim.MaxWaits {
-		return Step{Final: true, State: st, Result: red(fmt.Sprintf("still %s after %d waits", res.Wait, st.Waits))}
+		return Step{Final: true, State: st, Result: red(CauseTimeout, fmt.Sprintf("still %s after %d waits", res.Wait, st.Waits))}
 	}
 	st.Waits++
 	st.Settled = false
@@ -162,7 +162,7 @@ func (w *Watcher) giteaNext(st State, res Result) Step {
 		return w.arm(st, TimerPoll, lim.PollInterval.Std())
 	}
 	if st.Polls >= lim.MaxPolls {
-		return Step{Final: true, State: st, Result: red(fmt.Sprintf("still %s after %d polls", res.Wait, st.Polls))}
+		return Step{Final: true, State: st, Result: red(CauseTimeout, fmt.Sprintf("still %s after %d polls", res.Wait, st.Polls))}
 	}
 	st.Polls++
 	return w.arm(st, TimerPoll, lim.PollInterval.Std())

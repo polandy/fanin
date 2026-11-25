@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/polandy/fanin/internal/config"
+	"github.com/polandy/fanin/internal/forge"
 	"github.com/polandy/fanin/internal/gate"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/notify"
@@ -74,17 +75,13 @@ func (s *Scheduler) finishAnalysis(ctx context.Context, p config.Project, ev mod
 	res := *run.Result
 	switch res.Kind {
 	case model.ResultIssue:
-		ref := res.IssueURL
-		if ref == "" {
-			ref = "#" + strconv.Itoa(res.Issue)
-		}
-		return s.closeAnalysis(ctx, p, run, AnalysisIssueDetail+ref)
+		return s.closeAnalysis(ctx, p, run, AnalysisIssueDetail+issueRef(res))
 	case model.ResultNothing:
 		return s.closeAnalysis(ctx, p, run, IdleDetail+res.Text)
 	case model.ResultBlocked:
 		return s.blockAnalysis(ctx, p, run, res.Text)
 	case model.ResultDonePR:
-		return s.gateAnalysis(ctx, p, run, res.PR)
+		return s.startGate(ctx, p, run, res.PR, nil)
 	}
 	return s.blockAnalysis(ctx, p, run, fmt.Sprintf("analysis reported %s; it ends with %s, %s, %s or %s",
 		res.Kind, model.ResultIssue, model.ResultNothing, model.ResultBlocked, model.ResultDonePR))
@@ -150,27 +147,39 @@ func (s *Scheduler) note(ctx context.Context, log *slog.Logger, run model.Run, n
 	}
 }
 
-// gateAnalysis moves the task to gating and reads the gate of its PR (SCENARIOS GH-11).
-func (s *Scheduler) gateAnalysis(ctx context.Context, p config.Project, run model.Run, pr int) error {
+// startGate moves the task to gating and reads the gate of its PR, first from head when it is set (SCENARIOS GH-11).
+func (s *Scheduler) startGate(ctx context.Context, p config.Project, run model.Run, pr int, head *forge.PR) error {
 	err := s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
 		return tx.SetTaskState(ctx, run.TaskID, model.TaskGating, GatingDetail+"#"+strconv.Itoa(pr))
 	})
 	if err != nil {
-		return fmt.Errorf("sched: gate analysis %s: %w", run.TaskID, err)
+		return fmt.Errorf("sched: gate task %s: %w", run.TaskID, err)
 	}
 	delete(s.gates, run.TaskID)
-	return s.gateTurn(ctx, p, run, pr)
+	return s.gateRead(ctx, p, run, pr, head)
 }
 
 // gateTurn reads the gate once in the background; gated applies the answer on the loop.
 func (s *Scheduler) gateTurn(ctx context.Context, p config.Project, run model.Run, pr int) error {
+	return s.gateRead(ctx, p, run, pr, nil)
+}
+
+// gateRead is gateTurn whose first PR read is head when it is set.
+func (s *Scheduler) gateRead(ctx context.Context, p config.Project, run model.Run, pr int, head *forge.PR) error {
 	ref := "#" + strconv.Itoa(pr)
+	task, err := s.d.Store.Task(ctx, run.TaskID)
+	if err != nil {
+		return fmt.Errorf("sched: read task %s: %w", run.TaskID, err)
+	}
 	if s.d.Gates == nil {
 		return s.verdict(ctx, p, run, ReadyDetail+ref+": "+GateUnreadNote)
 	}
 	r, target, err := s.d.Gates.For(p, pr)
 	if err != nil {
 		return s.askOwner(ctx, p, run, GateErrorDetail+ref+": "+err.Error())
+	}
+	if head != nil {
+		r = &headReader{Reader: r, head: head}
 	}
 	w := gate.NewWatcher(r, s.d.Clock, p.Gate, p.Name, run.TaskID, target)
 	st := s.gates[run.TaskID]
@@ -180,29 +189,31 @@ func (s *Scheduler) gateTurn(ctx context.Context, p config.Project, run model.Ru
 		step, err := w.Turn(ctx, storeTimers{s.d.Store}, st)
 		var files []string
 		var filesErr error
-		if err == nil && step.Final && step.Err == nil && step.Result.Verdict == gate.Green {
+		if err == nil && step.Final && step.Err == nil && step.Result.Verdict == gate.Green &&
+			task.Shape == model.ShapeAnalysis {
 			files, filesErr = r.Files(ctx, target.Repo, target.Number)
 		}
 		s.post(ctx, func(ctx context.Context) {
 			again := s.busy[run.TaskID] == turnAgain
 			delete(s.busy, run.TaskID)
 			if err == nil {
-				err = s.gated(ctx, p, run, ref, step, files, filesErr)
+				err = s.gated(ctx, p, run, task, ref, step, files, filesErr)
 			}
 			if err == nil && again && !step.Final {
 				err = s.gateTurn(ctx, p, run, pr)
 			}
 			if err != nil {
-				s.fail(ctx, fmt.Errorf("sched: gate %s of analysis %s: %w", ref, run.TaskID, err))
+				s.fail(ctx, fmt.Errorf("sched: gate %s of task %s: %w", ref, run.TaskID, err))
 			}
 		})
 	})
 	return nil
 }
 
-// gated applies one gate step: a green PR waits for the owner's go, any other final answer goes to the owner.
-func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, ref string, step gate.Step,
-	files []string, filesErr error) error {
+// gated applies one gate step: a PR task goes on in gatedPR; a green analysis PR waits for the owner's go, any
+// other final answer goes to the owner.
+func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, task model.Task, ref string,
+	step gate.Step, files []string, filesErr error) error {
 	if !step.Final {
 		s.gates[run.TaskID] = step.State
 		return nil
@@ -211,6 +222,8 @@ func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, 
 	switch {
 	case step.Err != nil:
 		return s.askOwner(ctx, p, run, GateErrorDetail+ref+": "+step.Err.Error())
+	case task.Shape == model.ShapePR:
+		return s.gatedPR(ctx, p, run, task, ref, step.Result)
 	case !step.Result.Verdict.IsGreen():
 		return s.blockAnalysis(ctx, p, run, ref+" "+step.Result.String())
 	}
@@ -233,7 +246,7 @@ func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, 
 	return nil
 }
 
-// verdict records detail as the task's gate verdict; the task stays gating for the owner's go, nothing merges.
+// verdict records detail as the task's gate verdict; the task stays gating.
 func (s *Scheduler) verdict(ctx context.Context, p config.Project, run model.Run, detail string) error {
 	err := s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
 		_, err := tx.AppendEvent(ctx, model.Event{Type: model.EventGateVerdict, Project: p.Name, TaskID: run.TaskID,
@@ -243,18 +256,18 @@ func (s *Scheduler) verdict(ctx context.Context, p config.Project, run model.Run
 	if err != nil {
 		return fmt.Errorf("sched: record the gate verdict of %s: %w", run.TaskID, err)
 	}
-	s.logFor(p.Name, run.TaskID, run.ID).InfoContext(ctx, "sched: analysis PR ready for the owner's go",
+	s.logFor(p.Name, run.TaskID, run.ID).InfoContext(ctx, "sched: gate verdict",
 		"verdict", detail)
 	return nil
 }
 
-// fireGate disarms a due gate timer and reads the gate again while the analysis task is still gating.
+// fireGate disarms a due gate timer and reads the gate again while the task is still gating.
 func (s *Scheduler) fireGate(ctx context.Context, p config.Project, t store.Timer, task model.Task,
 	runs []model.Run) error {
 	if err := s.rearm(ctx, t, time.Time{}, nil); err != nil {
 		return err
 	}
-	if task.Shape != model.ShapeAnalysis || task.State != model.TaskGating || len(runs) == 0 {
+	if task.State != model.TaskGating || len(runs) == 0 {
 		return nil
 	}
 	if s.busy[task.ID] != turnIdle {

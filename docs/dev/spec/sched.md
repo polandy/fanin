@@ -144,6 +144,41 @@ An analysis task (`fanin task add --analyze`) ends by the result its run reports
 
 Without `Deps.Gates` the verdict is `ready #<n>: gate unread, no forge reader; check the PR before the go`.
 
+## PR tasks (GH-7 to GH-14, GT-7, GT-8, OC-7, OC-8, CF-1 to CF-3)
+
+A PR task (the default shape) ends by the result its run reports. `issue`, `nothing` and `blocked` end it as an
+analysis does; any other kind but `done_pr` goes to the owner as blocked (`reported <kind> without a PR`).
+
+On `done_pr` the PR is read once (the head check, GH-14). It goes to the owner as blocked, never gated, when:
+
+- it heads the base branch, or no branch: `#<n> heads the base branch <base>; push a feature branch …`;
+- it heads another branch than the run's: `#<n> heads <head>, not the run's branch <branch>`;
+- another live task's latest run has that branch or reported that PR: `#<n> is claimed by task <id>`.
+
+A run without a branch takes the PR's head. The gate then starts from that same read and runs on its timers as for
+an analysis. A final answer decides:
+
+| Verdict | Then |
+|---|---|
+| GitHub `GREEN` | `green #<n>: GREEN <title> (auto)` and the merge starts without the owner |
+| Gitea `GREEN docs` | the same with `(docs-only, auto)` |
+| Gitea `GREEN code` | `ready #<n>: …; changes more than docs, the owner's go merges` |
+| Gitea `NOCI` | `ready #<n>: …; no CI, the owner's go merges` |
+| opencode `GREEN` | auto with `(opencode, auto)`; with `oc_merge: manual` ready with `oc_merge manual, …` |
+| RED, CI | `nudge-fix`; the fix round counts against `fix_rounds_per_run` |
+| RED, conflict | one `nudge-conflict` per task, from the same fix budget; a second conflict pauses the task |
+| RED, review | `nudge-review`, up to 3 per run (`review_nudges`, not the fix budget); the next pauses the task |
+| RED, closed or timed out | blocked to the owner |
+
+The gate names the cause of a RED (`gate.Result.Cause`). A nudge moves the run back to `working` and the task to
+`running` with the verdict as detail, arms the stall and timeout timers again and sends the gate's reasons as
+`HINT`. A fix round past `fix_rounds_per_run` hands the run over, or pauses the task once `max_runs_per_task` runs
+are used (see Budgets). A paused review or conflict reads `paused <agent>: #<n> RED <reasons>; review nudges
+spent: 3 of 3` or `…; still conflicting after 1 nudge; merge origin/<base> by hand`.
+
+A ready PR waits gating for the owner's go. A red re-gate under the merge (see Merge) takes the same nudges; the
+go stands, so a ready PR after the fix merges without a new go. A PR task never merges without `Deps.Merger`.
+
 ## Merge (MG-1 to MG-5, MG-8, LN-6)
 
 The owner's go (`owner_go`) on a gating task whose latest run reported `done_pr` merges it, when `Deps.Merger` is
@@ -210,15 +245,17 @@ A stop by ctx is never a task failure:
 - The picked model is not persisted; a resumed run keeps its stored worker but loses the picked model.
 - The MCP config path of a remote worker, the opencode sandbox (SP-9) and a forge seam for the picker request.
 - Wiring `resultwatch` to `report.Service`.
-- Arming the timers again for a fix round after a red gate.
-- Nothing fills `context_pct` or the token counts yet, and nothing counts `fix_rounds`; the budget checks act once
-  the gate and the adapters write them through `SetRunBudget`.
+- Nothing fills `context_pct` or the token counts yet; those budget checks act once the adapters write them
+  through `SetRunBudget`.
 - A pending pause does not stop a handover; the fresh run continues the task.
-- `fanind` passes no `Deps.Gates` yet (no forge reader is wired), so an analysis PR is never read there.
-- The gate state of a gating analysis is held in memory; after a restart only an armed gate timer reads it again.
+- `fanind` passes no `Deps.Gates` yet (no forge reader is wired), so a PR is never read there.
+- The gate state of a gating task is held in memory; after a restart only an armed gate timer reads it again.
 - `fanind` wires no `Deps.Merger`, `Deps.BaseCI`, `Deps.Hook` or `Deps.StateDir` yet, so a go merges nothing there.
 - The CI hold rule is a first simple one: any failed or cancelled check on the base branch, read before each merge.
 - The merging, held and standing-go state is held in memory; after a restart a held merge needs a new go.
 - A store error inside a merge is logged as a failed step and the merge is not retried; the owner gives the go again.
-- Only analysis tasks reach gating yet; PR-shape tasks merge once their gate path lands.
+- AP-32b: the forge's auto-merge and the wait for `MERGED`, the go as the commit status `fanin/owner-go`, the
+  squash title with the PR number (MG-6), the branch, worktree and pane cleanup (MG-7), remote git through the
+  host runner (FP-4) and a conflict reported at finish (CF-3). Until then a green PR merges through
+  `Deps.Merger`.
 - A stop between the end of an analysis and its pane close leaves the pane open.

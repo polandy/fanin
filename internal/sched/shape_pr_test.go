@@ -308,7 +308,7 @@ func TestPRRed(t *testing.T) {
 		for n := 1; n <= 3; n++ {
 			for i := 1; i <= testBudgets.FixRoundsPerRun; i++ {
 				text := r.redRound(run, i)
-				if !strings.Contains(text, "#42 RED: failed: ci FAILURE") {
+				if !strings.Contains(text, "#42 RED: failed: ci failure") {
 					t.Errorf("run %d fix nudge %d = %q, want the reasons", n, i, text)
 				}
 			}
@@ -444,4 +444,156 @@ func TestPRRed(t *testing.T) {
 		}
 		r.noMerge()
 	})
+}
+
+func TestPREnds(t *testing.T) {
+	cases := []struct {
+		name  string
+		res   model.Result
+		state model.TaskState
+		want  string
+	}{
+		{"FP-3_a_PR_task_that_files_an_issue_ends_done", model.Result{Kind: model.ResultIssue, Issue: 7},
+			model.TaskDone, AnalysisIssueDetail + "#7"},
+		{"FP-3_a_PR_task_that_finds_nothing_ends_idle", model.Result{Kind: model.ResultNothing, Text: textNoTodo},
+			model.TaskDone, IdleDetail + textNoTodo},
+		{"FP-3_GH-14_a_blocked_PR_task_is_blocked_with_its_line", model.Result{Kind: model.ResultBlocked, Text: "dialog"},
+			model.TaskNeedsOwner, BlockedDetail + "a1-1: dialog"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := prRig(t, mergeConfig())
+			r.start()
+			run := r.startPR("a1", "")
+			r.report(run, tc.res)
+			r.until(r.taskIn("a1", tc.state))
+			if got := r.lastDetail("a1"); got != tc.want {
+				t.Errorf("task detail = %q, want %q", got, tc.want)
+			}
+			if got := r.f.prReads(); got != 0 {
+				t.Errorf("PR reads = %d, want none", got)
+			}
+			r.noMerge()
+		})
+	}
+
+	t.Run("GH-14_a_PR_another_task_reported_is_blocked", func(t *testing.T) {
+		r := prRig(t, mergeConfig())
+		r.start()
+		other := r.startPR("b1", "")
+		r.tx(func(ctx context.Context, tx *store.Tx) error { return tx.SetRunBranch(ctx, other.ID, "feat/b1") })
+		r.report(other, donePR)
+		r.until(r.taskIn("b1", model.TaskNeedsOwner))
+		run := r.startPR("a1", "")
+		r.report(run, donePR)
+		r.until(r.taskIn("a1", model.TaskNeedsOwner))
+		if got := r.lastDetail("a1"); !strings.Contains(got, "#42 is claimed by task b1") {
+			t.Errorf("task detail = %q, want claimed by b1", got)
+		}
+	})
+
+	t.Run("GH-7_a_PR_whose_checks_stay_pending_is_blocked_without_a_nudge", func(t *testing.T) {
+		cfg := mergeConfig()
+		cfg.Projects[0].Gate = gateConfig().Projects[0].Gate
+		r := prRig(t, cfg, pendingPR())
+		r.start()
+		run := r.startPR("a1", "")
+		r.report(run, donePR)
+		r.until(func() bool { _, ok := r.timers("a1")[gate.TimerWait]; return ok })
+		r.advance(30 * time.Minute)
+		r.until(r.taskIn("a1", model.TaskNeedsOwner))
+		if got := r.lastDetail("a1"); !strings.HasPrefix(got, BlockedDetail+"a1-1: #42 RED: still checks running") {
+			t.Errorf("task detail = %q, want blocked on the wait", got)
+		}
+		if n := r.events("a1", model.EventWorkerNudged); len(n) != 0 {
+			t.Errorf("nudges = %q, want none", n)
+		}
+		r.noMerge()
+	})
+
+	t.Run("FP-6_a_project_without_gates_is_ready_with_the_gate_unread", func(t *testing.T) {
+		r := prRig(t, mergeConfig())
+		r.gates = nil
+		r.start()
+		run := r.startPR("a1", "")
+		r.report(run, donePR)
+		r.until(r.hasEvent("a1", model.EventGateVerdict))
+		if v := r.events("a1", model.EventGateVerdict); v[0] != ReadyDetail+"#42: "+GateUnreadNote {
+			t.Errorf("verdict = %q, want ready with the gate unread", v[0])
+		}
+		r.noMerge()
+	})
+}
+
+func TestPRFaults(t *testing.T) {
+	t.Run("FP-6_an_unwritable_gating_state_is_retried_never_gated", func(t *testing.T) {
+		r := prRig(t, mergeConfig())
+		r.start()
+		run := r.startPR("a1", "")
+		r.fault("tasks", "UPDATE")
+		r.report(run, donePR)
+		r.until(r.logged("gate task a1"))
+		if got := r.task("a1").State; got != model.TaskRunning {
+			t.Errorf("task = %s, want running", got)
+		}
+		if v := r.events("a1", model.EventGateVerdict); len(v) != 0 {
+			t.Errorf("verdicts = %q, want none", v)
+		}
+		if got := r.log.all(); len(got) != 0 {
+			t.Errorf("merges = %v, want none", got)
+		}
+	})
+
+	t.Run("GH-9_FP-6_an_unwritable_fix_round_sends_no_nudge", func(t *testing.T) {
+		r := prRig(t, mergeConfig(), redPR())
+		r.start()
+		run := r.startPR("a1", "")
+		r.fault("timers", "INSERT")
+		r.report(run, donePR)
+		r.until(r.logged("send a1 back to work"))
+		if got := r.rt.sent(run.Worker.Agent); len(got) != 0 {
+			t.Errorf("prompts = %q, want none", got)
+		}
+		if got := r.task("a1").State; got != model.TaskGating {
+			t.Errorf("task = %s, want gating", got)
+		}
+	})
+}
+
+func TestPRWriteFaults(t *testing.T) {
+	manual := mergeConfig()
+	manual.Projects[0].OCMerge = config.OCMergeManual
+	cases := []struct {
+		name, kind, trigger, line string
+		cfg                       config.Config
+		pr                        forge.PR
+	}{
+		{"FP-6_an_unwritable_head_adoption_is_never_gated", "",
+			`BEFORE UPDATE OF branch ON runs`, "adopt the head of a1-run-1", mergeConfig(), greenPR()},
+		{"GH-9_FP-6_an_unwritable_working_run_sends_no_nudge", "",
+			`BEFORE UPDATE OF state ON runs WHEN NEW.state = 'working'`, "send a1 back to work", mergeConfig(), redPR()},
+		{"GH-9_FP-6_an_unwritable_running_task_sends_no_nudge", "",
+			`BEFORE UPDATE OF state ON tasks WHEN NEW.state = 'running'`, "send a1 back to work", mergeConfig(), redPR()},
+		{"GH-13_FP-6_an_unwritable_green_verdict_never_merges", "",
+			`BEFORE INSERT ON events WHEN NEW.type = 'gate_verdict'`, "record the gate verdict of a1", mergeConfig(),
+			greenPR()},
+		{"OC-7_FP-6_an_unwritable_ready_verdict_never_merges", kindOC,
+			`BEFORE INSERT ON events WHEN NEW.type = 'gate_verdict'`, "record the gate verdict of a1", manual, greenPR()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := prRig(t, tc.cfg, tc.pr)
+			r.start()
+			run := r.startPR("a1", tc.kind)
+			r.sql(`CREATE TRIGGER fault_when ` + tc.trigger + ` BEGIN SELECT RAISE(ABORT, 'injected fault'); END`)
+			r.report(run, donePR)
+			r.until(r.logged(tc.line))
+			if got := r.rt.sent(run.Worker.Agent); len(got) != 0 {
+				t.Errorf("prompts = %q, want none", got)
+			}
+			if got := r.log.all(); len(got) != 0 {
+				t.Errorf("merges = %v, want none", got)
+			}
+		})
+	}
 }

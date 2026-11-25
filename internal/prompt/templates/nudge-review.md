@@ -1,0 +1,1 @@
+The review of your PR is not ready: {{HINT}}. Address the review on the same branch; do not open a new PR. Push, then call the MCP tool `fanin_report` once with your result (or run `fanin report` if you have no MCP) and end with your status line. fanin gates the PR again and waits for its CI.

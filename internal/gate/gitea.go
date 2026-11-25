@@ -37,6 +37,13 @@ func readGitea(ctx context.Context, r Reader, t Target) (Result, error) {
 // GREEN here means checks passed; the caller sorts it into GREEN docs or GREEN code by the files.
 func Gitea(pr forge.PR, base string) Result {
 	var reasons []string
+	cause := CauseCI
+	if pr.Mergeable == forge.MergeableConflicted {
+		cause = CauseConflict
+	}
+	if pr.State != forge.StateOpen || pr.BaseBranch != base {
+		cause = CauseClosed
+	}
 	if pr.State != forge.StateOpen {
 		reasons = append(reasons, fmt.Sprintf("PR is %s, not %s", pr.State, forge.StateOpen))
 	}
@@ -52,7 +59,7 @@ func Gitea(pr forge.PR, base string) Result {
 	}
 	switch {
 	case len(reasons) > 0:
-		return red(reasons...)
+		return red(cause, reasons...)
 	case len(running) > 0:
 		return pending(WaitChecks)
 	case len(pr.Checks) == 0:

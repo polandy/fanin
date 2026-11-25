@@ -120,9 +120,9 @@ func TestDispatch(t *testing.T) {
 		h.tx(func(ctx context.Context, tx *store.Tx) error {
 			return tx.SetRunResult(ctx, id, model.Result{Kind: model.ResultDonePR, PR: 7})
 		})
-		h.until(h.runIn(id, model.RunReported))
+		h.until(h.taskIn("a1", model.TaskGating))
 		h.tx(func(ctx context.Context, tx *store.Tx) error {
-			for _, to := range []model.TaskState{model.TaskGating, model.TaskPostMerge, model.TaskDone} {
+			for _, to := range []model.TaskState{model.TaskPostMerge, model.TaskDone} {
 				if err := tx.SetTaskState(ctx, "a1", to, "merged"); err != nil {
 					return err
 				}

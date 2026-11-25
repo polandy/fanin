@@ -52,6 +52,23 @@ const (
 	WaitFilesUnreadable  Wait = "files unreadable"
 )
 
+// Cause says what a RED verdict needs: the scheduler nudges a CI, review or conflict red and blocks the rest.
+type Cause string
+
+// The causes of a RED verdict.
+const (
+	// CauseClosed is a PR that is not open or aims at the wrong base.
+	CauseClosed Cause = "closed"
+	// CauseConflict is a PR that does not merge cleanly.
+	CauseConflict Cause = "conflict"
+	// CauseCI is a failed check, with or without a review red.
+	CauseCI Cause = "ci"
+	// CauseReview is a review red with every other check green.
+	CauseReview Cause = "review"
+	// CauseTimeout is a PR whose checks stayed pending past the wait limits.
+	CauseTimeout Cause = "timeout"
+)
+
 // ReviewContext is the commit status the review run posts on the PR head (concept D5).
 const ReviewContext = "fanin/review"
 
@@ -61,7 +78,9 @@ type Result struct {
 	// Title is the PR title, set for a green verdict.
 	Title string
 	// Wait is set for PENDING only.
-	Wait    Wait
+	Wait Wait
+	// Cause is set for RED only.
+	Cause   Cause
 	Reasons []string
 }
 
@@ -156,6 +175,6 @@ func sortChecks(checks []forge.Check) (bad, running []string) {
 	return bad, running
 }
 
-func red(reasons ...string) Result         { return Result{Verdict: Red, Reasons: reasons} }
-func pending(w Wait) Result                { return Result{Verdict: Pending, Wait: w, Reasons: []string{string(w)}} }
-func green(v Verdict, title string) Result { return Result{Verdict: v, Title: title} }
+func red(c Cause, reasons ...string) Result { return Result{Verdict: Red, Cause: c, Reasons: reasons} }
+func pending(w Wait) Result                 { return Result{Verdict: Pending, Wait: w, Reasons: []string{string(w)}} }
+func green(v Verdict, title string) Result  { return Result{Verdict: v, Title: title} }

@@ -225,9 +225,9 @@ func TestSilentStopLadder(t *testing.T) {
 		h.start()
 		run := h.startOwner("a1")
 		h.tx(func(ctx context.Context, tx *store.Tx) error {
-			return tx.SetRunResult(ctx, run.ID, model.Result{Kind: model.ResultNothing, Text: textNoTodo})
+			return tx.SetRunResult(ctx, run.ID, model.Result{Kind: model.ResultDonePR, PR: prNumber})
 		})
-		h.until(h.runIn(run.ID, model.RunReported))
+		h.until(h.taskIn("a1", model.TaskGating))
 		h.send(run.Worker.Agent, idle())
 		if got := h.events("a1", model.EventWorkerNudged); len(got) != 0 {
 			t.Errorf("worker_nudged = %q, want none after the result", got)

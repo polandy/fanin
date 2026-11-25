@@ -86,9 +86,9 @@ func TestTimeout(t *testing.T) {
 		run := h.startOwner("a1")
 		h.send(run.Worker.Agent, runtime.RunEvent{Type: runtime.RunEventStalled, Reason: runtime.StallQuiet})
 		h.tx(func(ctx context.Context, tx *store.Tx) error {
-			return tx.SetRunResult(ctx, run.ID, model.Result{Kind: model.ResultNothing, Text: textNoTodo})
+			return tx.SetRunResult(ctx, run.ID, model.Result{Kind: model.ResultDonePR, PR: prNumber})
 		})
-		h.until(h.runIn(run.ID, model.RunReported))
+		h.until(h.taskIn("a1", model.TaskGating))
 		h.quiet()
 		if got := h.timers("a1"); len(got) != 0 {
 			t.Errorf("timers = %v, want none after the result", got)
