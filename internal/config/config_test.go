@@ -212,6 +212,8 @@ func TestLoadRefusesABadConfig(t *testing.T) {
 		{"ST-4_unknown_defaults_key", map[string]string{fileFanin: faninYAML + "  colour: blue\n"}, fileFanin,
 			[]string{"/defaults", unknownKey}},
 		{"ST-4_unknown_file", map[string]string{"extra.yaml": "a: 1\n"}, "extra.yaml", []string{fileFanin}},
+		{"ST-4_project_yml_is_not_skipped", map[string]string{"projects/gamma.yml": alphaYAML}, "gamma.yml",
+			[]string{ruleFileKnown, extYAML}},
 		{"ST-4_gitea_without_url", map[string]string{fileForges: strings.Replace(forgesYAML,
 			"    url: https://git.example.com\n", "", 1)}, fileForges, []string{"/forges/gitea", "url"}},
 		{"ST-4_secret_value_instead_of_name", map[string]string{fileForges: strings.Replace(forgesYAML, "GH_TOKEN",
