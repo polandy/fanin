@@ -1,0 +1,28 @@
+alpha
+  done this run (5):
+    a5 fifth
+    a4 fourth
+    a3 third
+    a2 second
+  next (2):
+    a6 the next one
+    a7 after the next [blocked]
+  waiting for owner (2):
+    a8 pick a model [needs_owner, question q1]
+    a9 paused for a while [paused]
+  holds (2):
+    ci hold h1: main is red (fix a10); lift with: fanin hold lift h1
+    merge hold h2: hook failed; lift with: fanin hold lift h2
+  decisions (1):
+    a11 choose the store layout
+gamma
+  done this run (0):
+    -
+  next (0):
+    -
+  waiting for owner (0):
+    -
+  holds (0):
+    -
+  decisions (0):
+    -
