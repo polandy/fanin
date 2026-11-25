@@ -14,12 +14,13 @@ import (
 var update = flag.Bool("update", false, "rewrite the golden files")
 
 const (
-	examplesDir = "../../config/examples"
-	dirMarker   = "<config>"
-	secretValue = "fake-secret-value-42"
-	flagConfig  = "--config"
-	subValidate = "validate"
-	cmdConfig   = "config"
+	examplesDir  = "../../config/examples"
+	dirMarker    = "<config>"
+	secretValue  = "fake-secret-value-42"
+	flagConfig   = "--config"
+	subValidate  = "validate"
+	cmdConfig    = "config"
+	subEffective = "effective"
 )
 
 func writeConfig(t *testing.T, files map[string]string) string {
@@ -39,7 +40,7 @@ func writeConfig(t *testing.T, files map[string]string) string {
 
 func effective(t *testing.T, dir string, args ...string) (int, string, string) {
 	t.Helper()
-	return runArgs(t, defaultRegistry, nil, append([]string{flagConfig, dir, cmdConfig, "effective"}, args...)...)
+	return runArgs(t, defaultRegistry, nil, append([]string{flagConfig, dir, cmdConfig, subEffective}, args...)...)
 }
 
 // TestConfigEffective covers SCENARIOS ST-4: the effective config shows which value wins and where it is set.
@@ -92,7 +93,7 @@ func TestConfigEffective(t *testing.T) {
 			"projects/bad.yaml": "path: /path/to/repo\nhost: local\nforge: github\nmax_parallel: 0\n",
 		})
 		for _, args := range [][]string{
-			{flagConfig, dir, cmdConfig, "effective", "bad"},
+			{flagConfig, dir, cmdConfig, subEffective, "bad"},
 			{cmdConfig, subValidate, dir},
 		} {
 			code, _, stderr := runArgs(t, defaultRegistry, nil, args...)
@@ -113,8 +114,8 @@ func TestConfigEffective(t *testing.T) {
 
 	t.Run("ST-4_usage_errors", func(t *testing.T) {
 		for _, args := range [][]string{
-			{cmdConfig}, {cmdConfig, "bogus"}, {cmdConfig, subValidate}, {cmdConfig, "effective", projAlpha},
-			{flagConfig, examplesDir, cmdConfig, "effective"}, {flagConfig, examplesDir, cmdConfig, "effective", "-x", "alpha"},
+			{cmdConfig}, {cmdConfig, "bogus"}, {cmdConfig, subValidate}, {cmdConfig, subEffective, projAlpha},
+			{flagConfig, examplesDir, cmdConfig, subEffective}, {flagConfig, examplesDir, cmdConfig, subEffective, "-x", "alpha"},
 			{cmdConfig, subValidate, "a", "b"},
 		} {
 			if code, _, _ := runArgs(t, defaultRegistry, nil, args...); code != cli.ExitUsage {
