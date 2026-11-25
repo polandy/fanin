@@ -13,7 +13,10 @@ import (
 	"github.com/polandy/fanin/internal/runtime/testutil"
 )
 
-const ocSubject = "fix: alpha flag"
+const (
+	ocSubject   = "fix: alpha flag"
+	ocRemoteURL = "/srv/sandbox/alpha\n"
+)
 
 // fakePRForge lists open PRs and records the PRs it opens.
 type fakePRForge struct {
@@ -55,7 +58,7 @@ func TestOCPush(t *testing.T) {
 	t.Run("OC-1_fetches_pushes_fast_forward_only_and_opens_the_PR_once_with_the_subject_and_reviewer", func(t *testing.T) {
 		f := &fakePRForge{open: []forge.PR{{Number: 7, HeadBranch: "oc/other"}}}
 		r, push := newPush(t, f)
-		r.Expect(remoteArgv, testutil.Reply{Stdout: "/srv/sandbox/alpha\n"})
+		r.Expect(remoteArgv, testutil.Reply{Stdout: ocRemoteURL})
 		r.Expect(fetchArgv, testutil.Reply{})
 		r.Expect(pushArgv, testutil.Reply{})
 		r.Expect(subjArgv, testutil.Reply{Stdout: ocSubject + "\n"})
@@ -87,7 +90,7 @@ func TestOCPush(t *testing.T) {
 	t.Run("OC-1_reuses_the_open_PR_on_fix_commits", func(t *testing.T) {
 		f := &fakePRForge{open: []forge.PR{{Repo: ocRepo, Number: 9, HeadBranch: ocBranch}}}
 		r, push := newPush(t, f)
-		r.Expect(remoteArgv, testutil.Reply{Stdout: "/srv/sandbox/alpha\n"})
+		r.Expect(remoteArgv, testutil.Reply{Stdout: ocRemoteURL})
 		r.Expect(fetchArgv, testutil.Reply{})
 		r.Expect(pushArgv, testutil.Reply{})
 
@@ -104,7 +107,7 @@ func TestOCPush(t *testing.T) {
 	t.Run("CF-4_a_rewritten_branch_is_refused_it_is_never_forced", func(t *testing.T) {
 		f := &fakePRForge{}
 		r, push := newPush(t, f)
-		r.Expect(remoteArgv, testutil.Reply{Stdout: "/srv/sandbox/alpha\n"})
+		r.Expect(remoteArgv, testutil.Reply{Stdout: ocRemoteURL})
 		r.Expect(fetchArgv, testutil.Reply{})
 		r.Expect(pushArgv, testutil.Reply{Stderr: "! [rejected] (non-fast-forward)", ExitCode: 1})
 
@@ -134,7 +137,7 @@ func TestOCPush(t *testing.T) {
 			r.Expect(remoteArgv, testutil.Reply{Stderr: "error: No such remote", ExitCode: 2})
 		}, ErrOCRemote, "git remote add " + OCRemote},
 		{"OC-1_refuses_a_branch_the_clone_lacks", ocProject(), ocBranch, func(r *testutil.RecordingRunner) {
-			r.Expect(remoteArgv, testutil.Reply{Stdout: "/srv/sandbox/alpha\n"})
+			r.Expect(remoteArgv, testutil.Reply{Stdout: ocRemoteURL})
 			r.Expect(fetchArgv, testutil.Reply{Stderr: "couldn't find remote ref", ExitCode: 128})
 		}, ErrOCFetch, "cannot fetch " + ocBranch},
 	}
@@ -159,7 +162,7 @@ func TestOCPush(t *testing.T) {
 	t.Run("OC-1_an_unreadable_PR_list_is_an_error_and_opens_nothing", func(t *testing.T) {
 		f := &fakePRForge{listErr: errors.New("gh: HTTP 502")}
 		r, push := newPush(t, f)
-		r.Expect(remoteArgv, testutil.Reply{Stdout: "/srv/sandbox/alpha\n"})
+		r.Expect(remoteArgv, testutil.Reply{Stdout: ocRemoteURL})
 		r.Expect(fetchArgv, testutil.Reply{})
 		r.Expect(pushArgv, testutil.Reply{})
 		if _, err := push.Deliver(t.Context(), ocProject(), ocBranch); err == nil || !strings.Contains(err.Error(), "502") {

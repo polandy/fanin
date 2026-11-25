@@ -88,6 +88,9 @@ type Deps struct {
 	PreGo PreGoCheck
 	// BaseCI reads the base branch's checks before a merge; nil skips the CI hold rule (SCENARIOS MG-8).
 	BaseCI BaseCI
+	// OCDeliver and OCReview push and review a COMMITTED opencode branch; nil asks the owner (SCENARIOS OC-1, OC-6).
+	OCDeliver OCDelivery
+	OCReview  OCReviewer
 }
 
 // Scheduler is the reactor of store events, runtime events and due timers. Only Run's goroutine touches it.

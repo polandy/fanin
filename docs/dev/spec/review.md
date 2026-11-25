@@ -14,7 +14,7 @@ the gate reads it ([`gate.md`](gate.md)). An unreadable review is an error, neve
 
 The defaults come from the config schema; `review.Config` without a skill, a model or a positive timeout is
 `runtime.ErrInvalidSpec` before anything runs. The run is a headless `claude -p` (`internal/runtime/headless`);
-another worker kind, such as the opencode review of OC-4, is not part of this package yet.
+the opencode review of OC-4 is `review.Opencode` (see below).
 
 Only GitHub projects are reviewed for now: the skill posts its comment with `gh`, and fanin reads it back through
 `forge.Comments`, which the Gitea client does not have.
@@ -51,3 +51,22 @@ wins; a line naming both (`ready / not ready`) is Not ready.
 A comment without the header or without a verdict gets one retry with a correction note naming what was missing.
 A second failure is `review.ErrUnreadable`. A run with no text is `runtime.ErrOddAnswer`; a run that stopped at a
 sudo password prompt is `review.ErrSudoPassword`, whose message names the fix.
+
+## The opencode review (SCENARIOS OC-4)
+
+`review.Opencode` reviews an opencode PR read-only in the sandbox; opencode answers, fanin posts.
+
+1. The model is `OpencodeConfig.Model`, else `classes["cloud-fallback"].model` of the LLM policy file; an
+   unreadable policy is an error before anything runs.
+2. Read the PR as above, then `git -C <dir> fetch -q origin <base> <branch>` and
+   `git -C <dir> diff origin/<base>...<head sha>`.
+3. `sudo -n -u aiagent oc-sandbox <label> --script` with `git rev-parse HEAD && git status --porcelain` on stdin:
+   the clone must stand at the PR head with no changes, else `review.ErrCloneState` and nothing is posted.
+4. `timeout 1800 sudo -n -u aiagent oc-sandbox <label> --run --model <m> --title "review PR <n>"` with the prompt
+   on stdin: fanin's rules (the comment contract, change nothing) and the diff, cut at 60000 bytes
+   (`review.DiffMax`) on a character boundary with the note `only the first 60000 of <n> bytes`.
+5. The output is opencode's JSON event lines; the `text` parts are the review. A line that is not JSON, or no
+   text, is `review.ErrUnreadable`. The clone state is checked again after every run.
+6. Parse as in The verdict, one retry with the correction note. Post the canonical text plus the model footer
+   (`review.OCFooter`) with `gh pr comment --body-file -`, then the `fanin/review` status linking that comment.
+   A failed comment post posts no status.

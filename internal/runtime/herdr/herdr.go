@@ -35,14 +35,19 @@ const (
 // TrustDialog is the text of claude's folder trust dialog.
 const TrustDialog = "trust this folder"
 
-// emptyInput matches claude's input box when the prompt paste got lost.
-var emptyInput = regexp.MustCompile(`(?m)^❯( *$| Try ")`)
+// emptyInput matches each agent kind's input box when the prompt paste got lost.
+var emptyInput = map[string]*regexp.Regexp{
+	runtime.KindClaude:   regexp.MustCompile(`(?m)^❯( *$| Try ")`),
+	runtime.KindOpencode: regexp.MustCompile(`┃ +Ask anything`),
+}
 
 // The herdr program, its words and flags.
 const (
-	Program       = "herdr"
-	FlagMachine   = "--machine"
-	AgentKind     = "claude"
+	Program     = "herdr"
+	FlagMachine = "--machine"
+	AgentKind   = runtime.KindClaude
+	// PathCommand prepends a directory to the pane shell's PATH; %s is the directory.
+	PathCommand   = "set -gx PATH %s $PATH"
 	KeyEnter      = "enter"
 	permissionArg = "auto"
 )
@@ -132,19 +137,30 @@ func (r *Runtime) Start(ctx context.Context, spec runtime.RunSpec) (runtime.RunH
 	if err := r.wait(ctx, r.cfg.ShellPause); err != nil {
 		return h, err
 	}
+	if spec.PathDir != "" {
+		if _, err := r.herdr(ctx, h.Host, "pane", "run", h.Pane, fmt.Sprintf(PathCommand, spec.PathDir)); err != nil {
+			return h, fmt.Errorf("cannot put %s on PATH in pane %s: %w", spec.PathDir, h.Pane, err)
+		}
+	}
 	if err := r.startAgent(ctx, spec, h); err != nil {
 		return h, err
 	}
 	if err := r.Prompt(ctx, h, spec.Prompt); err != nil {
 		return h, err
 	}
-	return h, r.awaitWorking(ctx, h, spec.Prompt)
+	return h, r.awaitWorking(ctx, h, spec)
 }
 
 func validate(s runtime.RunSpec) error {
+	if _, ok := emptyInput[kind(s)]; !ok {
+		return fmt.Errorf("%w: RunSpec.Kind %q for agent %q; use %s or %s", runtime.ErrInvalidSpec, s.Kind, s.Agent,
+			runtime.KindClaude, runtime.KindOpencode)
+	}
 	fields := []struct{ key, value string }{
 		{"Project", s.Project}, {"Worktree", s.Worktree}, {"Agent", s.Agent}, {"Prompt", s.Prompt},
-		{"MCPConfig", s.MCPConfig},
+	}
+	if kind(s) == runtime.KindClaude {
+		fields = append(fields, struct{ key, value string }{"MCPConfig", s.MCPConfig})
 	}
 	for _, f := range fields {
 		if f.value == "" {
@@ -214,11 +230,21 @@ func (r *Runtime) tab(ctx context.Context, spec runtime.RunSpec, ws string) (tab
 	return created.Result.Tab.TabID, created.Result.RootPane.PaneID, nil
 }
 
-// startArgv is `agent start` with claude's flags after the `--`.
+func kind(s runtime.RunSpec) string {
+	if s.Kind == "" {
+		return runtime.KindClaude
+	}
+	return s.Kind
+}
+
+// startArgv is `agent start` with claude's flags, or opencode's sandbox label, after the `--`.
 func (r *Runtime) startArgv(spec runtime.RunSpec, pane string) []string {
 	argv := []string{"agent", "start", spec.Agent, "--pane", pane,
-		"--timeout", strconv.FormatInt(r.cfg.StartTimeout.Milliseconds(), 10), "--kind", AgentKind, "--",
-		"--permission-mode", permissionArg, "--strict-mcp-config", "--mcp-config", spec.MCPConfig}
+		"--timeout", strconv.FormatInt(r.cfg.StartTimeout.Milliseconds(), 10), "--kind", kind(spec), "--"}
+	if kind(spec) == runtime.KindOpencode {
+		return append(argv, spec.Project)
+	}
+	argv = append(argv, "--permission-mode", permissionArg, "--strict-mcp-config", "--mcp-config", spec.MCPConfig)
 	if spec.Model != "" {
 		argv = append(argv, "--model", spec.Model)
 	}
@@ -265,7 +291,7 @@ func (r *Runtime) startAgent(ctx context.Context, spec runtime.RunSpec, h runtim
 }
 
 // awaitWorking resends a lost paste or presses Enter until the agent works (SCENARIOS SP-6).
-func (r *Runtime) awaitWorking(ctx context.Context, h runtime.RunHandle, prompt string) error {
+func (r *Runtime) awaitWorking(ctx context.Context, h runtime.RunHandle, spec runtime.RunSpec) error {
 	for attempt := 1; ; attempt++ {
 		if err := r.wait(ctx, r.cfg.WorkCheckInterval); err != nil {
 			return err
@@ -285,8 +311,8 @@ func (r *Runtime) awaitWorking(ctx context.Context, h runtime.RunHandle, prompt 
 		if err != nil {
 			return err
 		}
-		if emptyInput.MatchString(text) {
-			if err := r.Prompt(ctx, h, prompt); err != nil {
+		if emptyInput[kind(spec)].MatchString(text) {
+			if err := r.Prompt(ctx, h, spec.Prompt); err != nil {
 				return err
 			}
 		} else if err := r.enter(ctx, h); err != nil {

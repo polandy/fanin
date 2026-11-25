@@ -63,7 +63,9 @@ When the start succeeds, the run gets its workspace, tab and pane (`Tx.SetRunWor
 task's `stall` and `worker_timeout` timers are armed.
 
 A failed write or start ends the run failed, with detail `spawn failed <agent>: <cause>`, and the task failed
-(SP-8). A worker kind whose runtime is not herdr is refused with `ErrWorkerKind`. A started worker that cannot be
+(SP-8). A worker kind whose runtime is not herdr is refused with `ErrWorkerKind`, and so is an opencode task on a
+forge that is not GitHub or of a shape other than PR (SP-9). An opencode spec carries kind `opencode` and the
+project's base. A started worker that cannot be
 recorded is logged as having unknown status and keeps its slot: no second worker is started.
 
 ## Timers (WD-1, WD-2, WD-3, FP-6)
@@ -179,6 +181,28 @@ spent: 3 of 3` or `…; still conflicting after 1 nudge; merge origin/<base> by 
 A ready PR waits gating for the owner's go. A red re-gate under the merge (see Merge) takes the same nudges; the
 go stands, so a ready PR after the fix merges without a new go; a conflict there is CF-3.
 
+## Opencode delivery (OC-1, OC-2, OC-6, CF-4)
+
+An opencode worker commits in the sandbox and reports `committed` with its `oc/<slug>` branch; it opens no PR.
+On `committed`:
+
+- from any worker kind but opencode: the owner gets `ERROR <branch>: COMMITTED from a <kind> worker …` (OC-2);
+- without `Deps.OCDeliver` and `Deps.OCReview`: the owner gets an `ERROR`, the branch is left for a hand push;
+- else, in the background, `OCDelivery.Deliver` then `OCReviewer.Review`. Either error goes to the owner as
+  `ERROR <branch>: <cause>` and the gate never runs (OC-6). On success the run's result becomes `done_pr` with
+  the PR, and the PR path above takes it, head check first. A task that moved on meanwhile is left alone.
+
+`OCPush` is the real delivery, all git through `runtime.Runner` in the project's checkout:
+
+1. Refuse a branch that does not match `oc/[A-Za-z0-9._-]+` (`ErrOCBranch`) and a project whose forge is not
+   GitHub (`ErrOCForge`).
+2. `git remote get-url aiagent`; a missing sandbox remote is `ErrOCRemote` with the `git remote add` fix.
+3. `git fetch -q aiagent +refs/heads/<b>:refs/remotes/aiagent/<b>`; a failure is `ErrOCFetch`.
+4. `git push -q origin refs/remotes/aiagent/<b>:refs/heads/<b>`: fast-forward only. A refused push, a rewritten
+   branch included, is `ErrOCPush` (`it is never forced`, CF-4).
+5. Reuse the open PR whose head is the branch; else open one with the branch tip's subject as title and
+   `OCPRBody`, which names the reviewer.
+
 ## Merge (MG-1 to MG-5, MG-8, LN-6)
 
 The owner's go (`owner_go`) on a gating task whose latest run reported `done_pr` merges it, when `Deps.Merger` is
@@ -253,7 +277,8 @@ A stop by ctx is never a task failure:
 ## Open
 
 - The picked model is not persisted; a resumed run keeps its stored worker but loses the picked model.
-- The MCP config path of a remote worker, the opencode sandbox (SP-9) and a forge seam for the picker request.
+- The MCP config path of a remote worker and a forge seam for the picker request.
+- `fanind` passes no `Deps.OCDeliver` or `Deps.OCReview` yet (no forge is wired), so a `committed` asks the owner.
 - Wiring `resultwatch` to `report.Service`.
 - Nothing fills `context_pct` or the token counts yet; those budget checks act once the adapters write them
   through `SetRunBudget`.

@@ -191,19 +191,29 @@ func (s *Scheduler) spec(p config.Project, task model.Task, hint, picked, handov
 		return runtime.RunSpec{}, fmt.Errorf("%w: task %s: worker kind %q has runtime %q; workers run on %s",
 			ErrWorkerKind, task.ID, kind, wk.Runtime, config.RuntimeHerdr)
 	}
+	forgeKind := s.d.Config.Forges[p.Forge].Kind
+	if kind == intake.KindOpencode && (forgeKind != config.ForgeGitHub || task.Shape != model.ShapePR) {
+		return runtime.RunSpec{}, fmt.Errorf("%w: task %s: opencode runs %s tasks of GitHub projects only; project %s "+
+			"has forge kind %q and the task is %s; use a Claude worker", ErrWorkerKind, task.ID, model.ShapePR, p.Name,
+			forgeKind, task.Shape)
+	}
 	wp := p
 	wp.WorkerKind, wp.Model = kind, cmp.Or(task.ProjectModel, p.Model)
 	mdl, err := s.d.Config.WorkerModel(wp, task.OwnerModel, picked)
 	if err != nil {
 		return runtime.RunSpec{}, fmt.Errorf("sched: task %s: %w", task.ID, err)
 	}
-	text, err := prompt.Render(promptName(kind, task.Shape, s.d.Config.Forges[p.Forge].Kind),
+	text, err := prompt.Render(promptName(kind, task.Shape, forgeKind),
 		prompt.Vars{Repo: p.Path, Base: p.Base, Hint: hint, Handover: handover})
 	if err != nil {
 		return runtime.RunSpec{}, fmt.Errorf("sched: task %s: %w", task.ID, err)
 	}
-	return runtime.RunSpec{TaskID: task.ID, Project: p.Name, Worktree: p.Path, Title: task.Title, Model: mdl,
-		Prompt: text}, nil
+	spec := runtime.RunSpec{TaskID: task.ID, Project: p.Name, Worktree: p.Path, Title: task.Title, Model: mdl,
+		Prompt: text, Base: p.Base}
+	if kind == intake.KindOpencode {
+		spec.Kind = runtime.KindOpencode
+	}
+	return spec, nil
 }
 
 // promptName picks the worker template by worker kind, task shape and forge.

@@ -29,7 +29,7 @@ var (
 	ocDiff  = []string{gitBin, "-C", repoDir, "diff", "origin/main..." + headSHA}
 	ocState = []string{"sudo", "-n", "-u", review.DefaultOCUser, review.DefaultOCSandbox, label, "--script"}
 	ocRun   = []string{"timeout", ocTimeout, "sudo", "-n", "-u", review.DefaultOCUser, review.DefaultOCSandbox, label,
-		"--run", "--model", ocModel, "--title", "review PR 42"}
+		"--run", flagModel, ocModel, "--title", "review PR 42"}
 )
 
 // ocForge adds the comment post an opencode review needs to fakeForge.

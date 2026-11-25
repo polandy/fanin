@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	gitBin  = "git"
 	project = "proj"
 	repo    = "/path/to/proj"
 	base    = "main"
@@ -26,9 +27,9 @@ const (
 
 var (
 	sudo     = []string{"sudo", "-n", "-u", opencode.DefaultUser}
-	fetch    = []string{"git", "-C", repo, "fetch", "-q", "origin", base}
-	bundleCr = []string{"git", "-C", repo, "bundle", "create", "-q", "-", "refs/remotes/origin/" + base}
-	status   = slices.Concat(sudo, []string{"git", "-C", clone, "status", "--porcelain"})
+	fetch    = []string{gitBin, "-C", repo, "fetch", "-q", "origin", base}
+	bundleCr = []string{gitBin, "-C", repo, "bundle", "create", "-q", "-", "refs/remotes/origin/" + base}
+	status   = slices.Concat(sudo, []string{gitBin, "-C", clone, "status", "--porcelain"})
 	syncArgv = slices.Concat(sudo, []string{"sh", "-c", opencode.SyncScript, "sh", clone, base})
 )
 

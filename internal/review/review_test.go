@@ -140,7 +140,7 @@ func TestReview(t *testing.T) {
 		rr := testutil.NewRecordingRunner(t)
 		rr.Expect(fetchArgv, testutil.Reply{})
 		rr.Expect(addArgv, testutil.Reply{})
-		rr.Expect([]string{"claude", "-p", "--output-format", "json", "--model", "opus", "--allowedTools",
+		rr.Expect([]string{"claude", "-p", "--output-format", "json", flagModel, "opus", "--allowedTools",
 			strings.Join(review.AllowedTools, ",")}, testutil.Reply{Stdout: okJSON})
 		rr.Expect(removeArgv, testutil.Reply{})
 		f := newForge(nil, []forge.Comment{comment(9, readyBody)})

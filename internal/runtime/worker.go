@@ -34,6 +34,12 @@ var (
 	ErrUnreachable = errors.New("runtime: unreachable")
 )
 
+// The agent kinds a RunSpec names; an empty Kind is KindClaude.
+const (
+	KindClaude   = "claude"
+	KindOpencode = "opencode"
+)
+
 // RunSpec is what a worker runtime needs to start one run.
 type RunSpec struct {
 	TaskID model.TaskID
@@ -50,6 +56,12 @@ type RunSpec struct {
 	Model     string
 	Prompt    string
 	MCPConfig string
+	// Kind is the agent program, KindClaude or KindOpencode; opencode needs no MCPConfig.
+	Kind string
+	// Base is the project's base branch; the opencode sandbox clone is synced to it.
+	Base string
+	// PathDir, when set, goes first on the pane's PATH before the agent starts.
+	PathDir string
 }
 
 // SessionName is "<project> · <short title> · <agent>" (see SCENARIOS SP-1).

@@ -18,6 +18,7 @@ import (
 const (
 	ocBranch = "oc/fix-alpha"
 	ocRepo   = "owner/alpha"
+	promptA1 = "do a1"
 )
 
 var committed = model.Result{Kind: model.ResultCommitted, Branch: ocBranch}
@@ -149,7 +150,7 @@ func TestOpencodeSpec(t *testing.T) {
 	t.Run("SP-9_an_opencode_spec_names_its_kind_and_base", func(t *testing.T) {
 		h := newHarness(t, testConfig())
 		h.start()
-		h.addTask(model.Task{ID: "a1", Title: "oc", Prompt: "do a1", OwnerTask: true, WorkerKind: kindOC})
+		h.addTask(model.Task{ID: "a1", Title: "oc", Prompt: promptA1, OwnerTask: true, WorkerKind: kindOC})
 		h.until(h.runIn(RunID("a1", 1), model.RunWorking))
 		specs := h.rt.starts()
 		if len(specs) != 1 || specs[0].Kind != runtime.KindOpencode || specs[0].Base != baseMain {
@@ -171,7 +172,7 @@ func TestOpencodeSpec(t *testing.T) {
 	for _, tc := range refused {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := testConfig()
-			task := model.Task{ID: "a1", Title: "oc", Prompt: "do a1", OwnerTask: true, WorkerKind: kindOC}
+			task := model.Task{ID: "a1", Title: "oc", Prompt: promptA1, OwnerTask: true, WorkerKind: kindOC}
 			tc.edit(&cfg, &task)
 			h := newHarness(t, cfg)
 			h.start()
