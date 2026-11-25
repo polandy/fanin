@@ -107,8 +107,7 @@ func (s *Scheduler) watch(ctx context.Context, project string, run model.Run) {
 	w := &watch{project: project, run: run, cancel: cancel}
 	s.watched[run.ID] = w
 	log := s.logFor(project, run.TaskID, run.ID)
-	h := runtime.RunHandle{TaskID: run.TaskID, RunID: run.ID, Project: project, Host: run.Worker.Host,
-		Agent: run.Worker.Agent, Workspace: run.Worker.Workspace, Tab: run.Worker.Tab, Pane: run.Worker.Pane}
+	h := handle(project, run)
 	ch, err := s.d.Runtime.Observe(wctx, h)
 	if err != nil {
 		w.unknown = true
@@ -123,7 +122,8 @@ func (s *Scheduler) watch(ctx context.Context, project string, run model.Run) {
 	})
 }
 
-// onRunEvent applies one runtime event; working moves a stalled run back, stalled marks it (AW-4, AW-5).
+// onRunEvent applies one runtime event; working moves a stalled run back, stalled marks it and climbs the stall
+// ladder, idle climbs the silent-stop ladder (AW-4, AW-5, AW-10, AW-11).
 func (s *Scheduler) onRunEvent(ctx context.Context, w *watch, ev runtime.RunEvent) {
 	defer s.applied.Add(1)
 	if s.watched[w.run.ID] != w {
@@ -138,12 +138,22 @@ func (s *Scheduler) onRunEvent(ctx context.Context, w *watch, ev runtime.RunEven
 		err = s.moveRun(ctx, w.run.ID, model.RunStalled, model.RunWorking, string(ev.Type))
 	case runtime.RunEventStalled:
 		w.unknown = false
-		if ev.Reason != runtime.StallBGShell {
-			w.bgSince = time.Time{}
-		} else if w.bgSince.IsZero() {
-			w.bgSince = now
+		if ev.Reason == runtime.StallBGShell {
+			if w.bgSince.IsZero() {
+				w.bgSince = now
+			}
+			err = s.moveRun(ctx, w.run.ID, model.RunWorking, model.RunStalled, StalledDetail+string(ev.Reason))
+			break
 		}
-		err = s.moveRun(ctx, w.run.ID, model.RunWorking, model.RunStalled, "stalled: "+string(ev.Reason))
+		w.bgSince = time.Time{}
+		if p, ok := s.project(w.project); ok {
+			err = s.stall(ctx, p, w.run.ID, StalledDetail+string(ev.Reason), ev.Tail)
+		}
+	case runtime.RunEventIdle:
+		w.unknown, w.bgSince = false, time.Time{}
+		if p, ok := s.project(w.project); ok {
+			err = s.silentStop(ctx, p, w, ev)
+		}
 	case runtime.RunEventUnreachable:
 		w.unknown = true
 		s.logFor(w.project, w.run.TaskID, w.run.ID).ErrorContext(ctx, "sched: worker status unknown",

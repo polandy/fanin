@@ -1,0 +1,1 @@
+You stopped again without a result, and your branch may hold commits that are not pushed. Push them now so no work is lost. Then call `fanin_report` with `pushed` and your branch, or with `blocked` and what stops you, and end with your status line.

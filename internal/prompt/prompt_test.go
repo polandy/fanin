@@ -19,7 +19,13 @@ var update = flag.Bool("update", false, "rewrite the golden files")
 
 const fixtureTemplate = "templates/x.md"
 
-var vars = Vars{Repo: "/r/repo", Base: "main", Hint: "fix it"}
+// The repository path and base branch the tests render with.
+const (
+	testRepo = "/r/repo"
+	testBase = "main"
+)
+
+var vars = Vars{Repo: testRepo, Base: testBase, Hint: "fix it"}
 
 func mustRender(t *testing.T, n Name, v Vars) string {
 	t.Helper()
@@ -49,7 +55,7 @@ func TestPrompt(t *testing.T) {
 
 	t.Run("SP-7_hint_is_literal", func(t *testing.T) {
 		hint := `a & b | \1 {{REPO}} {{INCLUDE:owner-input}} $x`
-		out := mustRender(t, Worker, Vars{Repo: "/r/repo", Base: "main", Hint: hint})
+		out := mustRender(t, Worker, Vars{Repo: testRepo, Base: testBase, Hint: hint})
 		if !strings.Contains(out, "(may be empty): "+hint+"\n") {
 			t.Errorf("hint changed in %q", out)
 		}

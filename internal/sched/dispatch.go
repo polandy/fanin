@@ -140,7 +140,7 @@ const IdleDetail = "idle: "
 // spawn writes the run row, then starts the worker in the background; a failed spawn is a failed run (SP-8).
 func (s *Scheduler) spawn(ctx context.Context, p config.Project, task model.Task, slot int, hint, picked string) error {
 	log := s.logFor(p.Name, task.ID, "")
-	spec, err := s.spec(p, task, hint, picked)
+	spec, err := s.spec(p, task, hint, picked, "")
 	if err != nil {
 		log.ErrorContext(ctx, "sched: task refused", "err", err)
 		s.end(ctx, task, err.Error(), true)
@@ -156,7 +156,7 @@ func (s *Scheduler) spawn(ctx context.Context, p config.Project, task model.Task
 		if err != nil {
 			return err
 		}
-		run = model.Run{ID: RunID(task.ID, n), TaskID: task.ID, Number: n, Slot: slot,
+		run = model.Run{ID: RunID(task.ID, n), TaskID: task.ID, Number: n, Slot: slot, Hint: hint,
 			Token: model.Token(rand.Text()), Worker: model.Worker{Agent: AgentName(task.ID, n)}}
 		if err := tx.SetTaskState(ctx, task.ID, model.TaskRunning, fmt.Sprintf("slot %d", slot)); err != nil {
 			return err
@@ -171,22 +171,14 @@ func (s *Scheduler) spawn(ctx context.Context, p config.Project, task model.Task
 		log.InfoContext(ctx, "sched: paused before the next worker")
 		return nil
 	}
-	spec.RunID, spec.Agent = run.ID, run.Worker.Agent
-	if spec.MCPConfig, err = s.d.Files.Prepare(ctx, p, run); err != nil {
-		s.spawnFailed(ctx, p, run, err)
-		return nil //nolint:nilerr // a failed MCP config write is a failed run (SP-8), not a failed step
-	}
-	log = s.logFor(p.Name, task.ID, run.ID)
-	log.InfoContext(ctx, "sched: spawning", "agent", spec.Agent, "slot", slot, "model", spec.Model)
-	safego.Go(ctx, log, func(ctx context.Context) {
-		h, err := s.d.Runtime.Start(ctx, spec)
-		s.post(ctx, func(ctx context.Context) { s.started(ctx, p, run, h, err) })
-	})
+	s.launch(ctx, p, run, spec)
 	return nil
 }
 
-// spec builds the run spec of task without the run's ID, agent and MCP config.
-func (s *Scheduler) spec(p config.Project, task model.Task, hint, picked string) (runtime.RunSpec, error) {
+// spec builds the run spec of task without the run's ID, agent and MCP config; a follow-up run's prompt ends
+// with its handover.
+func (s *Scheduler) spec(p config.Project, task model.Task, hint, picked, handover string) (runtime.RunSpec,
+	error) {
 	kind := cmp.Or(task.WorkerKind, p.WorkerKind)
 	if wk, ok := s.d.Config.WorkerKinds[kind]; !ok || wk.Runtime != config.RuntimeHerdr {
 		return runtime.RunSpec{}, fmt.Errorf("%w: task %s: worker kind %q has runtime %q; workers run on %s",
@@ -199,7 +191,7 @@ func (s *Scheduler) spec(p config.Project, task model.Task, hint, picked string)
 		return runtime.RunSpec{}, fmt.Errorf("sched: task %s: %w", task.ID, err)
 	}
 	text, err := prompt.Render(promptName(kind, task.Shape, s.d.Config.Forges[p.Forge].Kind),
-		prompt.Vars{Repo: p.Path, Base: p.Base, Hint: hint})
+		prompt.Vars{Repo: p.Path, Base: p.Base, Hint: hint, Handover: handover})
 	if err != nil {
 		return runtime.RunSpec{}, fmt.Errorf("sched: task %s: %w", task.ID, err)
 	}

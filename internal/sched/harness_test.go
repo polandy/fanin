@@ -28,10 +28,15 @@ const (
 	modelOpus     = "opus"
 	modelSonnet   = "sonnet"
 	baseMain      = "main"
+	pathAlpha     = "/r/alpha"
+	textNoTodo    = "no todo"
 	hostFar       = "far"
 )
 
 var epoch = time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+
+// The schema's default budgets.
+var testBudgets = config.Budgets{FixRoundsPerRun: 2, RolloverPct: 75, MaxTokensPerRun: 3_000_000, MaxRunsPerTask: 3}
 
 // testConfig is one fanin project alpha with two slots and one bash project beta.
 func testConfig() config.Config {
@@ -43,12 +48,12 @@ func testConfig() config.Config {
 			kindHL: {Runtime: config.RuntimeHeadless},
 		},
 		Projects: []config.Project{
-			{Name: projAlpha, Path: "/r/alpha", Host: config.HostLocal, Forge: "gh", Base: baseMain, WorkerKind: kindCC,
+			{Name: projAlpha, Path: pathAlpha, Host: config.HostLocal, Forge: "gh", Base: baseMain, WorkerKind: kindCC,
 				MaxParallel: 2, StallAfter: config.Duration(stallAfter), WorkerTimeout: config.Duration(workerTimeout),
-				Loop: config.LoopFanin},
+				Loop: config.LoopFanin, Budgets: testBudgets},
 			{Name: projBash, Path: "/r/beta", Host: config.HostLocal, Forge: "gh", Base: baseMain, WorkerKind: kindCC,
 				MaxParallel: 1, StallAfter: config.Duration(stallAfter), WorkerTimeout: config.Duration(workerTimeout),
-				Loop: config.LoopBash},
+				Loop: config.LoopBash, Budgets: testBudgets},
 		},
 	}
 }
@@ -62,6 +67,7 @@ type harness struct {
 	clk     *clock.Manual
 	rt      *fakeRuntime
 	pk      *fakePicker
+	up      *fakeUnpushed
 	files   RunFiles
 	logs    *syncBuffer
 	s       *Scheduler
@@ -81,7 +87,7 @@ func newHarness(t *testing.T, cfg config.Config) *harness {
 		t.Fatal(err)
 	}
 	h := &harness{t: t, cfg: cfg, path: path, st: st, clk: clk, rt: newFakeRuntime(), pk: &fakePicker{},
-		files: Files{Dir: t.TempDir(), DaemonURL: "http://127.0.0.1:1"}, logs: &syncBuffer{}}
+		up: &fakeUnpushed{}, files: Files{Dir: t.TempDir(), DaemonURL: "http://127.0.0.1:1"}, logs: &syncBuffer{}}
 	t.Cleanup(func() {
 		h.stop()
 		if err := h.st.Close(); err != nil {
@@ -97,7 +103,7 @@ func (h *harness) start() {
 	ctx, cancel := context.WithCancel(h.t.Context())
 	h.cancel, h.waiting, h.done = cancel, make(chan struct{}), make(chan error, 1)
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
-		Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
+		Unpushed: h.up, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)
 			select {
 			case h.waiting <- struct{}{}:

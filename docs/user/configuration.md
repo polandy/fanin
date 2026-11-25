@@ -117,10 +117,10 @@ Settings, in a project file or under `defaults`:
 | `loop` | `bash` \| `fanin` | `bash` | `fanin` lets `fanind` start the workers; local projects only for now |
 | `stall_after` | duration | `15m` | no heartbeat for this long is a stall |
 | `worker_timeout` | duration | `45m` | no heartbeat or result for this long ends the run |
-| `budgets.fix_rounds_per_run` | integer ≥ 0 | `2` | |
+| `budgets.fix_rounds_per_run` | integer ≥ 0 | `2` | fix rounds one run may take; one more rolls over to a fresh run |
 | `budgets.rollover_pct` | 1–100 | `75` | context use that rolls over to a fresh run |
-| `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | |
-| `budgets.max_runs_per_task` | integer ≥ 1 | `3` | |
+| `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | tokens that roll over to a fresh run |
+| `budgets.max_runs_per_task` | integer ≥ 1 | `3` | runs per task; once used, a spent budget pauses the task and a second stall sets it needs-owner |
 | `gate.github.watch_timeout` | duration | `30m` | longest wait on pending checks |
 | `gate.github.settle` | duration | `20s` | |
 | `gate.github.max_waits` | integer ≥ 1 | `12` | |

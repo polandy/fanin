@@ -1,4 +1,5 @@
-// Package prompt renders the worker prompts: embedded templates with {{INCLUDE:part}}, {{REPO}}, {{BASE}}, {{HINT}}.
+// Package prompt renders the worker prompts and nudges: embedded templates with {{INCLUDE:part}}, {{REPO}},
+// {{BASE}}, {{HINT}}, plus a follow-up run's handover.
 package prompt
 
 import (
@@ -25,8 +26,18 @@ const (
 	WorkerGiteaAnalyze Name = "worker-gitea-analyze"
 )
 
-// Names lists every shipped template.
+// The nudges the scheduler sends a live worker (SCENARIOS AW-10, AW-11).
+const (
+	NudgeContinue Name = "nudge-continue"
+	NudgeSecure   Name = "nudge-secure"
+	NudgeStall    Name = "nudge-stall"
+)
+
+// Names lists every shipped worker template.
 var Names = []Name{Worker, WorkerOC, WorkerGitea, WorkerAnalyze, WorkerGiteaAnalyze}
+
+// Nudges lists every shipped nudge.
+var Nudges = []Name{NudgeContinue, NudgeSecure, NudgeStall}
 
 // ErrTemplate is a template or include part that is missing or unreadable.
 var ErrTemplate = errors.New("prompt: template unavailable")
@@ -39,6 +50,8 @@ type Vars struct {
 	Repo string
 	Base string
 	Hint string
+	// Handover, when set, is appended as it is: a follow-up run's handover document (Handover.Markdown).
+	Handover string
 }
 
 const (
@@ -80,7 +93,11 @@ func render(fsys fs.FS, name Name, v Vars) (string, error) {
 		return "", fmt.Errorf("%w: %s in %s; use REPO, BASE, HINT or INCLUDE:<part>", ErrPlaceholder, left, name)
 	}
 	// Placeholders are gone before the values go in, so a hint is never expanded.
-	return strings.NewReplacer("{{REPO}}", v.Repo, "{{BASE}}", v.Base, "{{HINT}}", v.Hint).Replace(p) + "\n", nil
+	out := strings.NewReplacer("{{REPO}}", v.Repo, "{{BASE}}", v.Base, "{{HINT}}", v.Hint).Replace(p) + "\n"
+	if v.Handover != "" {
+		out += "\n" + strings.TrimRight(v.Handover, "\n") + "\n"
+	}
+	return out, nil
 }
 
 func unknownPlaceholder(p string) string {

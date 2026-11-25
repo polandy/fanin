@@ -29,7 +29,8 @@ const TimeoutDetail = "worker timeout: no heartbeat or result for "
 
 // onStoreEvent applies one store event of a scheduled project.
 func (s *Scheduler) onStoreEvent(ctx context.Context, ev model.Event) error {
-	if _, ok := s.project(ev.Project); !ok {
+	p, ok := s.project(ev.Project)
+	if !ok {
 		return nil
 	}
 	switch ev.Type {
@@ -37,6 +38,8 @@ func (s *Scheduler) onStoreEvent(ctx context.Context, ev model.Event) error {
 		return s.moveRun(ctx, ev.RunID, model.RunStalled, model.RunWorking, "progress")
 	case model.EventResultReported:
 		return s.reported(ctx, ev)
+	case model.EventTokenUsage:
+		return s.checkBudget(ctx, p, ev)
 	case model.EventRunState, model.EventTaskState:
 		return s.reconcile(ctx, ev.TaskID)
 	case model.EventProjectResumed:
@@ -64,6 +67,11 @@ func (s *Scheduler) reported(ctx context.Context, ev model.Event) error {
 		}
 		if run.State == model.RunWorking {
 			if err := tx.SetRunState(ctx, run.ID, model.RunReported, ""); err != nil {
+				return err
+			}
+		}
+		if run.Branch == "" && run.Result != nil && run.Result.Branch != "" {
+			if err := tx.SetRunBranch(ctx, run.ID, run.Result.Branch); err != nil {
 				return err
 			}
 		}
@@ -106,7 +114,7 @@ func (s *Scheduler) fireTimers(ctx context.Context) error {
 	}
 	for _, t := range timers {
 		p, ok := s.project(t.Project)
-		if !ok || (t.Kind != TimerStall && t.Kind != TimerTimeout) {
+		if !ok || !ownTimer(t.Kind) {
 			continue
 		}
 		if err := s.fire(ctx, p, t); err != nil {
@@ -131,6 +139,15 @@ func (s *Scheduler) fire(ctx context.Context, p config.Project, t store.Timer) e
 		return s.rearm(ctx, t, time.Time{}, nil)
 	}
 	run := runs[len(runs)-1]
+	if t.Kind == TimerAwait {
+		if err := s.rearm(ctx, t, time.Time{}, nil); err != nil {
+			return err
+		}
+		if w := s.watched[run.ID]; w != nil && w.last.Type == runtime.RunEventIdle {
+			return s.silentStop(ctx, p, w, w.last)
+		}
+		return nil
+	}
 	act, err := s.activity(ctx, run)
 	if err != nil {
 		return err
@@ -141,13 +158,10 @@ func (s *Scheduler) fire(ctx context.Context, p config.Project, t store.Timer) e
 		if due := act.Add(limit); due.After(now) {
 			return s.rearm(ctx, t, due, nil)
 		}
-		return s.rearm(ctx, t, now.Add(limit), func(ctx context.Context, tx *store.Tx) error {
-			cur, err := tx.Run(ctx, run.ID)
-			if err != nil || cur.State != model.RunWorking {
-				return err
-			}
-			return tx.SetRunState(ctx, run.ID, model.RunStalled, fmt.Sprintf("stalled: no heartbeat for %s", limit))
-		})
+		if err := s.rearm(ctx, t, now.Add(limit), nil); err != nil {
+			return err
+		}
+		return s.stall(ctx, p, run.ID, fmt.Sprintf("%sno heartbeat for %s", StalledDetail, limit), "")
 	}
 	return s.fireTimeout(ctx, p, t, task, run, act)
 }
@@ -288,8 +302,11 @@ func armTimers(ctx context.Context, tx *store.Tx, p config.Project, task model.T
 	kinds ...string) error {
 	for _, kind := range kinds {
 		limit := p.WorkerTimeout.Std()
-		if kind == TimerStall {
+		switch kind {
+		case TimerStall:
 			limit = p.StallAfter.Std()
+		case TimerAwait:
+			limit = FooterWait(p)
 		}
 		if _, err := tx.ArmTimer(ctx, store.Timer{Project: p.Name, TaskID: task, Kind: kind,
 			DueAt: now.Add(limit)}); err != nil {

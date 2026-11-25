@@ -90,8 +90,9 @@ Every event carries herdr's `Status` and the clock time `At`. The channel also c
   `Dialog` is `<question> 1. <option> / 2. <option>`, cut to 400 runes. A blocked pane without such options is
   `unreadable`. A numbered list in a reply has no cursor and is no dialog.
 - **Background work (AW-3).** A footer in the bottom `FooterLines` (4) that counts background tasks, agents or
-  shells holds an idle agent: no `idle` is sent for up to `MaxBGWaits` (50) slices of `StallSlice`. A footer
-  further up the scrollback does not count.
+  shells holds an idle agent: no `idle` is sent for up to `MaxBGWaits` (50) slices of `StallSlice`. The `idle`
+  sent once the hold is over carries `BGFooter`, so the scheduler waits again (AW-11). A footer further up the
+  scrollback does not count.
 - **Stalls (AW-4, AW-5).** The pane fingerprint drops the spinner line and timers and token counts. A working
   agent whose fingerprint stays the same for `StallSlices` (3) times `StallSlice` (300 s) is `stalled` with reason
   `quiet`; an idle agent held by a live shell footer whose tail stays the same for `BGShellWindow` (20 min) is

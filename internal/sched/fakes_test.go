@@ -5,6 +5,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/pick"
 	"github.com/polandy/fanin/internal/runtime"
 )
@@ -16,12 +17,19 @@ type fakeRuntime struct {
 	observed   []runtime.RunHandle
 	startErr   error
 	observeErr error
+	promptErr  error
+	stopErr    error
+	// prompts are the texts sent per agent; stopped are the stopped agents.
+	prompts map[string][]string
+	stopped []string
 	// block makes Start wait for its ctx.
 	block bool
 	feeds map[string]chan runtime.RunEvent
 }
 
-func newFakeRuntime() *fakeRuntime { return &fakeRuntime{feeds: map[string]chan runtime.RunEvent{}} }
+func newFakeRuntime() *fakeRuntime {
+	return &fakeRuntime{feeds: map[string]chan runtime.RunEvent{}, prompts: map[string][]string{}}
+}
 
 func (f *fakeRuntime) Start(ctx context.Context, spec runtime.RunSpec) (runtime.RunHandle, error) {
 	f.mu.Lock()
@@ -41,9 +49,31 @@ func (f *fakeRuntime) Start(ctx context.Context, spec runtime.RunSpec) (runtime.
 		Workspace: "ws-" + spec.Project, Tab: "tab-" + spec.Agent, Pane: "pane-" + spec.Agent}, nil
 }
 
-func (f *fakeRuntime) Prompt(context.Context, runtime.RunHandle, string) error { return nil }
+func (f *fakeRuntime) Prompt(_ context.Context, h runtime.RunHandle, text string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.prompts[h.Agent] = append(f.prompts[h.Agent], text)
+	return f.promptErr
+}
 
-func (f *fakeRuntime) Stop(context.Context, runtime.RunHandle) error { return nil }
+func (f *fakeRuntime) Stop(_ context.Context, h runtime.RunHandle) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.stopped = append(f.stopped, h.Agent)
+	return f.stopErr
+}
+
+func (f *fakeRuntime) sent(agent string) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.prompts[agent]...)
+}
+
+func (f *fakeRuntime) stops() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.stopped...)
+}
 
 func (f *fakeRuntime) Observe(ctx context.Context, h runtime.RunHandle) (<-chan runtime.RunEvent, error) {
 	f.mu.Lock()
@@ -120,6 +150,27 @@ func (f *fakePicker) calls() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.reqs)
+}
+
+// fakeUnpushed answers every scan with commits and err and records the branches asked for.
+type fakeUnpushed struct {
+	mu       sync.Mutex
+	commits  []string
+	err      error
+	branches []string
+}
+
+func (f *fakeUnpushed) Unpushed(_ context.Context, _ config.Project, branch string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.branches = append(f.branches, branch)
+	return f.commits, f.err
+}
+
+func (f *fakeUnpushed) asked() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.branches...)
 }
 
 // syncBuffer is a log sink the loop and its goroutines write concurrently.

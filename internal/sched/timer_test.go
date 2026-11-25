@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/store"
@@ -54,11 +55,15 @@ func TestTimeout(t *testing.T) {
 	})
 
 	t.Run("WD-1_heartbeat_moves_the_timeout", func(t *testing.T) {
-		h := newHarness(t, testConfig())
+		// A stall_after past half the timeout keeps the second stall (AW-10) out of this test.
+		stall := workerTimeout/2 + 5*time.Minute
+		cfg := testConfig()
+		cfg.Projects[0].StallAfter = config.Duration(stall)
+		h := newHarness(t, cfg)
 		h.start()
 		run := h.startOwner("a1")
 		h.send(run.Worker.Agent, idle())
-		h.advance(stallAfter)
+		h.advance(stall)
 		h.tx(func(ctx context.Context, tx *store.Tx) error {
 			_, err := tx.AppendEvent(ctx, model.Event{Type: model.EventProgress, Project: projAlpha, TaskID: "a1",
 				RunID: run.ID, Detail: "tests green"})
@@ -68,9 +73,9 @@ func TestTimeout(t *testing.T) {
 		if got := h.run(run.ID).State; got != model.RunWorking {
 			t.Fatalf("run after progress = %s, want working", got)
 		}
-		h.advance(workerTimeout - stallAfter)
+		h.advance(workerTimeout - stall)
 		h.alive(run)
-		if due := h.timers("a1")[TimerTimeout]; !due.Equal(epoch.Add(stallAfter + workerTimeout)) {
+		if due := h.timers("a1")[TimerTimeout]; !due.Equal(epoch.Add(stall + workerTimeout)) {
 			t.Errorf("timeout due %v, want one timeout after the progress", due)
 		}
 	})
@@ -81,7 +86,7 @@ func TestTimeout(t *testing.T) {
 		run := h.startOwner("a1")
 		h.send(run.Worker.Agent, runtime.RunEvent{Type: runtime.RunEventStalled, Reason: runtime.StallQuiet})
 		h.tx(func(ctx context.Context, tx *store.Tx) error {
-			return tx.SetRunResult(ctx, run.ID, model.Result{Kind: model.ResultNothing, Text: "no todo"})
+			return tx.SetRunResult(ctx, run.ID, model.Result{Kind: model.ResultNothing, Text: textNoTodo})
 		})
 		h.until(h.runIn(run.ID, model.RunReported))
 		h.quiet()

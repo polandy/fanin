@@ -59,7 +59,7 @@ func TestDispatch(t *testing.T) {
 		h.start()
 		h.addTask(model.Task{ID: "a1", Title: titleLoop})
 		h.until(h.runIn(RunID("a1", 1), model.RunWorking))
-		want, err := prompt.Render(prompt.Worker, prompt.Vars{Repo: "/r/alpha", Base: baseMain})
+		want, err := prompt.Render(prompt.Worker, prompt.Vars{Repo: pathAlpha, Base: baseMain})
 		if err != nil {
 			t.Fatal(err)
 		}

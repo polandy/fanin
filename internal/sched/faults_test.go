@@ -105,7 +105,7 @@ func TestStoreFaults(t *testing.T) {
 
 	t.Run("PK-3_unwritable_idle_end_keeps_the_task_queued", func(t *testing.T) {
 		h := newHarness(t, testConfig())
-		h.pk.res = pick.Result{Idle: true, Reason: "no todo"}
+		h.pk.res = pick.Result{Idle: true, Reason: textNoTodo}
 		h.start()
 		h.addTask(model.Task{ID: "a1", Title: titleLoop})
 		h.fault("tasks", "UPDATE")
