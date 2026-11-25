@@ -71,6 +71,10 @@ systemd starts the unit with a bare environment: only `PATH` from the unit, the 
 `EnvironmentFile`, and `--config /etc/fanin`. Nothing is read from a home directory or a login shell. Adjust the
 `PATH` line when the tools your workers need live elsewhere.
 
+Claude workers run in the herdr server of the user that owns it, so `fanind` must run as that user: set `User=` and
+`Group=` to it, drop `ProtectHome` and point `--config` and `EnvironmentFile` at that user's files. `gh` cannot read
+a keyring login under systemd; put `GH_TOKEN` into the `EnvironmentFile`.
+
 ## Opencode sandbox
 
 Opencode workers run as the sandbox user `aiagent` in its clone `/srv/aiagent/<project>`; fanind calls `sudo -n`,
@@ -91,14 +95,15 @@ fanind writes the launcher shim to `oc-bin/` next to the store. Leftovers in a s
 fanin merges a PR only after both required checks are green. Set them as required on the base branch of every
 project.
 
-GitHub: Settings → Branches → Add branch ruleset (or classic rule) for `main` → Require status checks to pass →
+GitHub: Settings → Branches → Add classic branch protection rule for `main` → Require status checks to pass →
 add `ci` and `fanin/review`; also require the branch to be up to date and block force pushes.
 
 Gitea or Forgejo: Settings → Branches → Add rule for `main` → Enable status check → add `ci` and `fanin/review`
 as patterns; disable force push.
 
-`ci` is your CI job; `fanin/review` is the status the review step reports. A check that never reports keeps the
-PR blocked (Gitea projects end in `NOCI` after `gate.gitea.noci_after_polls` polls without a status).
+`ci` is your CI job; `fanin/review` is the status the review step reports. `fanin doctor` reads the classic rule
+only, so a ruleset shows as a `FAIL` row. A check that never reports keeps the PR blocked (Gitea projects end in
+`NOCI` after `gate.gitea.noci_after_polls` polls without a status).
 
 ## Upgrade
 
