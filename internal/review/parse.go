@@ -38,9 +38,7 @@ var (
 	headerTailChars = " \t*_`"
 )
 
-// Parse reads a review comment: from its last header line to its last verdict, without code fences, with a
-// canonical header and verdict line. A preamble, fences and reworded verdicts are accepted; "not" wins over
-// "ready". A comment without header or verdict is ErrUnreadable, never a verdict.
+// Parse returns a comment's verdict and canonical text, or ErrUnreadable when it lacks the header or a verdict.
 func Parse(body string) (Verdict, string, error) {
 	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
 	header := -1

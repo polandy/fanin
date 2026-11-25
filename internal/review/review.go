@@ -1,6 +1,4 @@
-// Package review runs the configured review skill headless on a PR head and posts its verdict as the
-// fanin/review commit status on that head (concept D5, SCENARIOS OC-3 and OC-5). An unreadable review is an
-// error, never a verdict.
+// Package review posts a headless review's verdict as the fanin/review status on the PR head (concept D5).
 package review
 
 import (
@@ -128,8 +126,7 @@ func Worktree(dir string, number int) string {
 	return filepath.Join(dir, worktreeDir, worktreePrefix+strconv.Itoa(number))
 }
 
-// Review runs the skill on the PR head in a detached worktree, reads the verdict from the comment it posted and
-// posts it as the fanin/review status on that head. The worktree is removed either way; nothing is posted on error.
+// Review reviews the PR head in a detached worktree and posts the verdict on that head; an error posts nothing.
 func (r *Reviewer) Review(ctx context.Context, req Request) (Result, error) {
 	if err := r.validate(req); err != nil {
 		return Result{}, err
