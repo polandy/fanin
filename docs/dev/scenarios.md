@@ -396,11 +396,14 @@ These scenarios cover `gitea-gate.sh`, `gitea-pr.sh` and the dry-activate step.
   - The loop ends `ready #n (ci; dry-activate: firewall: …; would: …)`. The owner's go merges it.
 - Source: `loop.sh:520-524`, `dry-activate.sh`. Test: `loop.sh#32` (NOCI path), `firewall-diff.sh`; dry-activate
   itself: —. Mark: PARITY.
+- fanin: generic `pre_go_check` (`hook.PreGo`), tests `TestPreGo/GT-8_*` in `internal/sched` and `internal/hook`.
+  A failing or missing check asks the owner and never merges (FP-6). The NixOS `dry-activate` stays outside the repo.
 
 **GT-9**
 - `firewall-diff`: changes to firewall, openFirewall, iptables/nft, compose ports or `network_mode: host` are
   summarised; otherwise "no port or firewall rule changes".
 - Source: `firewall-diff.sh`. Test: `firewall-diff.sh`. Mark: PARITY.
+- fanin: not ported; the script stays outside the repo and runs as a project's `pre_go_check`.
 
 **GT-10**
 - Gitea calls go through the MCP (`python3 -I gitea_mcp.py`); the token stays in gitea-mcp.
@@ -899,7 +902,6 @@ These scenarios cover herdr, gh and ssh errors and the scripts' strictness.
 
 These have no test and need one in fanin:
 
-- **dry-activate** (GT-8): only `firewall-diff` is tested.
 - **deploy-release** (DR-1, DR-2).
 - **Spawn's tab title restore** after a resume.
 

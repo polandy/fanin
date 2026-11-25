@@ -5,10 +5,12 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/forge"
 	"github.com/polandy/fanin/internal/gate"
+	"github.com/polandy/fanin/internal/hook"
 	"github.com/polandy/fanin/internal/intake"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/prompt"
@@ -30,6 +32,8 @@ const (
 	OCManualNote = "oc_merge manual, the owner's go merges"
 	// NoCINote ends the verdict of a Gitea PR without any check.
 	NoCINote = "no CI, the owner's go merges"
+	// PreGoFailedDetail leads the question of a PR whose pre_go_check failed or could not run.
+	PreGoFailedDetail = "pre-go check "
 )
 
 // The nudges a red PR gets (SCENARIOS GH-10, CF-2); fix and conflict nudges count against fix_rounds_per_run.
@@ -174,7 +178,52 @@ func (s *Scheduler) gatedPR(ctx context.Context, p config.Project, run model.Run
 		}
 		return s.startMerge(ctx, p, run.TaskID, false)
 	}
-	if err := s.verdict(ctx, p, run, ReadyDetail+ref+": "+res.String()+"; "+note); err != nil {
+	return s.ready(ctx, p, run, ref, res.String()+"; "+note)
+}
+
+// ready records the ready verdict of a PR that waits for the owner's go. With a pre_go_check the check runs first
+// and its output ends the verdict; a failed or missing check asks the owner and never merges (SCENARIOS GT-8, FP-6).
+func (s *Scheduler) ready(ctx context.Context, p config.Project, run model.Run, ref, line string) error {
+	if p.PreGoCheck == "" {
+		return s.readyVerdict(ctx, p, run, ref, line)
+	}
+	if s.d.PreGo == nil || run.Branch == "" {
+		return s.askOwner(ctx, p, run, fmt.Sprintf("%s%s: pre_go_check %q of project %s cannot run without a PreGo "+
+			"runner and the run's branch; set both", PreGoFailedDetail, ref, p.PreGoCheck, p.Name))
+	}
+	pr, err := strconv.Atoi(strings.TrimPrefix(ref, "#"))
+	if err != nil {
+		return fmt.Errorf("sched: PR reference %q of task %s is not #<number>: %w", ref, run.TaskID, err)
+	}
+	req := hook.PreGoRequest{Project: p.Name, PR: pr, Path: p.Path, Base: p.Base, Branch: run.Branch,
+		Command: p.PreGoCheck, Dir: s.d.StateDir}
+	s.checking[run.TaskID] = true
+	log := s.logFor(p.Name, run.TaskID, run.ID)
+	safego.Go(ctx, log, func(ctx context.Context) {
+		out, err := s.d.PreGo.Run(ctx, req)
+		s.post(ctx, func(ctx context.Context) {
+			delete(s.checking, run.TaskID)
+			if ctx.Err() != nil {
+				return
+			}
+			switch {
+			case err != nil:
+				err = s.askOwner(ctx, p, run, PreGoFailedDetail+ref+": "+err.Error())
+			case out != "":
+				err = s.readyVerdict(ctx, p, run, ref, line+"; "+out)
+			default:
+				err = s.readyVerdict(ctx, p, run, ref, line)
+			}
+			if err != nil {
+				s.fail(ctx, fmt.Errorf("sched: pre-go check of %s for %s: %w", ref, run.TaskID, err))
+			}
+		})
+	})
+	return nil
+}
+
+func (s *Scheduler) readyVerdict(ctx context.Context, p config.Project, run model.Run, ref, line string) error {
+	if err := s.verdict(ctx, p, run, ReadyDetail+ref+": "+line); err != nil {
 		return err
 	}
 	if s.goAgain[run.TaskID] {

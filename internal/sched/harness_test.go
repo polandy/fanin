@@ -73,6 +73,7 @@ type harness struct {
 	gates  PRGates
 	merger Merger
 	baseCI BaseCI
+	preGo  PreGoCheck
 	// hookRun, when set, runs the post-merge hook through a real hook.Hook on the current store.
 	hookRun  runtime.Runner
 	stateDir string
@@ -115,7 +116,7 @@ func (h *harness) start() {
 		post = hook.New(h.st, h.hookRun)
 	}
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
-		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Hook: post, BaseCI: h.baseCI,
+		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Hook: post, BaseCI: h.baseCI, PreGo: h.preGo,
 		StateDir: h.stateDir, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)
 			select {

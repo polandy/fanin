@@ -237,13 +237,7 @@ func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, 
 		s.logFor(p.Name, run.TaskID, run.ID).WarnContext(ctx, "sched: PR files unreadable; counted as code",
 			"pr", ref, "err", filesErr)
 	}
-	if err := s.verdict(ctx, p, run, ReadyDetail+ref+": "+step.Result.String()+"; "+note); err != nil {
-		return err
-	}
-	if s.goAgain[run.TaskID] {
-		return s.startMerge(ctx, p, run.TaskID, false)
-	}
-	return nil
+	return s.ready(ctx, p, run, ref, step.Result.String()+"; "+note)
 }
 
 // verdict records detail as the task's gate verdict; the task stays gating.

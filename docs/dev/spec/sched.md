@@ -207,6 +207,16 @@ runs at a time:
 - The hook runs `sh -c <post_merge_hook>` through `runtime.Runner` with `FANIN_PROJECT` and `FANIN_PR` and no lane
   variable; an empty `post_merge_hook` runs nothing and holds nothing.
 
+### Pre-go check (GT-8)
+
+With `pre_go_check` set, a PR that waits for the owner's go runs `Deps.PreGo` (`internal/hook`, `hook.PreGo`)
+before the `ready` verdict: fetch base and branch, a throwaway worktree under `<state dir>/prego/`, `sh -c` the
+command there with `FANIN_PROJECT`, `FANIN_PR`, `FANIN_BASE`, `FANIN_BRANCH` and `FANIN_BASE_REF`, then the worktree
+is removed. The check runs off the loop; `checking` marks the task and a go that arrives meanwhile is kept as the
+standing go and merges after the verdict. Its stdout (lines joined with `; `, at most 600 runes) ends the ready
+detail. A failed check, a fetch or worktree error, a missing `Deps.PreGo` or an empty run branch goes to the owner as
+`pre-go check #<n>: ...` and never merges (FP-6). User interface: `docs/user/pre-go-check.md`.
+
 ### CI hold (MG-8)
 
 Before a merge, `Deps.BaseCI` reads the required checks of the project's base branch. A failed or cancelled check
