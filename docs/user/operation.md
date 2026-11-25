@@ -51,3 +51,20 @@ fanin wait --owner             # block until something needs the owner; prints o
 - `go` records the go as an `owner_go` event; a task outside its gates is refused.
 - `wait` prints `<seq> <type> <project> <task> <run>: <detail>`. `--after <seq>` starts after that event instead
   of waiting only for new ones, so a loop of `wait --after <last seq>` misses nothing.
+
+## Owner MCP server
+
+`fanin mcp` serves the owner tools over stdio, so an agent session answers questions without a shell. Register it
+in the session's MCP config with `FANIN_URL` and `FANIN_TOKEN` in its environment:
+
+```json
+{"mcpServers": {"fanin": {"command": "fanin", "args": ["mcp"], "env": {"FANIN_URL": "http://127.0.0.1:8470", "FANIN_TOKEN": "<owner token>"}}}}
+```
+
+- `fanin_questions`: the open questions with their options.
+- `fanin_answer` (`task`, `answer`): same rules as `fanin answer`; an invalid option is refused with the options.
+- `fanin_go` (`task`): same as `fanin go`.
+- `fanin_status` (optional `project`): tasks, runs, questions, holds, locks and the newest events, as JSON.
+
+A daemon that cannot be reached, or a refused call, is a tool error that names the cause, never a success message.
+`fanin_task_add` follows once the daemon has a task-creation endpoint.
