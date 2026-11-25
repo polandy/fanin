@@ -163,3 +163,12 @@ func (s *Store) EventsAfter(ctx context.Context, seq int64, limit int) ([]model.
 	}
 	return scanAll(rows, scanEvent)
 }
+
+// LastEventSeq returns the sequence number of the newest event, 0 when the log is empty.
+func (s *Store) LastEventSeq(ctx context.Context) (int64, error) {
+	var seq int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(seq), 0) FROM events`).Scan(&seq); err != nil {
+		return 0, fmt.Errorf("store: read last event seq: %w", err)
+	}
+	return seq, nil
+}
