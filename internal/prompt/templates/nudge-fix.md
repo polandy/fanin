@@ -1,0 +1,1 @@
+The gate of your PR is red: {{HINT}}. Fix the failing checks on the same branch; do not open a new PR. Push, then call the MCP tool `fanin_report` once with your result (or run `fanin report` if you have no MCP) and end with your status line. fanin gates the PR again and waits for its CI.

@@ -11,10 +11,10 @@ import (
 // is the newest ReviewContext status on the head; review findings wait until CI settles.
 func GitHub(pr forge.PR) Result {
 	if pr.State != forge.StateOpen {
-		return red(fmt.Sprintf("PR is %s, not %s", pr.State, forge.StateOpen))
+		return red(CauseClosed, fmt.Sprintf("PR is %s, not %s", pr.State, forge.StateOpen))
 	}
 	if pr.Mergeable == forge.MergeableConflicted {
-		return red(string(forge.MergeableConflicted))
+		return red(CauseConflict, string(forge.MergeableConflicted))
 	}
 	var ci []forge.Check
 	var review *forge.Check
@@ -35,7 +35,7 @@ func GitHub(pr forge.PR) Result {
 		if verdict != "" {
 			reasons = append(reasons, verdict)
 		}
-		return red(reasons...)
+		return red(CauseCI, reasons...)
 	case len(running) > 0:
 		return pending(WaitChecks)
 	case len(ci) == 0:
@@ -43,7 +43,7 @@ func GitHub(pr forge.PR) Result {
 	case pr.Mergeable != forge.MergeableYes:
 		return pending(WaitMergeable)
 	case verdict != "":
-		return red(verdict)
+		return red(CauseReview, verdict)
 	}
 	return green(Green, pr.Title)
 }

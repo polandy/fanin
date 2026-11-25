@@ -130,4 +130,6 @@ func pendingFor(w gate.Wait) gate.Result {
 }
 
 // redFor is the RED result with reasons.
-func redFor(reasons ...string) gate.Result { return gate.Result{Verdict: gate.Red, Reasons: reasons} }
+func redFor(cause gate.Cause, reasons ...string) gate.Result {
+	return gate.Result{Verdict: gate.Red, Cause: cause, Reasons: reasons}
+}

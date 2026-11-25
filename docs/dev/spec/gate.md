@@ -42,6 +42,12 @@ so a review still running keeps the gate PENDING. Otherwise the files decide: do
 An unreadable PR is an error. Unreadable statuses (`forge.ErrChecksUnreadable`) are PENDING
 `statuses unreadable`; unreadable files are PENDING `files unreadable`; neither is ever GREEN.
 
+## Causes
+
+Every RED carries its cause (`gate.Cause`): `closed` (not open, or another base), `conflict`, `ci` (failed
+checks; on Gitea any other RED), `review` (no review, none with a verdict, or a failed one) or `timeout` (a wait
+or poll limit). A conflict wins over failed checks. The scheduler picks the nudge by it.
+
 ## Docs-only (SCENARIOS GH-12)
 
 `gate.DocsOnly(files)`: the list is non-empty and every path starts with `docs/` or ends in `.md`, except any

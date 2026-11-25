@@ -40,7 +40,10 @@ func (s *Scheduler) onStoreEvent(ctx context.Context, ev model.Event) error {
 		if err := s.reported(ctx, ev); err != nil {
 			return err
 		}
-		return s.finishAnalysis(ctx, p, ev)
+		if err := s.finishAnalysis(ctx, p, ev); err != nil {
+			return err
+		}
+		return s.finishPR(ctx, p, ev)
 	case model.EventTokenUsage:
 		return s.checkBudget(ctx, p, ev)
 	case model.EventRunState, model.EventTaskState:

@@ -30,6 +30,7 @@ const (
 	docFile    = "docs/dev/finding.md"
 	agentFile  = "CLAUDE.md"
 	closeByHnd = "close it by hand"
+	headBranch = "feat/alpha-42"
 )
 
 var (
@@ -94,9 +95,10 @@ func (f *fakeForge) prReads() int {
 	return f.reads
 }
 
-// fakeGates hands out one forge for every PR of alpha, or fails with err.
+// fakeGates hands out one forge of kind (GitHub when unset) for every PR of alpha, or fails with err.
 type fakeGates struct {
 	forge *fakeForge
+	kind  forge.Kind
 	err   error
 }
 
@@ -104,13 +106,17 @@ func (f *fakeGates) For(_ config.Project, pr int) (gate.Reader, gate.Target, err
 	if f.err != nil {
 		return nil, gate.Target{}, f.err
 	}
-	return f.forge, gate.Target{Kind: forge.KindGitHub, Repo: repoAlpha, Number: pr, Base: baseMain}, nil
+	kind := f.kind
+	if kind == "" {
+		kind = forge.KindGitHub
+	}
+	return f.forge, gate.Target{Kind: kind, Repo: repoAlpha, Number: pr, Base: baseMain}, nil
 }
 
 // greenPR is an open, mergeable PR whose CI and review passed.
 func greenPR() forge.PR {
 	return forge.PR{Repo: repoAlpha, Number: prNumber, Title: prTitle, State: forge.StateOpen,
-		Mergeable: forge.MergeableYes, HeadSHA: "abc123", BaseBranch: baseMain, Checks: []forge.Check{
+		Mergeable: forge.MergeableYes, HeadSHA: "abc123", HeadBranch: headBranch, BaseBranch: baseMain, Checks: []forge.Check{
 			{Name: "ci", State: forge.CheckSuccess, UpdatedAt: epoch},
 			{Name: gate.ReviewContext, State: forge.CheckSuccess, UpdatedAt: epoch.Add(time.Minute)}}}
 }

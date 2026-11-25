@@ -36,18 +36,18 @@ func TestGiteaVerdicts(t *testing.T) {
 			pendingFor(gate.WaitNoChecks)},
 		{"GT-4_running_checks", openPR(ci, check("build", forge.CheckPending, 1)), nil, running},
 		{"GT-5_failed_check", openPR(ci, check("build", forge.CheckFailure, 1)), nil,
-			redFor("failed: build failure")},
+			redFor(gate.CauseCI, "failed: build failure")},
 		{"GT-5_conflict_wins_over_running_checks", withPR(func(pr *forge.PR) {
 			pr.Mergeable = forge.MergeableConflicted
 			pr.Checks = append(pr.Checks, check("build", forge.CheckPending, 1))
-		}), nil, redFor(string(forge.MergeableConflicted))},
+		}), nil, redFor(gate.CauseConflict, string(forge.MergeableConflicted))},
 		{"GT-5_all_reasons_together", withPR(func(pr *forge.PR) {
 			pr.State, pr.BaseBranch, pr.Mergeable = forge.StateClosed, "release", forge.MergeableConflicted
 			pr.Checks = append(pr.Checks, check("build", forge.CheckFailure, 1))
-		}), nil, redFor("PR is CLOSED, not OPEN",
+		}), nil, redFor(gate.CauseClosed, "PR is CLOSED, not OPEN",
 			"PR aims at release, not main", string(forge.MergeableConflicted), "failed: build failure")},
 		{"GT-5_merged", withPR(func(pr *forge.PR) { pr.State = forge.StateMerged }), nil,
-			redFor("PR is MERGED, not OPEN")},
+			redFor(gate.CauseClosed, "PR is MERGED, not OPEN")},
 		{"GT-6_mergeable_unknown_is_pending", withPR(func(pr *forge.PR) { pr.Mergeable = forge.MergeableUnknown }),
 			nil, pendingFor(gate.WaitMergeable)},
 	}

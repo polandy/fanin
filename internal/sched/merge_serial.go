@@ -58,6 +58,8 @@ type mergeJob struct {
 	p   config.Project
 	run model.Run
 	pr  int
+	// shape is the task's: a red re-gate of a PR task takes the PR path's nudges.
+	shape model.Shape
 	// regate reads the gate again under the lock: another merge may have landed since the last read.
 	regate bool
 }
@@ -111,7 +113,7 @@ func (s *Scheduler) startMerge(ctx context.Context, p config.Project, id model.T
 	delete(s.held, id)
 	delete(s.goAgain, id)
 	s.merging[id] = true
-	j := mergeJob{p: p, run: run, pr: run.Result.PR, regate: regate}
+	j := mergeJob{p: p, run: run, pr: run.Result.PR, shape: task.Shape, regate: regate}
 	log := s.logFor(p.Name, id, run.ID)
 	safego.Go(ctx, log, func(ctx context.Context) {
 		end := s.mergeOnce(ctx, j)
@@ -306,6 +308,9 @@ func (s *Scheduler) mergeEnded(ctx context.Context, j mergeJob, end mergeEnd) {
 	case end.held:
 		s.held[j.run.TaskID] = j
 		err = s.heldStill(ctx, j)
+	case end.red != nil && j.shape == model.ShapePR:
+		s.goAgain[j.run.TaskID] = true
+		err = s.redPR(ctx, j.p, j.run, j.ref(), *end.red)
 	case end.red != nil:
 		err = s.regateRed(ctx, j, *end.red)
 	case end.pending:
@@ -332,19 +337,8 @@ func (s *Scheduler) heldStill(ctx context.Context, j mergeJob) error {
 
 // regateRed sends the worker back to work with the gate's reasons; its next green merges on the standing go.
 func (s *Scheduler) regateRed(ctx context.Context, j mergeJob, res gate.Result) error {
-	detail := RegateDetail + j.ref() + " " + res.String()
-	now := s.d.Clock.Now()
-	err := s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
-		if err := tx.SetRunState(ctx, j.run.ID, model.RunWorking, detail); err != nil {
-			return err
-		}
-		if err := tx.SetTaskState(ctx, j.run.TaskID, model.TaskRunning, detail); err != nil {
-			return err
-		}
-		return armTimers(ctx, tx, j.p, j.run.TaskID, now, TimerStall, TimerTimeout)
-	})
-	if err != nil {
-		return fmt.Errorf("send %s back to work: %w", j.run.TaskID, err)
+	if err := s.backToWork(ctx, j.p, j.run, RegateDetail+j.ref()+" "+res.String()); err != nil {
+		return err
 	}
 	s.goAgain[j.run.TaskID] = true
 	j.run.State = model.RunWorking
