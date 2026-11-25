@@ -61,8 +61,7 @@ type OCReviewer interface {
 	Review(ctx context.Context, p config.Project, pr OCPR) error
 }
 
-// committed delivers and reviews an opencode branch in the background, then gates it as a done_pr (SCENARIOS
-// OC-1, OC-2, OC-6).
+// committed delivers and reviews an opencode branch in the background, then gates it as done_pr (OC-1, OC-2, OC-6).
 func (s *Scheduler) committed(ctx context.Context, p config.Project, task model.Task, run model.Run,
 	res model.Result) error {
 	if kind := cmp.Or(task.WorkerKind, p.WorkerKind); kind != intake.KindOpencode {
@@ -78,6 +77,9 @@ func (s *Scheduler) committed(ctx context.Context, p config.Project, task model.
 		pr, err := s.d.OCDeliver.Deliver(ctx, p, res.Branch)
 		if err == nil {
 			err = s.d.OCReview.Review(ctx, p, pr)
+		}
+		if ctx.Err() != nil {
+			return
 		}
 		s.post(ctx, func(ctx context.Context) {
 			if err != nil {

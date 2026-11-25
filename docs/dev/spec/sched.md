@@ -190,7 +190,8 @@ On `committed`:
 - without `Deps.OCDeliver` and `Deps.OCReview`: the owner gets an `ERROR`, the branch is left for a hand push;
 - else, in the background, `OCDelivery.Deliver` then `OCReviewer.Review`. Either error goes to the owner as
   `ERROR <branch>: <cause>` and the gate never runs (OC-6). On success the run's result becomes `done_pr` with
-  the PR, and the PR path above takes it, head check first. A task that moved on meanwhile is left alone.
+  the PR, and the PR path above takes it, head check first. A task that moved on meanwhile is left alone. A stop
+  during the delivery or review asks no owner; the task stays running with its `committed` result.
 
 `OCPush` is the real delivery, all git through `runtime.Runner` in the project's checkout:
 
@@ -279,6 +280,7 @@ A stop by ctx is never a task failure:
 - The picked model is not persisted; a resumed run keeps its stored worker but loses the picked model.
 - The MCP config path of a remote worker and a forge seam for the picker request.
 - `fanind` passes no `Deps.OCDeliver` or `Deps.OCReview` yet (no forge is wired), so a `committed` asks the owner.
+- A delivery cut short by a stop is not resumed on restart; push and review the branch by hand.
 - Wiring `resultwatch` to `report.Service`.
 - Nothing fills `context_pct` or the token counts yet; those budget checks act once the adapters write them
   through `SetRunBudget`.

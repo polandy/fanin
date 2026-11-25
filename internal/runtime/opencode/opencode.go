@@ -1,5 +1,4 @@
-// Package opencode is the WorkerRuntime adapter for opencode workers in the sandbox (concept D2, SCENARIOS SP-9): it
-// readies the sandbox clone and the launcher shim, then lets the herdr adapter start the agent.
+// Package opencode readies the sandbox clone and shim for opencode workers, then herdr starts them (SP-9).
 package opencode
 
 import (
@@ -25,8 +24,7 @@ const (
 	StatusLines = 5
 )
 
-// SyncScript runs as the sandbox user: it reads a bundle of origin/<base> on stdin into the clone at $1; $2 is the
-// base. The bundle file lives beside the clone, never in it.
+// SyncScript fetches a bundle on stdin into origin/$2 of the clone at $1, as the sandbox user, beside the clone.
 const SyncScript = `umask 077; cd "$1" || exit 1; b=../.fanin-sync-$$.bundle; cat >"$b" && ` +
 	`git fetch -q "$b" "+refs/remotes/origin/$2:refs/remotes/origin/$2"; s=$?; rm -f "$b"; exit $s`
 
