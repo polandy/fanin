@@ -41,7 +41,7 @@ coverage:
 	go test -count=1 -coverprofile=cover.out $(patsubst %,./%/...,$(COVERAGE_EXISTING)) && \
 	scripts/check-coverage.sh cover.out 90 $(COVERAGE_PKGS)
 
-# Real-process tests; empty until the first adapter lands.
+# Real-process tests against fake herdr, gh, claude and git on PATH.
 integration:
 	go test -count=1 -tags integration $(GO_PKGS)
 

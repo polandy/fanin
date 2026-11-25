@@ -254,5 +254,7 @@ Notes on the targets:
 - **`check-no-sleeps`.** It allows `time.After` only inside the clock package (an exclusion in the script).
 - **`scenario-check`.** It starts in report-only mode in step 1 and becomes blocking once step 2 has ported the
   gate scenarios.
-- **E2E later.** A `-tags integration` target (fake `herdr`/`gh`/`claude` binaries on PATH, as the bash tests do
-  today) joins `ci` once the herdr adapter exists.
+- **Integration.** `make integration` runs the `-tags integration` tests; GitHub CI runs it as its own step.
+  `internal/testutil/fakebin` builds a per-test PATH of script fakes (`herdr`, `gh`, `claude`, `git`): each logs
+  its argv and working directory and answers only scripted argv (`On`); any other argv exits 97 and fails the
+  test. The real `internal/runtime/exec` runner drives them, as the bash tests do today.
