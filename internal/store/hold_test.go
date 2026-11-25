@@ -112,7 +112,7 @@ func TestSetHoldReason(t *testing.T) {
 		liftHold(t, s, id)
 		for _, h := range []string{id, "nope"} {
 			err := s.Transition(context.Background(), func(ctx context.Context, tx *Tx) error {
-				return tx.SetHoldReason(ctx, h, "failed")
+				return tx.SetHoldReason(ctx, h, "deploy exited 1")
 			})
 			if !errors.Is(err, ErrNotFound) {
 				t.Errorf("SetHoldReason(%s) = %v, want ErrNotFound", h, err)
