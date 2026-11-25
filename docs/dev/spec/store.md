@@ -30,7 +30,7 @@ tags C-STORE and C-LOCK.
 | Table | Key | Holds |
 |---|---|---|
 | `tasks` | `id` | `model.Task`; `after_ids` is a JSON array, `worker_kind` (0003) the owner's worker kind or empty |
-| `runs` | `id`, unique (`task_id`, `number`) | `model.Run` with its budget columns; `result` is the JSON report or empty |
+| `runs` | `id`, unique (`task_id`, `number`) | `model.Run` with its budget columns; `result` is the JSON report or empty; host, agent, workspace, tab and pane (0004, `Tx.SetRunWorker`) |
 | `events` | `seq` (autoincrement) | the append-only `model.Event` log; `task_id` is empty for project events |
 | `project_locks` | `project` | holder, `acquired_at`, `expires_at` |
 | `holds` | `id` | `model.Hold`; `lifted_at = 0` while active |

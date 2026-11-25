@@ -66,6 +66,12 @@ const (
 	OCMergeManual = "manual"
 )
 
+// loop values: who drives a project's workers.
+const (
+	LoopBash  = "bash"
+	LoopFanin = "fanin"
+)
+
 // Config is the loaded config directory.
 type Config struct {
 	// Dir is the absolute config directory.
@@ -154,6 +160,7 @@ type Project struct {
 	WorkerTimeout Duration `yaml:"worker_timeout"`
 	Gate          Gate     `yaml:"gate"`
 	OCMerge       string   `yaml:"oc_merge"`
+	Loop          string   `yaml:"loop"`
 	PostMergeHook string   `yaml:"post_merge_hook,omitempty"`
 	PreGoCheck    string   `yaml:"pre_go_check,omitempty"`
 }

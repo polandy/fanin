@@ -17,10 +17,13 @@ the user-facing reference in [`docs/user/configuration.md`](../../user/configura
    listen address it cannot bind refuses to start with a named error and exit 1.
 2. Opens the store (`store.Open`). With `--shadow` it imports the bash state directory once, a failed import
    refusing to start, and keeps importing it until the stop ([shadow](shadow.md)).
-3. Serves the API (`api.New`) with the configured project order.
-4. The root context comes from `signal.NotifyContext` (SIGINT, SIGTERM). On stop it cancels every open request,
-   so event streams end, then waits up to `ShutdownGrace` (10 s, on the injected clock) for them and closes the
-   store. A stop is a clean exit (0) and writes nothing to the store: no task or run changes state.
+3. When a project has `loop: fanin`, runs the [scheduler](sched.md) with the herdr runtime and the headless
+   picker. A `loop: fanin` project on a remote host refuses to start. The per-run files go to `runs/` next to
+   the store. The shadow import skips these projects.
+4. Serves the API (`api.New`) with the configured project order.
+5. The root context comes from `signal.NotifyContext` (SIGINT, SIGTERM). On stop it cancels every open request,
+   so event streams end, then waits up to `ShutdownGrace` (10 s, on the injected clock) for them, stops the
+   scheduler and closes the store. A stop is a clean exit (0) and writes nothing to the store: no task or run changes state.
 
 ## Snapshot additions
 

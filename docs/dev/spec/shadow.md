@@ -22,6 +22,9 @@ changes nothing in the store; the store keeps the last good import and the next 
 | `.<label>.ci-hold` | an active `ci` hold; reason: line 1, fix task: `shadow-<agent>` of the last `ci-fix: <agent>` line |
 | `.<label>.merge.lock` | the project lock while a process holds a `flock` on it; content `<lane> <pid> <pr> <since>` |
 
+A project with `loop: fanin` is skipped: `fanind` schedules it, so its bash state is not imported
+(`Importer.Skip`).
+
 Other files (`.tail`, `.watchdog`, `.beat`, the loop and state locks, `archive/`) are ignored. The flock check reads
 `/proc/locks` and matches the lock file's inode.
 

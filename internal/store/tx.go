@@ -129,7 +129,7 @@ func (t *Tx) Task(ctx context.Context, id model.TaskID) (model.Task, error) {
 	return readTask(ctx, t.tx, id)
 }
 
-// CreateRun inserts run (state starting when empty, started now) and appends run_started.
+// CreateRun inserts run (state starting when empty, started now) with its worker and appends run_started.
 func (t *Tx) CreateRun(ctx context.Context, run model.Run) error {
 	if run.ID == "" || run.TaskID == "" || run.Number < 1 {
 		return fmt.Errorf("%w: run %q of task %q number %d; set Run.ID, Run.TaskID and a Number from 1",
@@ -148,13 +148,13 @@ func (t *Tx) CreateRun(ctx context.Context, run model.Run) error {
 	if run.StartedAt.IsZero() {
 		run.StartedAt = t.now
 	}
-	b := run.Budget
+	b, w := run.Budget, run.Worker
 	if _, err := t.tx.ExecContext(ctx, `INSERT INTO runs (id, task_id, number, slot, branch, token, fix_rounds,
-		review_nudges, stalls, input_tokens, output_tokens, total_tokens, state, result, started_at, ended_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 0)`,
+		review_nudges, stalls, input_tokens, output_tokens, total_tokens, state, result, started_at, ended_at,
+		host, agent, workspace, tab, pane) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 0, ?, ?, ?, ?, ?)`,
 		string(run.ID), string(run.TaskID), run.Number, run.Slot, run.Branch, string(run.Token), b.FixRounds,
 		b.ReviewNudges, b.Stalls, b.InputTokens, b.OutputTokens, b.TotalTokens, string(run.State),
-		toDB(run.StartedAt)); err != nil {
+		toDB(run.StartedAt), w.Host, w.Agent, w.Workspace, w.Tab, w.Pane); err != nil {
 		return fmt.Errorf("store: create run %q of task %q: %w", run.ID, run.TaskID, err)
 	}
 	_, err = t.AppendEvent(ctx, model.Event{
@@ -188,6 +188,22 @@ func (t *Tx) SetRunState(ctx context.Context, id model.RunID, to model.RunState,
 		Type: model.EventRunState, Project: project, TaskID: run.TaskID, RunID: id, Detail: detail,
 	})
 	return err
+}
+
+// SetRunWorker stores where the run's agent lives once its start succeeded; it appends no event.
+func (t *Tx) SetRunWorker(ctx context.Context, id model.RunID, w model.Worker) error {
+	res, err := t.tx.ExecContext(ctx, `UPDATE runs SET host = ?, agent = ?, workspace = ?, tab = ?, pane = ?
+		WHERE id = ?`, w.Host, w.Agent, w.Workspace, w.Tab, w.Pane, string(id))
+	if err != nil {
+		return fmt.Errorf("store: set worker of run %q: %w", id, err)
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		if err != nil {
+			return fmt.Errorf("store: set worker of run %q: %w", id, err)
+		}
+		return fmt.Errorf("%w: run %q", ErrNotFound, id)
+	}
+	return nil
 }
 
 // Run reads one run inside the transaction; a missing one is ErrNotFound.
