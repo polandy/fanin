@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "settings.schema.json",
+  "title": "project settings a project file overrides over the defaults of fanin.yaml",
+  "$defs": {
+    "duration": {
+      "description": "a Go duration such as 90s, 15m or 1h30m",
+      "type": "string",
+      "pattern": "^[1-9][0-9]*(ms|s|m|h)([0-9]+(ms|s|m|h))*$"
+    },
+    "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+    "settings": {
+      "type": "object",
+      "properties": {
+        "base": {"description": "the branch PRs aim at", "type": "string", "minLength": 1, "default": "main"},
+        "worker_kind": {"description": "worker kind from worker-kinds.yaml", "$ref": "#/$defs/name", "default": "claude"},
+        "model": {"description": "project model; the owner's model wins over it, it wins over the picked one", "type": "string", "minLength": 1},
+        "review_skill": {"description": "skill or command the review runs", "type": "string", "minLength": 1, "default": "/pr-review"},
+        "oc_merge": {"description": "auto merges a green opencode PR, manual leaves it ready", "enum": ["auto", "manual"], "default": "auto"},
+        "stall_after": {"description": "a run without a heartbeat for this long is stalled", "$ref": "#/$defs/duration", "default": "15m"},
+        "worker_timeout": {"description": "a run without a heartbeat or result for this long is ended", "$ref": "#/$defs/duration", "default": "45m"},
+        "budgets": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fix_rounds_per_run": {"type": "integer", "minimum": 0, "default": 2},
+            "rollover_pct": {"type": "integer", "minimum": 1, "maximum": 100, "default": 75},
+            "max_tokens_per_run": {"type": "integer", "minimum": 1, "default": 3000000},
+            "max_runs_per_task": {"type": "integer", "minimum": 1, "default": 3}
+          }
+        },
+        "gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "github": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "watch_timeout": {"description": "longest wait on pending checks", "$ref": "#/$defs/duration", "default": "30m"},
+                "settle": {"description": "pause after the checks settle", "$ref": "#/$defs/duration", "default": "20s"},
+                "max_waits": {"description": "pending waits before RED", "type": "integer", "minimum": 1, "default": 12},
+                "max_watch_failures": {"description": "failed waits that do not use up a wait", "type": "integer", "minimum": 0, "default": 6}
+              }
+            },
+            "gitea": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "poll_interval": {"$ref": "#/$defs/duration", "default": "60s"},
+                "noci_after_polls": {"description": "polls without a status before NOCI", "type": "integer", "minimum": 1, "default": 5},
+                "max_polls": {"description": "polls of running checks before RED", "type": "integer", "minimum": 1, "default": 40}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+path: /path/to/repo
+host: local
+forge: github
+base: main
+fallback: opencode
+model: sonnet
+max_parallel: 2
+budgets:
+  fix_rounds_per_run: 2
+post_merge_hook: /path/to/repo/scripts/deploy.sh

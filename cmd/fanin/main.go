@@ -28,7 +28,7 @@ func run(ctx context.Context, reg *Registry, args []string, getenv func(string) 
 	var g Globals
 	fs := flag.NewFlagSet("fanin", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	fs.StringVar(&g.Config, "config", getenv(envConfig), "path to the config file ($"+envConfig+")")
+	fs.StringVar(&g.Config, "config", getenv(envConfig), "path to the config directory ($"+envConfig+")")
 	fs.StringVar(&g.DaemonURL, "daemon-url", getenv(envURL), "daemon base URL ($"+envURL+")")
 	fs.StringVar(&g.Token, "token", getenv(envToken), "API token ($"+envToken+")")
 
@@ -60,7 +60,7 @@ func fail(reg *Registry, out cli.Output, err error) int {
 }
 
 func printUsage(reg *Registry, out cli.Output) {
-	_, _ = io.WriteString(out.Err, "usage: fanin [--config FILE] [--daemon-url URL] [--token TOKEN] <command> [args]\n\ncommands:\n")
+	_, _ = io.WriteString(out.Err, "usage: fanin [--config DIR] [--daemon-url URL] [--token TOKEN] <command> [args]\n\ncommands:\n")
 	for _, c := range reg.Commands() {
 		_, _ = io.WriteString(out.Err, "  "+c.Name+"\t"+c.Summary+"\n")
 	}

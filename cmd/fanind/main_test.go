@@ -28,16 +28,27 @@ const (
 
 var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 
-// writeConfig writes a config that listens on a free loopback port and keeps the store in dir.
+// writeConfig writes a config directory that listens on listen, keeps the store in dir and holds two projects.
 func writeConfig(t *testing.T, dir, listen string) string {
 	t.Helper()
-	body := "listen: " + listen + "\nstore: fanin.db\nlog:\n  format: text\nowner_token_env: " + tokenEnv +
-		"\nprojects:\n  - name: beta\n  - name: alpha\n"
-	path := filepath.Join(dir, "fanin.yaml")
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		t.Fatal(err)
+	files := map[string]string{
+		"fanin.yaml":        "listen: " + listen + "\nstore: fanin.db\nlog:\n  format: text\nowner_token_env: " + tokenEnv + "\n",
+		"forges.yaml":       "forges:\n  github:\n    kind: github\n    token_env: GH_TOKEN\n",
+		"worker-kinds.yaml": "kinds:\n  claude:\n    runtime: herdr\n",
 	}
-	return path
+	for _, p := range []string{"beta", "alpha"} {
+		files["projects/"+p+".yaml"] = "path: /path/to/" + p + "\nhost: local\nforge: github\nmax_parallel: 1\n"
+	}
+	for rel, body := range files {
+		path := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
 }
 
 type daemon struct {
@@ -80,8 +91,8 @@ func TestDaemonStartsAgainstAnEmptyStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Snapshot: %v", err)
 	}
-	if strings.Join(snap.Projects, ",") != "beta,alpha" {
-		t.Errorf("projects %v, want the config order beta, alpha", snap.Projects)
+	if strings.Join(snap.Projects, ",") != "alpha,beta" {
+		t.Errorf("projects %v, want the config order alpha, beta", snap.Projects)
 	}
 	d.cancel()
 	if err := <-d.done; err != nil {
@@ -170,8 +181,8 @@ func TestDaemonRefusesToStart(t *testing.T) {
 		want error
 		in   string
 	}{
-		{"missing config", func(dir string) []string { return []string{flagConfig, filepath.Join(dir, "none.yaml")} },
-			map[string]string{tokenEnv: token}, config.ErrRead, "none.yaml"},
+		{"missing config", func(dir string) []string { return []string{flagConfig, filepath.Join(dir, "none")} },
+			map[string]string{tokenEnv: token}, config.ErrRead, "none"},
 		{"no config flag", func(string) []string { return nil }, map[string]string{tokenEnv: token},
 			errNoConfig, envConfig},
 		{"empty owner token", func(dir string) []string {

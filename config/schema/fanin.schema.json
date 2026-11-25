@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fanin.schema.json",
+  "title": "fanin.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["listen", "store", "owner_token_env"],
+  "properties": {
+    "listen": {"description": "host:port of the HTTP API", "type": "string", "minLength": 1},
+    "store": {"description": "SQLite file; a relative path is taken from the config directory", "type": "string", "minLength": 1},
+    "log": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format": {"enum": ["json", "text"], "default": "json"},
+        "level": {"enum": ["debug", "info", "warn", "error"], "default": "info"}
+      }
+    },
+    "owner_token_env": {"description": "environment variable that holds the owner token", "$ref": "secret.schema.json"},
+    "defaults": {
+      "description": "project settings every project file may override",
+      "$ref": "settings.schema.json#/$defs/settings",
+      "unevaluatedProperties": false
+    }
+  }
+}

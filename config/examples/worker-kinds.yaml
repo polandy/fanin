@@ -1,0 +1,14 @@
+kinds:
+  claude:
+    runtime: herdr
+    models: [haiku, sonnet, opus]
+    default_model: sonnet
+  opencode:
+    runtime: herdr
+  headless:
+    runtime: headless
+    models: [haiku, sonnet, opus]
+    default_model: haiku
+picker:
+  kind: headless
+  model: haiku

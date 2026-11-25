@@ -4,7 +4,7 @@
 
 ```sh
 export FANIN_OWNER_TOKEN=...        # the name set in owner_token_env
-fanind --config /path/to/fanin.yaml
+fanind --config /path/to/config
 ```
 
 `fanind` opens (or creates) the store, serves the API on `listen` and logs `fanind: serving` with the address.

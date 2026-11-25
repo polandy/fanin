@@ -62,12 +62,12 @@ func main() {
 func run(ctx context.Context, args []string, d deps) error {
 	fs := flag.NewFlagSet("fanind", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	cfgPath := fs.String("config", d.getenv(envConfig), "path to fanin.yaml ($"+envConfig+")")
+	cfgPath := fs.String("config", d.getenv(envConfig), "path to the config directory ($"+envConfig+")")
 	if err := fs.Parse(args); err != nil {
-		return fmt.Errorf("%w: %w; usage: fanind [--config FILE]", errUsage, err)
+		return fmt.Errorf("%w: %w; usage: fanind [--config DIR]", errUsage, err)
 	}
 	if *cfgPath == "" {
-		return fmt.Errorf("%w: set --config or $%s to the path of fanin.yaml", errNoConfig, envConfig)
+		return fmt.Errorf("%w: set --config or $%s to the config directory", errNoConfig, envConfig)
 	}
 	cfg, err := config.Load(*cfgPath)
 	if err != nil {
@@ -76,7 +76,7 @@ func run(ctx context.Context, args []string, d deps) error {
 	log := cfg.Logger(d.logOut)
 	token := d.getenv(cfg.OwnerTokenEnv)
 	if token == "" {
-		return fmt.Errorf("%w: $%s is empty; export the owner token there (owner_token_env in %s)",
+		return fmt.Errorf("%w: $%s is empty; export the owner token there (owner_token_env in fanin.yaml of %s)",
 			errNoOwnerToken, cfg.OwnerTokenEnv, *cfgPath)
 	}
 	st, err := store.Open(ctx, cfg.Store, d.clock)
@@ -97,7 +97,7 @@ func run(ctx context.Context, args []string, d deps) error {
 	}
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.Listen)
 	if err != nil {
-		return fmt.Errorf("%w: listen %q: %w; set listen in %s to a free host:port", errListen, cfg.Listen, err, *cfgPath)
+		return fmt.Errorf("%w: listen %q: %w; set listen in fanin.yaml of %s to a free host:port", errListen, cfg.Listen, err, *cfgPath)
 	}
 	return serve(ctx, ln, h, log, d)
 }

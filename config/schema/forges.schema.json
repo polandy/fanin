@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "forges.schema.json",
+  "title": "forges.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "forges": {
+      "type": "object",
+      "propertyNames": {"$ref": "settings.schema.json#/$defs/name"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "token_env"],
+        "properties": {
+          "kind": {"enum": ["github", "gitea"]},
+          "url": {"description": "base URL; required for gitea", "type": "string", "pattern": "^https?://"},
+          "token_env": {"description": "environment variable that holds the forge token", "$ref": "secret.schema.json"}
+        },
+        "if": {"properties": {"kind": {"const": "gitea"}}},
+        "then": {"required": ["url"]}
+      }
+    }
+  }
+}
