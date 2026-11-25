@@ -30,3 +30,23 @@ fanin --daemon-url http://127.0.0.1:7420 status alpha    # only alpha
 - `open:` ready, blocked, paused, needs-owner and failed tasks, and the active holds.
 
 A daemon that cannot be reached is an error (exit 1), never an empty status.
+
+## Owner commands
+
+All of them need `--daemon-url` (or `$FANIN_URL`) and the owner token (`--token` or `$FANIN_TOKEN`); each prints
+the task, hold or project and what happened. A refused or failed command exits with 1 and names the reason.
+
+```sh
+fanin answer t1 2              # pick option 2 of t1's open question
+fanin answer t1 ship it today  # free text, only where the question allows it
+fanin go t1                    # release a task in its gates for merge
+fanin hold lift h1             # lift a hold after the cause is fixed
+fanin pause alpha              # stop alpha before its next worker, once
+fanin resume alpha             # clear that pause
+fanin wait --owner             # block until something needs the owner; prints one event
+```
+
+- `answer` refuses free text on a numbered dialog and lists the options; nothing reaches the worker then. When
+  the answer cannot be delivered, nothing is recorded and the question stays open.
+- `wait` prints `<seq> <type> <project> <task> <run>: <detail>`. `--after <seq>` starts after that event instead
+  of waiting only for new ones, so a loop of `wait --after <last seq>` misses nothing.

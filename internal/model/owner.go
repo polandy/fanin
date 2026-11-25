@@ -16,6 +16,25 @@ const (
 // ErrInvalidQuestion is returned for an owner question the owner could not answer by picking an option.
 var ErrInvalidQuestion = errors.New("model: invalid owner question")
 
+// QuestionKind says how a question reached the owner and how the answer goes back to the worker.
+type QuestionKind string
+
+// The question kinds.
+const (
+	// QuestionTranscript is asked in the worker's output; the answer goes in as a prompt (see SCENARIOS OA-2).
+	QuestionTranscript QuestionKind = "transcript"
+	// QuestionDialog is a dialog in the worker's pane; only an option number is pressed (see SCENARIOS OA-1, AW-9).
+	QuestionDialog QuestionKind = "dialog"
+)
+
+// AllQuestionKinds lists every QuestionKind.
+var AllQuestionKinds = []QuestionKind{QuestionTranscript, QuestionDialog}
+
+// ParseQuestionKind reads a stored question kind; an unknown value is ErrUnknownValue.
+func ParseQuestionKind(s string) (QuestionKind, error) {
+	return parse("question kind", s, AllQuestionKinds)
+}
+
 // Option is one answer the owner can pick, with what picking it causes.
 type Option struct {
 	Label       string
@@ -28,6 +47,9 @@ type OwnerQuestion struct {
 	TaskID  TaskID
 	RunID   RunID
 	Project string
+	Kind    QuestionKind
+	// AllowText lets the owner answer with free text instead of an option number; never for a dialog.
+	AllowText bool
 	// Question stands on its own: the project, what is asked and why.
 	Question string
 	Options  []Option
@@ -39,8 +61,14 @@ type OwnerQuestion struct {
 	AnsweredAt time.Time
 }
 
-// Validate checks the question text, MinOptions..MaxOptions distinct labelled options and the recommendation.
+// Validate checks the kind, the question text, MinOptions..MaxOptions distinct labelled options and the recommendation.
 func (q OwnerQuestion) Validate() error {
+	if _, err := ParseQuestionKind(string(q.Kind)); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidQuestion, err)
+	}
+	if q.Kind == QuestionDialog && q.AllowText {
+		return fmt.Errorf("%w: a dialog takes only an option number; clear AllowText", ErrInvalidQuestion)
+	}
 	if strings.TrimSpace(q.Question) == "" {
 		return fmt.Errorf("%w: empty question; state what the owner decides", ErrInvalidQuestion)
 	}

@@ -7,7 +7,8 @@ client for the CLI). Direction: [concept](../concept.md), owner UI. Rules: [guid
 
 - `net/http` with the Go 1.22 mux patterns (`"GET /api/v1/health"`); no framework. Paths start with `/api/v1/`.
 - Bodies are JSON. Every non-2xx answer is `{"error": {"code": "<code>", "message": "<what, and the fix>"}}` with
-  one of the codes in `wire`: `not_found`, `unauthorized`, `forbidden`, `bad_request`, `too_large`, `internal`.
+  one of the codes in `wire`: `not_found`, `unauthorized`, `forbidden`, `bad_request`, `too_large`, `conflict`, `delivery_failed`,
+  `internal`.
   An unknown path is a JSON 404 too.
 - An unreadable store is a 500 `internal`, never an empty answer.
 
@@ -37,6 +38,14 @@ none of the existing ones.
 | `GET /api/v1/health` | `{"status": "ok"}` |
 | `GET /api/v1/snapshot` | `wire.Snapshot`: open tasks, their runs, open questions, active holds, project locks with `stale`, the newest event per project, the projects (config order first, see [daemon](daemon.md)), and `last_seq` |
 | `GET /api/v1/events` | server-sent events, see below |
+| `GET /api/v1/questions` | `wire.Questions`: the open owner questions, oldest first |
+| `GET /api/v1/wait?owner=&after=` | one `wire.Event`, see [owner](owner.md) |
+| `POST /api/v1/tasks/{id}/answer` | body `{"answer": "2"}`; `wire.Ack`. 400 with the options, 404 no open question, 502 `delivery_failed` |
+| `POST /api/v1/tasks/{id}/go` | `wire.Ack`; 409 `conflict` when the task is not in `gating` |
+| `POST /api/v1/holds/{id}/lift` | `wire.Ack`; 404 for no active hold |
+| `POST /api/v1/projects/{p}/pause`, `/resume` | `wire.Ack`; 404 for a project outside the config |
+
+The command routes answer 500 when the server has no `Config.Owner`.
 
 The snapshot never carries a run's report token. `last_seq` is read before the rest, so a client that opens the
 stream with `after=<last_seq>` sees every later change at least once.
@@ -53,10 +62,12 @@ stream with `after=<last_seq>` sees every later change at least once.
 ## Go client
 
 `client.New(baseURL, token, httpClient)`: `Health`, `Snapshot`, `Events(ctx, after, ready, fn)` and `Post(ctx, path,
-body, out)` for the typed calls other strands add. A failed call is a `*client.Error` (`errors.As`).
+body, out)` for the typed calls other strands add. Owner calls: `Answer`, `Go`, `LiftHold`, `Pause`, `Resume`,
+`Questions` and `Wait(ctx, owner, after)` (`client.FromNow` for only new events). A failed call is a `*client.Error` (`errors.As`).
 
 ## Tests
 
 `internal/api/api_test.go` (httptest, real SQLite): POST without a token 401 and with it 200; a webhook-shaped call
 refused; a route registered from its own function; the snapshot golden file (`go test ./internal/api -update`);
-SSE after a store write, waiting on a channel; resume by cursor; keep-alive from the manual clock.
+SSE after a store write, waiting on a channel; resume by cursor; keep-alive from the manual clock. `owner_routes_test.go`: every owner route through the client with a fake
+`Deliverer`, its failure codes, and `wait` with a cursor, a cancel and a bad parameter.

@@ -149,7 +149,7 @@ func questionDTO(q model.OwnerQuestion) wire.Question {
 		opts = append(opts, wire.Option{Label: o.Label, Description: o.Description})
 	}
 	return wire.Question{ID: q.ID, TaskID: string(q.TaskID), RunID: string(q.RunID), Project: q.Project,
-		Question: q.Question, Options: opts, Recommended: q.Recommended, AskedAt: q.AskedAt}
+		Kind: string(q.Kind), AllowText: q.AllowText, Question: q.Question, Options: opts, Recommended: q.Recommended, AskedAt: q.AskedAt}
 }
 
 func holdDTO(h model.Hold) wire.Hold {
