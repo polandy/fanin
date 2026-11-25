@@ -64,7 +64,7 @@ and reversible.
 
 - [x] Behaviour of the existing bash orchestrator written down as acceptance scenarios
 - [ ] Config as validated YAML
-- [ ] Shadow store: `fanind` follows the old state and fills SQLite
+- [x] Shadow store: `fanind` follows the old state and fills SQLite
 - [ ] Owner channel: questions answered through CLI, MCP and UI
 - [ ] New task shapes (analysis, alerts)
 - [ ] The PR path moves to fanin, project by project

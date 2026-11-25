@@ -860,6 +860,41 @@ These scenarios cover herdr, gh and ssh errors and the scripts' strictness.
 - Source: `CLAUDE.md`, `overview.sh --close-done`. Test: `overview.sh#5`. Mark: PARITY (the adapter closes the run
   pane on a terminal state, ADDENDUM §2.10.1-1).
 
+## 18. Shadow import
+
+`fanind --shadow DIR` mirrors the bash state into the store during migration step 3 ([spec](spec/shadow.md)).
+
+**SH-1**
+- Given: `state/<label>.md` with spawn, pr, blocked, ready, paused, merged and idle lines.
+- Then: one task per worker agent with one run, in the state its newest line sets; a new spawn cancels the
+  lane's open task; lines of helpers and notes are skipped.
+- Source: `status.sh`, `lib.sh EVENT_RE`. Test: `status.sh`. Mark: CHANGES (C-STORE).
+
+**SH-2**
+- Given: `.<label>.merge-hold` or `.<label>.ci-hold` (with `ci-fix: <agent>`).
+- Then: an active `merge` or `ci` hold with line 1 as reason and the fix agent's task; a removed file lifts it.
+- Source: `lib.sh merge_hold, ci_hold`. Test: `status.sh`. Mark: CHANGES (C-STORE).
+
+**SH-3**
+- Given: `.<label>.merge.lock` under a flock.
+- Then: the project lock, held by the PR's task, renewed each import; a free flock releases it.
+- Source: `status.sh merge_field`. Test: `status.sh`. Mark: CHANGES (C-LOCK).
+
+**SH-4**
+- Given: a missing directory, an unreadable or non-UTF-8 file, a held lock with bad content, or no `/proc/locks`.
+- Then: `shadow.ErrUnreadable` naming the file, and the store unchanged; never an empty status.
+- Source: —. Test: —. Mark: CHANGES (FP-6).
+
+**SH-5**
+- The importer never writes to the state directory: it is byte for byte the same after an import.
+- An import of an unchanged directory writes no row and no event.
+- Source: —. Test: —. Mark: CHANGES (C-STORE).
+
+**SH-6**
+- `fanind --shadow DIR` imports before it serves and then every interval; `fanin status` shows the imported
+  projects. A failed first import stops `fanind` with exit 1.
+- Source: —. Test: —. Mark: CHANGES (C-STORE).
+
 ## Coverage gaps today
 
 These have no test and need one in fanin:
