@@ -1,5 +1,4 @@
-// Package resultwatch watches a run directory for result.json, the report fallback of workers without MCP
-// (concept C-REPORT; spec in docs/dev/spec/worker-contract.md).
+// Package resultwatch watches a run directory for the result.json fallback (docs/dev/spec/worker-contract.md).
 package resultwatch
 
 import (
@@ -39,8 +38,7 @@ func Read(dir string) (faninmcp.ResultFile, bool, error) {
 	return f, true, nil
 }
 
-// Watch looks for result.json in dir now and then every every (DefaultEvery when not above 0) on clk, until it
-// appears, cannot be read, or ctx ends.
+// Watch polls dir on clk every every (DefaultEvery if not above 0) until result.json appears, fails, or ctx ends.
 func Watch(ctx context.Context, clk clock.Clock, dir string, every time.Duration) (faninmcp.ResultFile, error) {
 	if every <= 0 {
 		every = DefaultEvery

@@ -1,5 +1,4 @@
-// Package report records what a worker reports: a result or a heartbeat counts only with the token of its task's
-// current run (concept C-REPORT; spec in docs/dev/spec/worker-contract.md).
+// Package report records worker reports that carry the current run's token (docs/dev/spec/worker-contract.md).
 package report
 
 import (

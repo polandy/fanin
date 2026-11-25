@@ -1,6 +1,4 @@
-// Package faninmcp is fanin's worker contract: the report and progress messages a worker sends to the daemon,
-// the result.json fallback, the HTTP client that carries them with the run token, and the worker MCP server that
-// offers them as tools (spec in docs/dev/spec/worker-contract.md).
+// Package faninmcp is fanin's worker contract: report types, result.json, client and MCP tools (worker-contract.md).
 package faninmcp
 
 import (
@@ -27,8 +25,7 @@ const (
 // Kinds lists every Kind.
 var Kinds = []Kind{KindDonePR, KindPushed, KindCommitted, KindIssue, KindNothing, KindBlocked}
 
-// TextCap is the most characters the daemon keeps of Branch, Text and a progress text; it joins them into one
-// line first (see SCENARIOS AW-2).
+// TextCap is how many characters of Branch and Text the daemon keeps, joined into one line (see SCENARIOS AW-2).
 const TextCap = 400
 
 // Environment the daemon sets for a worker's MCP server.
@@ -44,8 +41,7 @@ const ResultFileName = "result.json"
 // ErrUnreadable is a result.json that is not one JSON object of the ResultFile shape.
 var ErrUnreadable = errors.New("faninmcp: unreadable result file")
 
-// Report is a worker's result; each kind needs one field: done_pr a PR, pushed and committed a Branch, issue an
-// Issue, nothing and blocked a Text.
+// Report is a worker's result; each kind needs its one field (see the Kind constants and NewServer).
 type Report struct {
 	Kind     Kind   `json:"kind" jsonschema:"the outcome: done_pr, pushed, committed, issue, nothing or blocked"`
 	PR       int    `json:"pr,omitempty" jsonschema:"pull request number; required for done_pr"`
@@ -66,8 +62,7 @@ type ResultFile struct {
 	Report
 }
 
-// ParseResultFile reads one result.json. Anything but one JSON object of known fields with a token is
-// ErrUnreadable, never a result.
+// ParseResultFile reads one result.json; anything but one known-field object with token and kind is ErrUnreadable.
 func ParseResultFile(data []byte) (ResultFile, error) {
 	var f ResultFile
 	dec := json.NewDecoder(bytes.NewReader(data))

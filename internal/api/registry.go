@@ -13,14 +13,12 @@ type Auth int
 const (
 	// AuthOwner needs the owner token.
 	AuthOwner Auth = iota
-	// AuthRun needs a bearer token that the handler checks against the run in the path; the owner token is
-	// no run token.
+	// AuthRun needs a bearer token that the handler checks against the run in the path.
 	AuthRun
 )
 
 // Route is one endpoint: a Go 1.22 mux pattern ("GET /api/v1/health") and the handler built for a Server.
-// Every pattern whose method is not GET or HEAD is a command endpoint and needs a token: the owner token, or with
-// AuthRun a run token. It cannot opt out of both.
+// A pattern whose method is not GET or HEAD is a command endpoint and always needs the token Auth names.
 type Route struct {
 	Pattern string
 	Handler func(*Server) http.Handler

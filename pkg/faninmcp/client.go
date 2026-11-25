@@ -31,6 +31,7 @@ type Error struct {
 	Message string
 }
 
+// Error returns the status, code and message.
 func (e *Error) Error() string {
 	return fmt.Sprintf("fanind answered %d %s: %s", e.Status, e.Code, e.Message)
 }
@@ -43,8 +44,7 @@ type Client struct {
 	http  *http.Client
 }
 
-// NewClient returns a client for run at baseURL; a nil hc uses http.DefaultClient. An empty argument is
-// ErrConfig, so a worker never reports without its token.
+// NewClient returns a client for run at baseURL (nil hc: http.DefaultClient); an empty argument is ErrConfig.
 func NewClient(baseURL, run, token string, hc *http.Client) (*Client, error) {
 	for _, f := range []struct{ env, v string }{{EnvURL, baseURL}, {EnvRunID, run}, {EnvRunToken, token}} {
 		if f.v == "" {

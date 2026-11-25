@@ -20,8 +20,7 @@ const ServerName = "fanin-worker"
 
 const kindProperty = "kind"
 
-// NewServer returns the worker MCP server: fanin_report and fanin_progress forward to the daemon through c. A
-// refused or failed call is a tool error, never a success message.
+// NewServer returns the worker MCP server whose tools forward to c; a failed call is a tool error, never a success.
 func NewServer(c *Client, version string) (*mcp.Server, error) {
 	reportSchema, err := ReportSchema()
 	if err != nil {
