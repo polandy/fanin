@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/polandy/fanin/internal/model"
 )
 
 // SessionNameSep joins the parts of a worker's session name.
@@ -32,6 +34,8 @@ var (
 
 // RunSpec is what a worker runtime needs to start one run.
 type RunSpec struct {
+	TaskID model.TaskID
+	RunID  model.RunID
 	// Project is the repo label; it names the herdr workspace and leads the session name.
 	Project string
 	// Host is the machine the worker runs on; empty means this host.

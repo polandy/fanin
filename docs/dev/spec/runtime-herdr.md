@@ -12,7 +12,7 @@ adapter. Every herdr call goes through `runtime.Runner`, every wait through the 
 | `Observe(ctx, RunHandle) (<-chan RunEvent, error)` | stub: the channel sends nothing and closes with `ctx` |
 | `Stop(ctx, RunHandle) error` | closes the run's pane, never its tab (FP-7, MG-7) |
 
-`RunSpec` carries the project label, host, worktree, agent name, short title, model, prompt and MCP config path.
+`RunSpec` carries the task and run IDs (for logs), the project label, host, worktree, agent name, short title, model, prompt and MCP config path.
 The session name is `<project> · <short title> · <agent>` (SP-1); the title is left out when empty. Agent names
 are slot names without a lane (C-SLOTS). `RunHandle` names host, agent, workspace, tab and pane.
 

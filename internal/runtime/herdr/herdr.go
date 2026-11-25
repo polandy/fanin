@@ -46,12 +46,10 @@ const (
 	permissionArg = "auto"
 )
 
-// The agent statuses herdr reports, plus Gone for an agent herdr no longer lists; two share the model's words.
+// The agent statuses the adapter switches on; Gone marks an agent herdr no longer lists.
 const (
 	StatusWorking = string(model.RunWorking)
 	StatusBlocked = "blocked"
-	StatusIdle    = "idle"
-	StatusDone    = string(model.TaskDone)
 	StatusGone    = "gone"
 )
 
@@ -233,8 +231,8 @@ func (r *Runtime) startAgent(ctx context.Context, spec runtime.RunSpec, h runtim
 			return fmt.Errorf("%w in pane %s after %d tries (tab %s left open): %w",
 				runtime.ErrStartFailed, h.Pane, r.cfg.StartTries, h.Tab, startErr)
 		}
-		r.logger.WarnContext(ctx, "herdr agent start failed, retrying", "agent", h.Agent, "pane", h.Pane,
-			"attempt", attempt, "error", startErr)
+		r.logger.WarnContext(ctx, "herdr agent start failed, retrying", "task_id", spec.TaskID, "run_id", spec.RunID,
+			"project", spec.Project, "agent", h.Agent, "pane", h.Pane, "attempt", attempt, "error", startErr)
 		if err := r.wait(ctx, r.cfg.StartInterval); err != nil {
 			return err
 		}
@@ -263,12 +261,11 @@ func (r *Runtime) awaitWorking(ctx context.Context, h runtime.RunHandle, prompt 
 			return err
 		}
 		if emptyInput.MatchString(text) {
-			err = r.Prompt(ctx, h, prompt)
-		} else {
-			_, err = r.herdr(ctx, h.Host, "agent", "send-keys", h.Agent, KeyEnter)
-		}
-		if err != nil {
-			return fmt.Errorf("%w: %s in pane %s: %w", runtime.ErrPromptRefused, h.Agent, h.Pane, err)
+			if err := r.Prompt(ctx, h, prompt); err != nil {
+				return err
+			}
+		} else if _, err := r.herdr(ctx, h.Host, "agent", "send-keys", h.Agent, KeyEnter); err != nil {
+			return fmt.Errorf("%w: Enter to %s (pane %s) failed: %w", runtime.ErrPromptRefused, h.Agent, h.Pane, err)
 		}
 	}
 }
