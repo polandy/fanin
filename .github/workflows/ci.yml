@@ -16,33 +16,8 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: false
-      - name: gofmt
-        run: make fmt-check
-      - name: shell scripts
-        run: make shell-check
-      - name: script negative tests
-        run: make script-test
-      - name: no sleeps in Go code
-        run: make check-no-sleeps
-      - name: file size
-        run: make check-file-size
-      - name: go vet
-        run: make vet
-      - name: go build
-        run: make build
-      - name: go test
-        run: make test
-      - name: go test (shuffled)
-        run: make test-shuffle
-      - name: coverage
-        run: make coverage
-      - name: private data (tree)
-        run: make private-check
-      - name: private data (history)
-        run: make private-check-history
-      - name: scenario coverage (report)
-        run: make scenario-check
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: make ci
+        run: nix develop -c make ci
+      - name: nix flake check
+        run: nix flake check
