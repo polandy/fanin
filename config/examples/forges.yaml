@@ -1,0 +1,9 @@
+# Tokens are named by their environment variable, never written here.
+forges:
+  github:
+    kind: github
+    token_env: GH_TOKEN
+  gitea:
+    kind: gitea
+    url: https://git.example.com
+    token_env: GITEA_TOKEN

@@ -1,0 +1,4 @@
+# Remote worker hosts; local, this host, is built in.
+hosts:
+  host-a:
+    address: host-a.example.com

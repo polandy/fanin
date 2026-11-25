@@ -5,6 +5,13 @@ import (
 	"testing"
 )
 
+// The models of the base tree.
+const (
+	modelHaiku  = "haiku"
+	modelSonnet = "sonnet"
+	modelOpus   = "opus"
+)
+
 // TestWorkerModel covers SCENARIOS PK-5: the owner model wins over the project model, which wins over the picked
 // one; opencode kinds take no model.
 func TestWorkerModel(t *testing.T) {
@@ -13,7 +20,7 @@ func TestWorkerModel(t *testing.T) {
 	noModel := alpha
 	noModel.Model = ""
 	withModel := alpha
-	withModel.Model = "sonnet"
+	withModel.Model = modelSonnet
 	beta, _ := cfg.Project("beta")
 	for _, tc := range []struct {
 		name          string
@@ -21,11 +28,11 @@ func TestWorkerModel(t *testing.T) {
 		owner, picked string
 		want          string
 	}{
-		{"PK-5_owner_wins", withModel, "opus", "haiku", "opus"},
-		{"PK-5_project_over_picked", withModel, "", "haiku", "sonnet"},
-		{"PK-5_picked_without_project_model", noModel, "", "haiku", "haiku"},
-		{"PK-5_kind_default_last", noModel, "", "", "sonnet"},
-		{"PK-5_opencode_takes_no_model", beta, "opus", "haiku", ""},
+		{"PK-5_owner_wins", withModel, modelOpus, modelHaiku, modelOpus},
+		{"PK-5_project_over_picked", withModel, "", modelHaiku, modelSonnet},
+		{"PK-5_picked_without_project_model", noModel, "", modelHaiku, modelHaiku},
+		{"PK-5_kind_default_last", noModel, "", "", modelSonnet},
+		{"PK-5_opencode_takes_no_model", beta, modelOpus, modelHaiku, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := cfg.WorkerModel(tc.p, tc.owner, tc.picked)
@@ -40,7 +47,7 @@ func TestWorkerModel(t *testing.T) {
 		}
 	})
 	t.Run("PK-5_picker_model_is_data", func(t *testing.T) {
-		if cfg.Picker != (Picker{Kind: "headless", Model: "haiku"}) {
+		if cfg.Picker != (Picker{Kind: "headless", Model: modelHaiku}) {
 			t.Errorf("Picker = %+v", cfg.Picker)
 		}
 	})

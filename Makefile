@@ -4,11 +4,11 @@ COVERAGE_PKGS := internal/gate internal/sched internal/store internal/hook
 COVERAGE_EXISTING := $(sort $(patsubst %/,%,$(dir $(wildcard $(addsuffix /*.go,$(COVERAGE_PKGS))))))
 
 .PHONY: ci build vet test test-shuffle coverage integration fmt-check shell-check script-test check-no-sleeps \
-	check-file-size private-check private-check-history scenario-check vendor-check lint vuln
+	check-file-size private-check private-check-history scenario-check vendor-check lint vuln schema-check
 
 # The local CI mirror: green before every push.
 ci: fmt-check shell-check script-test vet check-no-sleeps check-file-size vendor-check build test test-shuffle \
-	coverage lint vuln private-check private-check-history scenario-check
+	coverage lint vuln schema-check private-check private-check-history scenario-check
 
 vendor-check:
 	go mod tidy
@@ -66,6 +66,10 @@ private-check:
 
 private-check-history:
 	scripts/check-private-data.sh --history
+
+# Every example config tree validates.
+schema-check:
+	go run ./internal/config/cmd/schemacheck config/examples
 
 # Report mode until the tests exist; switch to --strict once every scenario has one.
 scenario-check:

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hosts.schema.json",
+  "title": "hosts.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "hosts": {
+      "description": "remote worker hosts by name; local, this host, is built in",
+      "type": "object",
+      "propertyNames": {"$ref": "settings.schema.json#/$defs/name", "not": {"const": "local"}},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["address"],
+        "properties": {
+          "address": {"description": "ssh destination of the host", "type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

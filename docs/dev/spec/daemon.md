@@ -5,18 +5,13 @@ Status: implemented in `cmd/fanind`, `internal/config` and `cmd/fanin/cmd_status
 
 ## Config (`internal/config`)
 
-- `config.Load(path)` reads one YAML file, validates it against the embedded JSON Schema
-  (`internal/config/schema/fanin.schema.json`) and decodes it with `KnownFields(true)`.
-- An unreadable file is `config.ErrRead`. A schema break, an unknown key or a project listed twice is
-  `config.ErrInvalid`; the message names the file, the JSON pointer, the rule and the bad value.
-- Keys: `listen`, `store` (relative to the config file), `log.format` (`json` default, `text`), `log.level`
-  (`info` default), `owner_token_env` (the name of the variable holding the owner token; the token is never in the
-  file) and `projects` (a list of `name`, in the order `fanin status` lists them). The user-facing reference is in
-  [`docs/user/configuration.md`](../../user/configuration.md).
+`config.Load(dir)` reads the config directory; the files, keys, defaults and rules are in [config](config.md),
+the user-facing reference in [`docs/user/configuration.md`](../../user/configuration.md). `fanind` uses
+`listen`, `store`, `log`, `owner_token_env` and the project names (file-name order).
 
 ## fanind
 
-`fanind --config FILE` (or `$FANIN_CONFIG`):
+`fanind --config DIR` (or `$FANIN_CONFIG`):
 
 1. Loads the config and builds the `slog` logger it selects. A missing config, an empty owner token variable or a
    listen address it cannot bind refuses to start with a named error and exit 1.
@@ -29,7 +24,7 @@ Status: implemented in `cmd/fanind`, `internal/config` and `cmd/fanin/cmd_status
 
 The snapshot ([api](api.md)) carries what `fanin status` needs:
 
-- `projects`: the configured projects in config order, then any other project the store names, sorted.
+- `projects`: the configured projects in file-name order, then any other project the store names, sorted.
 - `locks`: every project lock row. `stale` is true when the lease ran out at the server's clock or the holder is
   neither an open task nor an unfinished run of one: a lock left behind by a dead loop.
 - `latest`: the newest event of each project.

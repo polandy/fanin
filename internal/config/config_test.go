@@ -11,6 +11,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+// Strings the error tests look for.
+const (
+	unknownKey     = "colour"
+	keyMaxParallel = "max_parallel"
+	wordRetired    = "retired"
+)
+
 const (
 	faninYAML = `listen: 127.0.0.1:7420
 store: data/fanin.db
@@ -199,11 +206,11 @@ func TestLoadRefusesABadConfig(t *testing.T) {
 			alpha, []string{"/model", `"gpt"`, ruleModelKnown}},
 		{"ST-4_picker_model_unknown", map[string]string{fileWorkerKinds: strings.Replace(kindsYAML, "  model: haiku",
 			"  model: opus", 1)}, fileWorkerKinds, []string{"/picker/model", `"opus"`, ruleModelKnown}},
-		{"ST-4_unknown_key", map[string]string{alpha: alphaYAML + "colour: blue\n"}, alpha, []string{"colour"}},
+		{"ST-4_unknown_key", map[string]string{alpha: alphaYAML + "colour: blue\n"}, alpha, []string{unknownKey}},
 		{"ST-4_unknown_nested_key", map[string]string{fileFanin: strings.Replace(faninYAML, "format: text",
-			"format: text\n  colour: blue", 1)}, fileFanin, []string{"/log", "colour"}},
+			"format: text\n  colour: blue", 1)}, fileFanin, []string{"/log", unknownKey}},
 		{"ST-4_unknown_defaults_key", map[string]string{fileFanin: faninYAML + "  colour: blue\n"}, fileFanin,
-			[]string{"/defaults", "colour"}},
+			[]string{"/defaults", unknownKey}},
 		{"ST-4_unknown_file", map[string]string{"extra.yaml": "a: 1\n"}, "extra.yaml", []string{fileFanin}},
 		{"ST-4_gitea_without_url", map[string]string{fileForges: strings.Replace(forgesYAML,
 			"    url: https://git.example.com\n", "", 1)}, fileForges, []string{"/forges/gitea", "url"}},
@@ -220,18 +227,19 @@ func TestLoadRefusesABadConfig(t *testing.T) {
 		{"ST-4_not_yaml", map[string]string{fileFanin: "listen: ["}, fileFanin, []string{"yaml"}},
 		{"ST-4_missing_store", map[string]string{fileFanin: strings.Replace(faninYAML, "store: data/fanin.db\n", "",
 			1)}, fileFanin, []string{"store"}},
+		// max_parallel replaces lanes (see SCENARIOS LN-2).
 		{"LN-2_max_parallel_zero", map[string]string{alpha: strings.Replace(alphaYAML, "max_parallel: 2",
 			"max_parallel: 0", 1)}, alpha, []string{"/max_parallel", "minimum"}},
 		{"LN-2_max_parallel_missing", map[string]string{alpha: strings.Replace(alphaYAML, "max_parallel: 2\n", "",
-			1)}, alpha, []string{"max_parallel", "required"}},
+			1)}, alpha, []string{keyMaxParallel, "required"}},
 		{"LN-2_max_parallel_not_a_default", map[string]string{fileFanin: faninYAML + "  max_parallel: 3\n"},
-			fileFanin, []string{"/defaults", "max_parallel"}},
+			fileFanin, []string{"/defaults", keyMaxParallel}},
 		{"LN-2_retired_lanes", map[string]string{alpha: alphaYAML + "lanes: [a, b]\n"}, alpha,
-			[]string{"/lanes", "retired", "max_parallel"}},
+			[]string{"/lanes", wordRetired, keyMaxParallel}},
 		{"ST-4_retired_machine", map[string]string{alpha: alphaYAML + "machine: host-a\n"}, alpha,
-			[]string{"/machine", "retired", "host"}},
+			[]string{"/machine", wordRetired, "host"}},
 		{"ST-4_retired_default", map[string]string{fileFanin: faninYAML + "  lanes: [a]\n"}, fileFanin,
-			[]string{"/defaults/lanes", "retired", "max_parallel"}},
+			[]string{"/defaults/lanes", wordRetired, keyMaxParallel}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := writeTree(t, with(tc.edits))

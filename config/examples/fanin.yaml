@@ -1,0 +1,11 @@
+# fanind's own settings; see docs/dev/spec/config.md.
+listen: 127.0.0.1:7420
+store: fanin.db
+log:
+  format: json
+  level: info
+owner_token_env: FANIN_OWNER_TOKEN
+defaults:
+  review_skill: /pr-review
+  budgets:
+    max_runs_per_task: 3

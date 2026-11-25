@@ -32,7 +32,7 @@ var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 func writeConfig(t *testing.T, dir, listen string) string {
 	t.Helper()
 	files := map[string]string{
-		"fanin.yaml": "listen: " + listen + "\nstore: fanin.db\nlog:\n  format: text\nowner_token_env: " + tokenEnv + "\n",
+		"fanin.yaml":        "listen: " + listen + "\nstore: fanin.db\nlog:\n  format: text\nowner_token_env: " + tokenEnv + "\n",
 		"forges.yaml":       "forges:\n  github:\n    kind: github\n    token_env: GH_TOKEN\n",
 		"worker-kinds.yaml": "kinds:\n  claude:\n    runtime: herdr\n",
 	}

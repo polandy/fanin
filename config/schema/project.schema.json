@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "project.schema.json",
+  "title": "projects/<name>.yaml",
+  "type": "object",
+  "$ref": "settings.schema.json#/$defs/settings",
+  "unevaluatedProperties": false,
+  "required": ["path", "host", "forge", "max_parallel"],
+  "properties": {
+    "path": {"description": "absolute path of the clone on its host", "type": "string", "pattern": "^/"},
+    "host": {"description": "local or a host of hosts.yaml", "$ref": "settings.schema.json#/$defs/name"},
+    "forge": {"description": "a forge of forges.yaml", "$ref": "settings.schema.json#/$defs/name"},
+    "fallback": {"description": "worker kind used when worker_kind is unavailable", "$ref": "settings.schema.json#/$defs/name"},
+    "max_parallel": {"description": "runs of this project at once", "type": "integer", "minimum": 1},
+    "post_merge_hook": {"description": "command run after a merge, under the project lock", "type": "string", "minLength": 1},
+    "pre_go_check": {"description": "command whose output goes with a ready PR before the owner's go", "type": "string", "minLength": 1}
+  }
+}

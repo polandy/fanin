@@ -1,0 +1,10 @@
+path: /path/to/repo
+host: host-a
+forge: gitea
+worker_kind: opencode
+max_parallel: 1
+oc_merge: manual
+pre_go_check: /path/to/repo/scripts/dry-activate.sh
+gate:
+  gitea:
+    max_polls: 20

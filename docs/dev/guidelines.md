@@ -244,7 +244,7 @@ test-shuffle:    ; go test -count=1 -shuffle=on -timeout=120s $(GO_PKGS)
 coverage:        ; scripts/check-coverage.sh cover.out 90 internal/gate internal/sched internal/store internal/hook
 lint:            ; golangci-lint config verify && golangci-lint run
 vuln:            ; govulncheck $(GO_PKGS)
-schema-check:    ; go run ./internal/config/cmd/schemacheck config/   # every example config validates
+schema-check:    ; go run ./internal/config/cmd/schemacheck config/examples   # every example config validates
 scenario-check:  ; scripts/check-scenarios.sh --report docs/dev/scenarios.md   # every ID has a test name, no unknown IDs
 ```
 
