@@ -50,13 +50,13 @@ func (f *fakeRunner) Run(_ context.Context, cmd runtime.Cmd) (runtime.Result, er
 
 func healthy() *fakeRunner {
 	return &fakeRunner{answers: map[string]string{
-		"herdr workspace list":    "[]",
-		"systemctl is-active":     "active\n",
-		"git -C /r/alpha remote":  "git@github.com:acme/alpha.git\n",
-		"git -C /r/beta remote":   "https://git.example.com/acme/beta.git\n",
-		"gh auth status":          "Logged in\n",
-		"gh api repos/acme/alpha": `["ci","fanin/review"]`,
-		"curl url = \"https://git.example.com/api/v1/user\"":                            `{"login":"bot"}`,
+		"herdr workspace list":                               "[]",
+		"systemctl is-active":                                "active\n",
+		"git -C /r/alpha remote":                             "git@github.com:acme/alpha.git\n",
+		"git -C /r/beta remote":                              "https://git.example.com/acme/beta.git\n",
+		"gh auth status":                                     "Logged in\n",
+		"gh api repos/acme/alpha":                            `["ci","fanin/review"]`,
+		"curl url = \"https://git.example.com/api/v1/user\"": `{"login":"bot"}`,
 		"curl url = \"https://git.example.com/api/v1/repos/acme/beta/branch_protections/main\"": `{"status_check_contexts":["ci","fanin/review"]}`,
 	}}
 }
@@ -67,7 +67,7 @@ func writeConfig(t *testing.T, mutate func(files map[string]string)) string {
 		"fanin.yaml": "listen: 127.0.0.1:7420\nstore: fanin.db\nowner_token_env: FANIN_OWNER_TOKEN\n",
 		"forges.yaml": "forges:\n  github:\n    kind: github\n    token_env: GH_TOKEN\n" +
 			"  gitea:\n    kind: gitea\n    url: https://git.example.com\n    token_env: GITEA_TOKEN\n",
-		"worker-kinds.yaml": "kinds:\n  claude:\n    runtime: herdr\n",
+		"worker-kinds.yaml":   "kinds:\n  claude:\n    runtime: herdr\n",
 		"projects/alpha.yaml": "path: /r/alpha\nhost: local\nforge: github\nbase: main\nmax_parallel: 1\n",
 		"projects/beta.yaml":  "path: /r/beta\nhost: local\nforge: gitea\nbase: main\nmax_parallel: 1\n",
 	}
@@ -129,7 +129,7 @@ func TestDoctor(t *testing.T) {
 			}
 		}
 		for _, c := range []struct{ check, subject string }{
-			{doctor.CheckConfig, ""}, {doctor.CheckStore, ""}, {doctor.CheckHerdr, ""}, {doctor.CheckSystemd, ""},
+			{doctor.CheckConfig, ""}, {doctor.CheckStore, ""}, {doctor.CheckHerdr, ""}, {doctor.CheckSystemd, doctor.Unit},
 			{doctor.CheckForgeAuth, "alpha"}, {doctor.CheckForgeAuth, "beta"},
 			{doctor.CheckProtection, "alpha"}, {doctor.CheckProtection, "beta"},
 		} {
@@ -146,7 +146,7 @@ func TestDoctor(t *testing.T) {
 			drop                 string
 		}{
 			{"herdr", doctor.CheckHerdr, "", "herdr workspace list"},
-			{"systemd", doctor.CheckSystemd, "", "systemctl is-active"},
+			{"systemd", doctor.CheckSystemd, doctor.Unit, "systemctl is-active"},
 			{"github_auth", doctor.CheckForgeAuth, "alpha", "gh auth status"},
 			{"gitea_auth", doctor.CheckForgeAuth, "beta", "curl url = \"https://git.example.com/api/v1/user\""},
 			{"github_protection", doctor.CheckProtection, "alpha", "gh api repos/acme/alpha"},
@@ -170,7 +170,7 @@ func TestDoctor(t *testing.T) {
 	t.Run("OB-3_unknown_systemd_state_is_an_error", func(t *testing.T) {
 		r := healthy()
 		r.answers["systemctl is-active"] = "inactive\n"
-		got := find(t, run(t, writeConfig(t, nil), r, env), doctor.CheckSystemd, "")
+		got := find(t, run(t, writeConfig(t, nil), r, env), doctor.CheckSystemd, doctor.Unit)
 		if got.Status != doctor.Fail || !strings.Contains(got.Detail, "inactive") {
 			t.Errorf("systemd = %s %q, want fail naming the state", got.Status, got.Detail)
 		}
