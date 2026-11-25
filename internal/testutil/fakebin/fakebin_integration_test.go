@@ -5,6 +5,7 @@ package fakebin_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/runtime/exec"
+	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/testutil/fakebin"
 )
 
@@ -126,5 +128,35 @@ func TestUnscriptedArgvIsAnErrorOfTheFake(t *testing.T) {
 	}
 	if err := os.Remove(filepath.Join(b.Dir(), "gh.unexpected")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestConcurrentCallsKeepWholeRecords(t *testing.T) {
+	const calls = 16
+	b := fakebin.New(t)
+	b.Fake("herdr").OnPrefix([]string{"agent", "prompt"})
+	b.Install()
+
+	big := strings.Repeat("x", 64<<10)
+	errs := make(chan error, calls)
+	for range calls {
+		safego.Go(t.Context(), slog.New(slog.DiscardHandler), func(context.Context) {
+			_, err := run(t, "", "herdr", "agent", "prompt", big)
+			errs <- err
+		})
+	}
+	for range calls {
+		if err := <-errs; err != nil {
+			t.Fatalf("herdr: %v", err)
+		}
+	}
+	got := b.Calls("herdr")
+	if len(got) != calls {
+		t.Fatalf("logged %d calls, want %d", len(got), calls)
+	}
+	for _, c := range got {
+		if diff := cmp.Diff([]string{"agent", "prompt", big}, c.Argv); diff != "" {
+			t.Fatalf("argv (-want +got) cut short: %d bytes of diff", len(diff))
+		}
 	}
 }
