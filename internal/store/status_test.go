@@ -17,7 +17,7 @@ func TestLocksListsEveryRow(t *testing.T) {
 	if err != nil || len(empty) != 0 {
 		t.Fatalf("Locks on an empty store = %v, %v; want none", empty, err)
 	}
-	if err := s.AcquireLock(ctx, LockRequest{Project: projectB, Holder: "task-b", Lease: lease}); err != nil {
+	if err := s.AcquireLock(ctx, LockRequest{Project: projectB, Holder: holderB, Lease: lease}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.AcquireLock(ctx, req(holderA)); err != nil {
@@ -31,7 +31,7 @@ func TestLocksListsEveryRow(t *testing.T) {
 	// An expired lease stays listed: status shows it as stale.
 	want := []model.Lock{
 		{Project: project, Holder: holderA, AcquiredAt: t0, ExpiresAt: t0.Add(lease)},
-		{Project: projectB, Holder: "task-b", AcquiredAt: t0, ExpiresAt: t0.Add(lease)},
+		{Project: projectB, Holder: holderB, AcquiredAt: t0, ExpiresAt: t0.Add(lease)},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Locks (-want +got):\n%s", diff)

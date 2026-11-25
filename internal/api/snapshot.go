@@ -45,19 +45,34 @@ func buildSnapshot(s *Server, r *http.Request) (wire.Snapshot, error) {
 	if err != nil {
 		return wire.Snapshot{}, fmt.Errorf("read holds: %w", err)
 	}
+	locks, err := src.Locks(ctx)
+	if err != nil {
+		return wire.Snapshot{}, fmt.Errorf("read locks: %w", err)
+	}
+	latest, err := src.LatestEvents(ctx)
+	if err != nil {
+		return wire.Snapshot{}, fmt.Errorf("read latest events: %w", err)
+	}
 	snap := wire.Snapshot{
-		Tasks: []wire.Task{}, Runs: []wire.Run{}, Questions: []wire.Question{}, Holds: []wire.Hold{}, LastSeq: seq,
+		Tasks: []wire.Task{}, Runs: []wire.Run{}, Questions: []wire.Question{}, Holds: []wire.Hold{},
+		Locks: []wire.Lock{}, Latest: []wire.Event{}, LastSeq: seq,
 	}
 	projects := map[string]bool{}
+	// live are the holders a lock may name and still be held: open tasks and their unfinished runs.
+	live := map[string]bool{}
 	for _, t := range tasks {
 		snap.Tasks = append(snap.Tasks, taskDTO(t))
 		projects[t.Project] = true
+		live[string(t.ID)] = true
 		runs, err := src.Runs(ctx, t.ID)
 		if err != nil {
 			return wire.Snapshot{}, fmt.Errorf("read runs of task %q: %w", t.ID, err)
 		}
 		for _, run := range runs {
 			snap.Runs = append(snap.Runs, runDTO(run))
+			if !run.State.Terminal() {
+				live[string(run.ID)] = true
+			}
 		}
 	}
 	for _, q := range questions {
@@ -68,12 +83,36 @@ func buildSnapshot(s *Server, r *http.Request) (wire.Snapshot, error) {
 		snap.Holds = append(snap.Holds, holdDTO(h))
 		projects[h.Project] = true
 	}
-	snap.Projects = make([]string, 0, len(projects))
-	for p := range projects {
-		snap.Projects = append(snap.Projects, p)
+	now := s.Clock().Now()
+	for _, l := range locks {
+		snap.Locks = append(snap.Locks, wire.Lock{Project: l.Project, Holder: l.Holder, AcquiredAt: l.AcquiredAt,
+			ExpiresAt: l.ExpiresAt, Stale: l.Expired(now) || !live[l.Holder]})
+		projects[l.Project] = true
 	}
-	slices.Sort(snap.Projects)
+	for _, ev := range latest {
+		snap.Latest = append(snap.Latest, eventDTO(ev))
+		projects[ev.Project] = true
+	}
+	snap.Projects = projectOrder(s.Projects(), projects)
 	return snap, nil
+}
+
+// projectOrder lists the configured projects in order, then every other project in seen, sorted.
+func projectOrder(configured []string, seen map[string]bool) []string {
+	out := make([]string, 0, len(configured)+len(seen))
+	known := make(map[string]bool, len(configured))
+	for _, p := range configured {
+		out = append(out, p)
+		known[p] = true
+	}
+	var rest []string
+	for p := range seen {
+		if !known[p] {
+			rest = append(rest, p)
+		}
+	}
+	slices.Sort(rest)
+	return append(out, rest...)
 }
 
 func taskDTO(t model.Task) wire.Task {

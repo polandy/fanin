@@ -16,7 +16,7 @@ import (
 )
 
 // configured is the project order of the test config; beta is only in the store.
-var configured = []string{"gamma", projAlpha}
+var configured = []string{projGamma, projAlpha}
 
 func snapshot(t *testing.T, e *env) wire.Snapshot {
 	t.Helper()
@@ -38,7 +38,7 @@ func TestSnapshotProjects(t *testing.T) {
 		t.Errorf("empty store: projects %v, want the configured %v", got, configured)
 	}
 	fill(t, e)
-	want := []string{"gamma", projAlpha, "beta"}
+	want := []string{projGamma, projAlpha, projBeta}
 	if got := snapshot(t, e).Projects; !cmp.Equal(got, want) {
 		t.Errorf("projects %v, want config order, then the rest sorted: %v", got, want)
 	}
@@ -55,18 +55,18 @@ func TestSnapshotLockStale(t *testing.T) {
 		}
 		return out
 	}
-	if diff := cmp.Diff(map[string]bool{projAlpha: false, "gamma": true}, stale()); diff != "" {
+	if diff := cmp.Diff(map[string]bool{projAlpha: false, projGamma: true}, stale()); diff != "" {
 		t.Errorf("a live run holds alpha, gamma's holder r0 is gone (-want +got):\n%s", diff)
 	}
 	e.clk.Advance(time.Hour)
-	if diff := cmp.Diff(map[string]bool{projAlpha: true, "gamma": true}, stale()); diff != "" {
+	if diff := cmp.Diff(map[string]bool{projAlpha: true, projGamma: true}, stale()); diff != "" {
 		t.Errorf("after the lease ran out (-want +got):\n%s", diff)
 	}
 	if err := e.st.AcquireLock(context.Background(),
-		store.LockRequest{Project: "gamma", Holder: "t2", Lease: time.Hour}); err != nil {
+		store.LockRequest{Project: projGamma, Holder: "t2", Lease: time.Hour}); err != nil {
 		t.Fatal(err)
 	}
-	if got := stale()["gamma"]; got {
+	if got := stale()[projGamma]; got {
 		t.Error("gamma held by the open task t2: stale, want live")
 	}
 }

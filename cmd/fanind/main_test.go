@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	tokenEnv = "TEST_FANIN_OWNER_TOKEN"
-	token    = "owner-secret"
+	tokenEnv   = "TEST_FANIN_OWNER_TOKEN"
+	token      = "owner-secret"
+	flagConfig = "--config"
 )
 
 var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
@@ -56,7 +57,7 @@ func start(t *testing.T, cfgPath string) *daemon {
 	deps := deps{getenv: func(k string) string { return env[k] }, logOut: d.logs, clock: clock.NewManual(t0),
 		ready: func(addr string) { ready <- addr }}
 	safego.Go(ctx, slog.New(slog.DiscardHandler), func(ctx context.Context) {
-		d.done <- run(ctx, []string{"--config", cfgPath}, deps)
+		d.done <- run(ctx, []string{flagConfig, cfgPath}, deps)
 	})
 	select {
 	case addr := <-ready:
@@ -135,7 +136,9 @@ func TestDaemonCancelLeavesTasksAlone(t *testing.T) {
 	if err := <-d.done; err != nil {
 		t.Fatalf("run after cancel: %v, want nil", err)
 	}
-	<-streamDone
+	if err := <-streamDone; err != nil {
+		t.Errorf("event stream after shutdown: %v, want nil", err)
+	}
 
 	st, err = store.Open(ctx, dbPath, clock.NewManual(t0))
 	if err != nil {
@@ -167,15 +170,15 @@ func TestDaemonRefusesToStart(t *testing.T) {
 		want error
 		in   string
 	}{
-		{"missing config", func(dir string) []string { return []string{"--config", filepath.Join(dir, "none.yaml")} },
+		{"missing config", func(dir string) []string { return []string{flagConfig, filepath.Join(dir, "none.yaml")} },
 			map[string]string{tokenEnv: token}, config.ErrRead, "none.yaml"},
 		{"no config flag", func(string) []string { return nil }, map[string]string{tokenEnv: token},
 			errNoConfig, envConfig},
 		{"empty owner token", func(dir string) []string {
-			return []string{"--config", writeConfig(t, dir, "127.0.0.1:0")}
+			return []string{flagConfig, writeConfig(t, dir, "127.0.0.1:0")}
 		}, nil, errNoOwnerToken, tokenEnv},
 		{"busy or bad listen address", func(dir string) []string {
-			return []string{"--config", writeConfig(t, dir, "256.0.0.1:1")}
+			return []string{flagConfig, writeConfig(t, dir, "256.0.0.1:1")}
 		}, map[string]string{tokenEnv: token}, errListen, "256.0.0.1:1"},
 		{"bad flag", func(string) []string { return []string{"--nope"} }, nil, errUsage, "nope"},
 	} {

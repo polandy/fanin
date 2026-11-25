@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fanin.schema.json",
+  "title": "fanin.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["listen", "store", "owner_token_env", "projects"],
+  "properties": {
+    "listen": {
+      "description": "host:port of the HTTP API",
+      "type": "string",
+      "minLength": 1
+    },
+    "store": {
+      "description": "SQLite file; a relative path is taken from the config file's directory",
+      "type": "string",
+      "minLength": 1
+    },
+    "log": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format": {"enum": ["json", "text"]},
+        "level": {"enum": ["debug", "info", "warn", "error"]}
+      }
+    },
+    "owner_token_env": {
+      "description": "name of the environment variable that holds the owner token",
+      "type": "string",
+      "pattern": "^[A-Z_][A-Z0-9_]*$"
+    },
+    "projects": {
+      "description": "the projects, in the order status lists them",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"}
+        }
+      }
+    }
+  }
+}

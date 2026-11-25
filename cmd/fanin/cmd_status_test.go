@@ -17,7 +17,11 @@ import (
 	"github.com/polandy/fanin/internal/store"
 )
 
-const statusToken = "owner-secret"
+const (
+	statusToken = "owner-secret"
+	projAlpha   = "alpha"
+	projGamma   = "gamma"
+)
 
 var statusT0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 
@@ -37,7 +41,7 @@ func startDaemon(t *testing.T) (*store.Store, *clock.Manual, string) {
 	reg := api.NewRegistry()
 	api.RegisterBuiltins(reg)
 	h, err := api.New(api.Config{Source: st, OwnerToken: statusToken, Clock: clk, Registry: reg,
-		Projects: []string{"beta", "alpha", "gamma"}})
+		Projects: []string{"beta", projAlpha, projGamma}})
 	if err != nil {
 		t.Fatalf("api.New: %v", err)
 	}
@@ -51,10 +55,10 @@ func fillStatus(t *testing.T, st *store.Store) {
 	ctx := context.Background()
 	err := st.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
 		for _, task := range []model.Task{
-			{ID: "a1", Project: "alpha", Title: "build it", Shape: model.ShapePR},
-			{ID: "a2", Project: "alpha", Title: "after it", Shape: model.ShapePR, After: []model.TaskID{"a1"}},
-			{ID: "a3", Project: "alpha", Title: "next", Shape: model.ShapePR},
-			{ID: "g1", Project: "gamma", Title: "ask", Shape: model.ShapePR},
+			{ID: "a1", Project: projAlpha, Title: "build it", Shape: model.ShapePR},
+			{ID: "a2", Project: projAlpha, Title: "after it", Shape: model.ShapePR, After: []model.TaskID{"a1"}},
+			{ID: "a3", Project: projAlpha, Title: "next", Shape: model.ShapePR},
+			{ID: "g1", Project: projGamma, Title: "ask", Shape: model.ShapePR},
 		} {
 			if err := tx.CreateTask(ctx, task); err != nil {
 				return err
@@ -73,20 +77,20 @@ func fillStatus(t *testing.T, st *store.Store) {
 		if err := tx.SetTaskState(ctx, "g1", model.TaskNeedsOwner, ""); err != nil {
 			return err
 		}
-		if _, err := tx.SetHold(ctx, model.Hold{ID: "h1", Project: "gamma", Kind: model.HoldCI,
+		if _, err := tx.SetHold(ctx, model.Hold{ID: "h1", Project: projGamma, Kind: model.HoldCI,
 			Reason: "main is red", FixTask: "g9"}); err != nil {
 			return err
 		}
-		_, err := tx.SetHold(ctx, model.Hold{ID: "h2", Project: "gamma", Kind: model.HoldMerge, Reason: "hook failed"})
+		_, err := tx.SetHold(ctx, model.Hold{ID: "h2", Project: projGamma, Kind: model.HoldMerge, Reason: "hook failed"})
 		return err
 	})
 	if err != nil {
 		t.Fatalf("Transition: %v", err)
 	}
 	for _, l := range []store.LockRequest{
-		{Project: "alpha", Holder: "r1", Lease: time.Hour},
+		{Project: projAlpha, Holder: "r1", Lease: time.Hour},
 		// r0's loop died: no open task or live run is called r0.
-		{Project: "gamma", Holder: "r0", Lease: time.Hour},
+		{Project: projGamma, Holder: "r0", Lease: time.Hour},
 	} {
 		if err := st.AcquireLock(ctx, l); err != nil {
 			t.Fatalf("AcquireLock: %v", err)
@@ -129,7 +133,7 @@ func TestStatus(t *testing.T) {
 			"alpha  loop=active  worker=1  merge=held by r1  last: 2026-03-04T05:06:07Z run_started a1: run 1" +
 				"  open: ready 1, blocked 1",
 			"gamma  loop=idle  worker=0  merge=stale (r0)  last: 2026-03-04T05:06:07Z hold_set: merge hold h2: hook failed" +
-				"  open: needs-owner 1, merge hold, ci hold (fix g9)",
+				"  open: needs-owner 1, ci hold (fix g9), merge hold",
 		}
 		if diff := cmp.Diff(want, lines); diff != "" {
 			t.Errorf("status (-want +got):\n%s", diff)
@@ -140,7 +144,7 @@ func TestStatus(t *testing.T) {
 		st, clk, url := startDaemon(t)
 		fillStatus(t, st)
 		clk.Advance(time.Hour)
-		_, lines, _ := statusRun(t, url, "alpha")
+		_, lines, _ := statusRun(t, url, projAlpha)
 		if len(lines) != 1 || !strings.Contains(lines[0], "merge=stale (r1)") {
 			t.Errorf("status alpha = %q, want one line with merge=stale (r1)", lines)
 		}
@@ -148,7 +152,7 @@ func TestStatus(t *testing.T) {
 
 	t.Run("ST-1_named_projects_only_in_the_given_order", func(t *testing.T) {
 		_, _, url := startDaemon(t)
-		_, lines, _ := statusRun(t, url, "gamma", "beta")
+		_, lines, _ := statusRun(t, url, projGamma, "beta")
 		if len(lines) != 2 || !strings.HasPrefix(lines[0], "gamma ") || !strings.HasPrefix(lines[1], "beta ") {
 			t.Errorf("status gamma beta = %q, want gamma then beta", lines)
 		}

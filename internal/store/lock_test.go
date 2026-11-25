@@ -32,7 +32,7 @@ func TestLock(t *testing.T) {
 		if err := s.AcquireLock(ctx, req(holderA)); err != nil {
 			t.Fatalf("first acquire: %v", err)
 		}
-		for _, holder := range []string{"task-b", holderA} {
+		for _, holder := range []string{holderB, holderA} {
 			err := s.AcquireLock(ctx, req(holder))
 			var held *LockHeldError
 			if !errors.Is(err, ErrLockHeld) || !errors.As(err, &held) || held.Holder != holderA {
@@ -47,7 +47,7 @@ func TestLock(t *testing.T) {
 				t.Errorf("message %q, want %q", err.Error(), want)
 			}
 		}
-		other := LockRequest{Project: projectB, Holder: "task-b", Lease: lease}
+		other := LockRequest{Project: projectB, Holder: holderB, Lease: lease}
 		if err := s.AcquireLock(ctx, other); err != nil {
 			t.Errorf("lock of another project: %v, want nil", err)
 		}
@@ -61,7 +61,7 @@ func TestLock(t *testing.T) {
 		}
 		waiting := make(chan struct{}, 1)
 		s.waiting = func() { waiting <- struct{}{} }
-		done := goWait(ctx, s, req("task-b"))
+		done := goWait(ctx, s, req(holderB))
 		<-waiting
 		if err := s.ReleaseLock(ctx, project, holderA); err != nil {
 			t.Fatal(err)
@@ -83,7 +83,7 @@ func TestLock(t *testing.T) {
 		}
 		waiting := make(chan struct{}, 1)
 		s.waiting = func() { waiting <- struct{}{} }
-		done := goWait(ctx, s, req("task-b"))
+		done := goWait(ctx, s, req(holderB))
 		<-waiting
 		clk.Advance(lockTimeout)
 		err := <-done
@@ -108,7 +108,7 @@ func TestLock(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		s.waiting = cancel
-		if err := s.WaitLock(ctx, req("task-b"), lockTimeout); !errors.Is(err, context.Canceled) {
+		if err := s.WaitLock(ctx, req(holderB), lockTimeout); !errors.Is(err, context.Canceled) {
 			t.Errorf("WaitLock: %v, want context.Canceled", err)
 		}
 	})
@@ -120,11 +120,11 @@ func TestLock(t *testing.T) {
 			t.Fatal(err)
 		}
 		clk.Advance(lease - time.Second)
-		if err := s.AcquireLock(ctx, req("task-b")); !errors.Is(err, ErrLockHeld) {
+		if err := s.AcquireLock(ctx, req(holderB)); !errors.Is(err, ErrLockHeld) {
 			t.Fatalf("acquire before expiry: %v, want ErrLockHeld", err)
 		}
 		clk.Advance(time.Second)
-		if err := s.AcquireLock(ctx, req("task-b")); err != nil {
+		if err := s.AcquireLock(ctx, req(holderB)); err != nil {
 			t.Fatalf("acquire after expiry: %v, want nil", err)
 		}
 		if err := s.RenewLock(ctx, req(holderA)); !errors.Is(err, ErrLockNotHeld) {
@@ -141,7 +141,7 @@ func TestLock(t *testing.T) {
 		}
 		waiting := make(chan struct{}, 1)
 		s.waiting = func() { waiting <- struct{}{} }
-		done := goWait(ctx, s, req("task-b"))
+		done := goWait(ctx, s, req(holderB))
 		<-waiting
 		clk.Advance(LockPoll)
 		if err := <-done; err != nil {
@@ -160,7 +160,7 @@ func TestLock(t *testing.T) {
 			t.Fatal(err)
 		}
 		clk.Advance(lease - time.Second)
-		if err := s.AcquireLock(ctx, req("task-b")); !errors.Is(err, ErrLockHeld) {
+		if err := s.AcquireLock(ctx, req(holderB)); !errors.Is(err, ErrLockHeld) {
 			t.Errorf("acquire within the renewed lease: %v, want ErrLockHeld", err)
 		}
 	})
@@ -183,10 +183,10 @@ func TestLockFailures(t *testing.T) {
 	if err := s.AcquireLock(ctx, req(holderA)); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.ReleaseLock(ctx, project, "task-b"); !errors.Is(err, ErrLockNotHeld) {
+	if err := s.ReleaseLock(ctx, project, holderB); !errors.Is(err, ErrLockNotHeld) {
 		t.Errorf("release by another holder: %v, want ErrLockNotHeld", err)
 	}
-	if err := s.AcquireLock(ctx, req("task-b")); !errors.Is(err, ErrLockHeld) {
+	if err := s.AcquireLock(ctx, req(holderB)); !errors.Is(err, ErrLockHeld) {
 		t.Errorf("acquire after a refused release: %v, want ErrLockHeld", err)
 	}
 	if err := s.ReleaseLock(ctx, project, holderA); err != nil {

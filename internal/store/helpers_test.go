@@ -17,6 +17,7 @@ const (
 	project      = "proj-a"
 	projectB     = "proj-b"
 	holderA      = "task-a"
+	holderB      = "task-b"
 	unknownValue = "nap"
 	timerPoll    = "poll"
 	caseDup      = "duplicate id"
