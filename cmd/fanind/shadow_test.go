@@ -33,7 +33,7 @@ func TestDaemonShadow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Snapshot: %v", err)
 		}
-		if diff := cmp.Diff([]string{project, "beta", "delta", "gamma"}, snap.Projects); diff != "" {
+		if diff := cmp.Diff([]string{project, projectBeta, "delta", "gamma"}, snap.Projects); diff != "" {
 			t.Errorf("projects (-want +got):\n%s", diff)
 		}
 		states := map[string]string{}

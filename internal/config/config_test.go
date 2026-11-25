@@ -161,7 +161,7 @@ func TestLoad(t *testing.T) {
 		if diff := cmp.Diff(want, beta.Budgets); diff != "" {
 			t.Errorf("budgets (-want +got):\n%s", diff)
 		}
-		if beta.Base != "main" || beta.OCMerge != OCMergeAuto || beta.StallAfter != Duration(15*time.Minute) ||
+		if beta.Base != "main" || beta.OCMerge != OCMergeAuto || beta.Loop != LoopBash || beta.StallAfter != Duration(15*time.Minute) ||
 			beta.WorkerTimeout != Duration(45*time.Minute) || beta.ReviewSkill != "/team-review" {
 			t.Errorf("beta defaults = %+v", beta)
 		}

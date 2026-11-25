@@ -282,3 +282,32 @@ func TestTxRunReads(t *testing.T) {
 		return nil
 	})
 }
+
+func TestRunWorker(t *testing.T) {
+	s, _ := newStore(t)
+	ctx := context.Background()
+	createTasks(t, s, "t1")
+	w := model.Worker{Host: "h1", Agent: "t1-1"}
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		return tx.CreateRun(ctx, model.Run{ID: "r1", TaskID: "t1", Number: 1, Worker: w})
+	})
+	got, err := s.Run(ctx, "r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := cmp.Diff(w, got.Worker); d != "" {
+		t.Errorf("worker after CreateRun (-want +got):\n%s", d)
+	}
+	w.Workspace, w.Tab, w.Pane = "ws", "tab", "pane"
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error { return tx.SetRunWorker(ctx, "r1", w) })
+	if got, err = s.Run(ctx, "r1"); err != nil {
+		t.Fatal(err)
+	}
+	if d := cmp.Diff(w, got.Worker); d != "" {
+		t.Errorf("worker after SetRunWorker (-want +got):\n%s", d)
+	}
+	err = s.Transition(ctx, func(ctx context.Context, tx *Tx) error { return tx.SetRunWorker(ctx, "nope", w) })
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("SetRunWorker of a missing run: %v, want %v", err, ErrNotFound)
+	}
+}
