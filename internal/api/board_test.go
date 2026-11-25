@@ -73,6 +73,13 @@ func fillBoard(t *testing.T, e *env) {
 			return nil
 		}
 	}
+	verdict := func(id, detail string) func(context.Context, *store.Tx) error {
+		return func(ctx context.Context, tx *store.Tx) error {
+			_, err := tx.AppendEvent(ctx, model.Event{Type: model.EventGateVerdict, Project: projAlpha,
+				TaskID: model.TaskID(id), Detail: detail})
+			return err
+		}
+	}
 	finish := func(id string) {
 		step(create(id, model.ShapePR))
 		step(move(id, model.TaskRunning, model.TaskGating, model.TaskDone))
@@ -93,6 +100,13 @@ func fillBoard(t *testing.T, e *env) {
 	})
 	step(create("p1", model.ShapePR))
 	step(move("p1", model.TaskRunning, model.TaskPaused))
+	step(create("r1", model.ShapePR))
+	step(move("r1", model.TaskRunning, model.TaskGating))
+	step(verdict("r1", "gate_unread"))
+	step(verdict("r1", "ready #17: GREEN code fix; changes code"))
+	step(create("r2", model.ShapePR))
+	step(move("r2", model.TaskRunning, model.TaskGating))
+	step(verdict("r2", "PENDING #18: checks running"))
 	step(create("dec1", model.ShapeDecision))
 	step(func(ctx context.Context, tx *store.Tx) error {
 		_, err := tx.SetHold(ctx, model.Hold{ID: "h1", Project: projAlpha, Kind: model.HoldCI, Reason: "main is red",
@@ -114,6 +128,7 @@ func TestSnapshot(t *testing.T) {
 			"completed": func(b wire.BoardProject) any { return b.Done },
 			"next":      func(b wire.BoardProject) any { return b.Next },
 			"waiting":   func(b wire.BoardProject) any { return b.Waiting },
+			"ready":     func(b wire.BoardProject) any { return b.Ready },
 			"holds":     func(b wire.BoardProject) any { return b.Holds },
 			"decisions": func(b wire.BoardProject) any { return b.Decisions },
 		}
@@ -163,6 +178,51 @@ func TestSnapshot(t *testing.T) {
 			}
 		}
 	})
+	t.Run("ST-2_a_ready_verdict_without_a_PR_number_fails_the_snapshot", func(t *testing.T) {
+		e := newFleetEnv(t, nil)
+		e.tx(t, func(ctx context.Context, tx *store.Tx) error {
+			if err := tx.CreateTask(ctx, model.Task{ID: "x", Project: projAlpha, Shape: model.ShapePR}); err != nil {
+				return err
+			}
+			for _, st := range []model.TaskState{model.TaskRunning, model.TaskGating} {
+				if err := tx.SetTaskState(ctx, "x", st, ""); err != nil {
+					return err
+				}
+			}
+			_, err := tx.AppendEvent(ctx, model.Event{Type: model.EventGateVerdict, Project: projAlpha, TaskID: "x",
+				Detail: "ready #abc: GREEN"})
+			return err
+		})
+		resp := e.do(t, http.MethodGet, "/api/v1/snapshot", "", nil)
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Errorf("status = %d, want 500: an unreadable verdict is never a ready PR", resp.StatusCode)
+		}
+	})
+	t.Run("ST-2_unreadable_task_events_fail_the_snapshot", func(t *testing.T) {
+		e := newFleetEnv(t, nil)
+		e.tx(t, func(ctx context.Context, tx *store.Tx) error {
+			if err := tx.CreateTask(ctx, model.Task{ID: "x", Project: projAlpha, Shape: model.ShapePR}); err != nil {
+				return err
+			}
+			for _, st := range []model.TaskState{model.TaskRunning, model.TaskGating} {
+				if err := tx.SetTaskState(ctx, "x", st, ""); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		reg := NewRegistry()
+		RegisterBuiltins(reg)
+		h, err := New(Config{Source: noEvents{e.st}, OwnerToken: ownerToken, Clock: e.clk, Registry: reg})
+		if err != nil {
+			t.Fatalf("New: %v", err)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/snapshot", nil))
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d, want 500", rec.Code)
+		}
+	})
 	t.Run("ST-3_unreachable_host_warns_and_the_other_host_lists_its_workers", func(t *testing.T) {
 		fleet := fakeFleet{hosts: []wire.Host{
 			{Name: "nuc", Warning: "herdr unreachable: ssh timed out"},
@@ -198,3 +258,7 @@ func TestSnapshot(t *testing.T) {
 		}
 	})
 }
+
+type noEvents struct{ Source }
+
+func (noEvents) Events(context.Context, model.TaskID) ([]model.Event, error) { return nil, errStore }
