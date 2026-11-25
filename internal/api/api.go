@@ -26,9 +26,10 @@ var ErrNoOwnerToken = errors.New("api: no owner token")
 
 const (
 	bearerPrefix = "Bearer "
-	// Headers of forge webhook deliveries; a webhook authenticates with its own signature on its own route.
-	webhookHeaderPrefixes = "x-github-|x-gitea-|x-gogs-|x-gitlab-|x-hub-signature"
 )
+
+// webhookHeaderPrefixes mark forge webhook deliveries; a webhook authenticates with its own signature on its own route.
+var webhookHeaderPrefixes = []string{"x-github-", "x-gitea-", "x-gogs-", "x-gitlab-", "x-hub-signature"}
 
 // Source is what the API reads: the store, or a fake in tests.
 type Source interface {
@@ -121,10 +122,9 @@ func (s *Server) ownerOnly(next http.Handler) http.Handler {
 }
 
 func hasWebhookHeader(h http.Header) bool {
-	prefixes := strings.Split(webhookHeaderPrefixes, "|")
 	for name := range h {
 		lower := strings.ToLower(name)
-		for _, p := range prefixes {
+		for _, p := range webhookHeaderPrefixes {
 			if strings.HasPrefix(lower, p) {
 				return true
 			}

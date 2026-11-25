@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"log/slog"
@@ -268,6 +269,7 @@ func fill(t *testing.T, e *env) {
 	})
 }
 
+// TestSnapshotGolden covers the snapshot view of status (see SCENARIOS ST-1).
 func TestSnapshotGolden(t *testing.T) {
 	e := newEnv(t)
 	fill(t, e)
@@ -422,3 +424,29 @@ func TestSSEKeepAliveFollowsTheClock(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+type failingSource struct{ Source }
+
+var errStore = errors.New("store unreadable")
+
+func (failingSource) OpenTasks(context.Context) ([]model.Task, error) { return nil, errStore }
+
+func (failingSource) LastEventSeq(context.Context) (int64, error) { return 0, nil }
+
+func TestSnapshotFailsClosedOnAnUnreadableStore(t *testing.T) {
+	reg := NewRegistry()
+	RegisterBuiltins(reg)
+	h, err := New(Config{Source: failingSource{}, OwnerToken: ownerToken, Clock: clock.NewManual(t0), Registry: reg})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/snapshot", nil))
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500 (never an empty snapshot)", rec.Code)
+	}
+	var body wire.ErrorBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body.Error.Code != wire.CodeInternal {
+		t.Errorf("body = %s, %v; want code %q", rec.Body.String(), err, wire.CodeInternal)
+	}
+}
