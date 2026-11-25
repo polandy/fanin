@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -13,10 +15,12 @@ import (
 	"github.com/polandy/fanin/internal/api/client"
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
+	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/pick"
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/sched"
+	"github.com/polandy/fanin/internal/store"
 )
 
 // idleWorkers is a runtime that starts nothing and a picker that finds nothing.
@@ -56,17 +60,24 @@ func (b *lockedBuffer) String() string {
 	return b.buf.String()
 }
 
+// faninConfig writes a config whose project beta has loop: fanin.
+func faninConfig(t *testing.T) string {
+	t.Helper()
+	dir := writeConfig(t, t.TempDir(), "127.0.0.1:0")
+	file := filepath.Join(dir, "projects", projectBeta+".yaml")
+	body, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, append(body, "loop: "+config.LoopFanin+"\n"...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
 func TestDaemonSched(t *testing.T) {
 	t.Run("LN-2_loop_fanin_runs_the_scheduler_and_skips_the_shadow_import", func(t *testing.T) {
-		dir := writeConfig(t, t.TempDir(), "127.0.0.1:0")
-		file := filepath.Join(dir, "projects", "beta.yaml")
-		body, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(file, append(body, "loop: "+config.LoopFanin+"\n"...), 0o600); err != nil {
-			t.Fatal(err)
-		}
+		dir := faninConfig(t)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		logs, ready, done := &lockedBuffer{}, make(chan string, 1), make(chan error, 1)
@@ -119,4 +130,55 @@ func TestDaemonSched(t *testing.T) {
 			t.Errorf("scheduler ran without a loop: fanin project:\n%s", d.logs)
 		}
 	})
+
+	t.Run("SP-10_a_scheduler_that_cannot_resume_stops_fanind", func(t *testing.T) {
+		dir := faninConfig(t)
+		path := filepath.Join(dir, "fanin.db")
+		seedLiveRun(t, path)
+		db, err := sql.Open("sqlite", "file:"+path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.ExecContext(t.Context(),
+			`CREATE TRIGGER fault BEFORE INSERT ON timers BEGIN SELECT RAISE(ABORT, 'injected fault'); END`); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.Close(); err != nil {
+			t.Fatal(err)
+		}
+		d := deps{getenv: func(k string) string { return map[string]string{tokenEnv: token}[k] },
+			logOut: &lockedBuffer{}, clock: clock.NewManual(t0), probe: freeLocks{}, ready: func(string) {},
+			workers: func(config.Config, *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
+				return idleWorkers{}, idleWorkers{}
+			}}
+		if err := run(t.Context(), []string{flagConfig, dir}, d); !errors.Is(err, errSchedStopped) {
+			t.Errorf("run = %v, want %v", err, errSchedStopped)
+		}
+	})
+}
+
+// seedLiveRun stores a working run of a beta task whose timers are missing, so a resume must arm them.
+func seedLiveRun(t *testing.T, path string) {
+	t.Helper()
+	st, err := store.Open(t.Context(), path, clock.NewManual(t0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = st.Transition(t.Context(), func(ctx context.Context, tx *store.Tx) error {
+		if err := tx.CreateTask(ctx, model.Task{ID: "b1", Project: projectBeta, Title: "live", Shape: model.ShapePR,
+			OwnerTask: true}); err != nil {
+			return err
+		}
+		if err := tx.SetTaskState(ctx, "b1", model.TaskRunning, "slot 1"); err != nil {
+			return err
+		}
+		return tx.CreateRun(ctx, model.Run{ID: "b1-run-1", TaskID: "b1", Number: 1, Slot: 1,
+			Worker: model.Worker{Agent: "b1-1", Workspace: "ws", Tab: "tab", Pane: "pane"}})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
