@@ -84,6 +84,8 @@ type Deps struct {
 	// Hook runs the post-merge hook in StateDir; both are needed with a Merger.
 	Hook     PostMerge
 	StateDir string
+	// PreGo runs a project's pre_go_check before its PR is ready for the go; nil with a pre_go_check asks the owner.
+	PreGo PreGoCheck
 	// BaseCI reads the base branch's checks before a merge; nil skips the CI hold rule (SCENARIOS MG-8).
 	BaseCI BaseCI
 }
@@ -107,7 +109,9 @@ type Scheduler struct {
 	merging map[model.TaskID]bool
 	held    map[model.TaskID]mergeJob
 	goAgain map[model.TaskID]bool
-	done    chan func(context.Context)
+	// checking marks a task whose pre-go check runs: no merge starts before it ends.
+	checking map[model.TaskID]bool
+	done     chan func(context.Context)
 	// applied counts the runtime events and stream ends the loop handled.
 	applied atomic.Int64
 }
@@ -122,7 +126,8 @@ func New(d Deps) (*Scheduler, error) {
 	s := &Scheduler{d: d, watched: map[model.RunID]*watch{}, picking: map[model.TaskID]reservation{},
 		stopped: map[string]bool{}, done: make(chan func(context.Context)),
 		gates: map[model.TaskID]gate.State{}, busy: map[model.TaskID]turnState{}, merging: map[model.TaskID]bool{},
-		held: map[model.TaskID]mergeJob{}, goAgain: map[model.TaskID]bool{}}
+		held: map[model.TaskID]mergeJob{}, goAgain: map[model.TaskID]bool{},
+		checking: map[model.TaskID]bool{}}
 	if err := checkMergeDeps(d); err != nil {
 		return nil, err
 	}

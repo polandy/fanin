@@ -48,6 +48,11 @@ type PostMerge interface {
 	Run(ctx context.Context, req hook.Request) error
 }
 
+// PreGoCheck runs a project's pre-go check on a PR's branch; *hook.PreGo is the real one.
+type PreGoCheck interface {
+	Run(ctx context.Context, req hook.PreGoRequest) (string, error)
+}
+
 // BaseCI reads the latest checks of a project's base branch.
 type BaseCI interface {
 	BaseChecks(ctx context.Context, p config.Project) ([]forge.Check, error)
@@ -93,6 +98,10 @@ func checkMergeDeps(d Deps) error {
 // Merger, merges nothing. regate reads the gate again under the lock.
 func (s *Scheduler) startMerge(ctx context.Context, p config.Project, id model.TaskID, regate bool) error {
 	if s.d.Merger == nil || s.merging[id] {
+		return nil
+	}
+	if s.checking[id] {
+		s.goAgain[id] = true
 		return nil
 	}
 	task, err := s.d.Store.Task(ctx, id)
