@@ -44,7 +44,7 @@ var (
 	spec   = runtime.RunSpec{
 		Project: project, Worktree: worktree, Agent: agent, Title: title, Prompt: prompt, MCPConfig: mcpFile,
 	}
-	want = runtime.RunHandle{Agent: agent, Workspace: ws, Tab: tab, Pane: pane}
+	want = runtime.RunHandle{Project: project, Agent: agent, Workspace: ws, Tab: tab, Pane: pane}
 
 	startArgv = hd("agent", "start", agent, "--pane", pane, "--timeout", "120000", "--kind", "claude", "--",
 		"--permission-mode", "auto", "--strict-mcp-config", "--mcp-config", mcpFile, "--name", session)

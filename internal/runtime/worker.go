@@ -30,6 +30,8 @@ var (
 	ErrNotWorking = errors.New("runtime: agent not working")
 	// ErrStatusUnknown is returned when the runtime cannot say whether the agent lives.
 	ErrStatusUnknown = errors.New("runtime: agent status unknown")
+	// ErrUnreachable is returned when the runtime stays unreadable after every retry.
+	ErrUnreachable = errors.New("runtime: unreachable")
 )
 
 // RunSpec is what a worker runtime needs to start one run.
@@ -61,6 +63,10 @@ func (s RunSpec) SessionName() string {
 
 // RunHandle names a started run's agent and where it lives.
 type RunHandle struct {
+	// TaskID, RunID and Project are for logs only.
+	TaskID    model.TaskID
+	RunID     model.RunID
+	Project   string
 	Host      string
 	Agent     string
 	Workspace string
@@ -71,11 +77,29 @@ type RunHandle struct {
 // RunEventType says what a RunEvent reports.
 type RunEventType string
 
-// The run event types.
+// The run event types (see docs/dev/spec/runtime-herdr.md, Observe).
 const (
-	RunEventStatus RunEventType = "status"
-	RunEventGone   RunEventType = "gone"
+	RunEventWorking        RunEventType = RunEventType(model.RunWorking)
+	RunEventIdle           RunEventType = "idle"
+	RunEventGone           RunEventType = "gone"
+	RunEventDialog         RunEventType = "dialog"
+	RunEventStalled        RunEventType = RunEventType(model.RunStalled)
+	RunEventAnsweredInPane RunEventType = "answered_in_pane"
+	// RunEventUnreachable is the last event when the runtime cannot be read or driven; Err says why.
+	RunEventUnreachable RunEventType = "unreachable"
 )
+
+// StallReason says why a run looks stalled.
+type StallReason string
+
+// The stall reasons (see SCENARIOS AW-4, AW-5).
+const (
+	StallQuiet   StallReason = "quiet"
+	StallBGShell StallReason = "bg-shell"
+)
+
+// DialogUnreadable is the dialog text when the pane shows no readable question.
+const DialogUnreadable = "unreadable"
 
 // RunEvent is one observation of a running worker.
 type RunEvent struct {
@@ -83,6 +107,15 @@ type RunEvent struct {
 	// Status is the runtime's word for the agent's state.
 	Status string
 	At     time.Time
+	// Reason is set on RunEventStalled.
+	Reason StallReason
+	// Dialog is the question and its options on RunEventDialog, or DialogUnreadable.
+	Dialog string
+	// LastWords (input box and footer dropped) and Tail are set on RunEventIdle and RunEventStalled.
+	LastWords string
+	Tail      string
+	// Err is set on RunEventUnreachable; it wraps ErrUnreachable, or ErrPromptRefused for a failed Enter.
+	Err error
 }
 
 // WorkerRuntime starts, prompts, observes and stops workers; callers never know which adapter runs a task.
