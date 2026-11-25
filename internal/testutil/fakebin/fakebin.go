@@ -109,19 +109,23 @@ const (
 	unexpectedLog = "unexpected"
 )
 
+// read parses the per-call records name.kind.1, name.kind.2, ... in the order the calls claimed them.
 func (b *Bin) read(name, kind string) []Call {
-	data, err := os.ReadFile(filepath.Join(b.dir, name+"."+kind))
-	if os.IsNotExist(err) {
-		return nil
+	var calls []Call
+	for i := 1; ; i++ {
+		data, err := os.ReadFile(filepath.Join(b.dir, name+"."+kind+"."+strconv.Itoa(i)))
+		if os.IsNotExist(err) {
+			return calls
+		}
+		if err != nil {
+			b.t.Fatalf("fakebin: cannot read the %s log of %s: %v", kind, name, err)
+		}
+		call, err := parseLog(data)
+		if err != nil {
+			b.t.Fatalf("fakebin: bad %s log of %s: %v", kind, name, err)
+		}
+		calls = append(calls, call...)
 	}
-	if err != nil {
-		b.t.Fatalf("fakebin: cannot read the %s log of %s: %v", kind, name, err)
-	}
-	calls, err := parseLog(data)
-	if err != nil {
-		b.t.Fatalf("fakebin: bad %s log of %s: %v", kind, name, err)
-	}
-	return calls
 }
 
 // parseLog reads records of `<dir>\n<argc>\n` followed by argc NUL-terminated args.
@@ -180,9 +184,11 @@ func (f *Fake) script(dir string) string {
 	var b strings.Builder
 	b.WriteString("#!/bin/sh\n")
 	b.WriteString("s=$(printf '\\037')\n")
-	// Log the call before matching, so an unscripted call is recorded too.
+	// Log the call before matching; each call claims its own numbered file, so parallel calls never interleave.
 	logCall := func(file string) string {
-		return fmt.Sprintf("{ pwd -P; echo $#; printf '%%s\\0' \"$@\"; } >> %s\n", quote(filepath.Join(dir, f.name+"."+file)))
+		base := quote(filepath.Join(dir, f.name+"."+file))
+		return fmt.Sprintf("set -C; i=1; while ! printf '' 2>/dev/null > %s.$i; do i=$((i + 1)); done; set +C\n"+
+			"{ pwd -P; echo $#; printf '%%s\\0' \"$@\"; } >> %s.$i\n", base, base)
 	}
 	b.WriteString(logCall(callLog))
 	// Drain stdin so a writer never blocks or breaks on a closed pipe.

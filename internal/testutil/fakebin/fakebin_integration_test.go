@@ -85,7 +85,7 @@ func TestPrefixMatchesLongerArgvOnly(t *testing.T) {
 	if _, err := run(t, "", "herdr", "agent", "prompted", "a"); !errors.As(err, &ee) || ee.Code != fakebin.ExitUnexpected {
 		t.Errorf("argv that only shares a word = %v, want exit %d", err, fakebin.ExitUnexpected)
 	}
-	if err := os.Remove(filepath.Join(b.Dir(), "herdr.unexpected")); err != nil {
+	if err := os.Remove(filepath.Join(b.Dir(), "herdr.unexpected.1")); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -123,10 +123,10 @@ func TestUnscriptedArgvIsAnErrorOfTheFake(t *testing.T) {
 		t.Errorf("calls = %d, want the unscripted call logged", got)
 	}
 	// The Cleanup check would fail this test; clear the marker after asserting it exists.
-	if _, err := os.Stat(filepath.Join(b.Dir(), "gh.unexpected")); err != nil {
+	if _, err := os.Stat(filepath.Join(b.Dir(), "gh.unexpected.1")); err != nil {
 		t.Fatalf("no unexpected log: %v", err)
 	}
-	if err := os.Remove(filepath.Join(b.Dir(), "gh.unexpected")); err != nil {
+	if err := os.Remove(filepath.Join(b.Dir(), "gh.unexpected.1")); err != nil {
 		t.Fatal(err)
 	}
 }
