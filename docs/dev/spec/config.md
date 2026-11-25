@@ -95,6 +95,8 @@ Settings, in a project file or under `defaults`:
 | `worker_kind` | kind name | `claude` | |
 | `model` | string | none | checked against the kind's `models` |
 | `review_skill` | string | `/pr-review` | |
+| `review_model` | string | `sonnet` | model of the review run |
+| `review_timeout` | duration | `30m` | longest review run (OC-3) |
 | `oc_merge` | `auto` \| `manual` | `auto` | a green opencode PR merges or waits for the go (OC-7) |
 | `stall_after` | duration | `15m` | no heartbeat for this long is a stall (AW-4) |
 | `worker_timeout` | duration | `45m` | no heartbeat or result for this long ends the run (WD-1) |

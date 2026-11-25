@@ -31,6 +31,8 @@ type Spec struct {
 	// AllowedTools are claude's tool rules; empty allows none beyond claude's defaults.
 	AllowedTools []string
 	Timeout      time.Duration
+	// Env entries (KEY=value) are added to the process environment.
+	Env []string
 }
 
 // Usage is the token count of one run.
@@ -111,7 +113,7 @@ func (r *Runtime) Run(ctx context.Context, spec Spec) (Result, error) {
 		case <-ctx.Done():
 		}
 	})
-	res, err := r.runner.Run(ctx, runtime.Cmd{Argv: spec.argv(), Stdin: []byte(spec.Prompt), Dir: spec.Dir})
+	res, err := r.runner.Run(ctx, runtime.Cmd{Argv: spec.argv(), Stdin: []byte(spec.Prompt), Dir: spec.Dir, Env: spec.Env})
 	if timedOut.Load() {
 		return Result{}, fmt.Errorf("%w after %s: output tail: %s", ErrTimeout, spec.Timeout, runtime.Tail(res.Stdout))
 	}

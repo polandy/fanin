@@ -134,6 +134,37 @@ func (c *Client) Files(ctx context.Context, repo string, number int) ([]string, 
 	return files, nil
 }
 
+// commentsJQ prints one compact JSON object per comment, so a body's newlines stay inside its line.
+const commentsJQ = ".[] | {id, body, html_url} | @json"
+
+type commentJSON struct {
+	ID   int64  `json:"id"`
+	Body string `json:"body"`
+	URL  string `json:"html_url"`
+}
+
+// Comments lists the conversation comments of the pull request in post order, paginated through the REST API.
+func (c *Client) Comments(ctx context.Context, repo string, number int) ([]forge.Comment, error) {
+	out, err := c.gh(ctx, nil, "api", "--paginate", fmt.Sprintf("repos/%s/issues/%d/comments", repo, number),
+		"--jq", commentsJQ)
+	if err != nil {
+		return nil, err
+	}
+	comments := []forge.Comment{}
+	for line := range strings.Lines(string(out)) {
+		var raw commentJSON
+		if err := decodeStrict([]byte(line), &raw); err != nil {
+			return nil, fmt.Errorf("%w: comments of %s#%d: %w", forge.ErrUnreadable, repo, number, err)
+		}
+		if raw.ID <= 0 || raw.URL == "" {
+			return nil, fmt.Errorf("%w: comments of %s#%d: comment without id or html_url", forge.ErrUnreadable, repo,
+				number)
+		}
+		comments = append(comments, forge.Comment{ID: raw.ID, Body: raw.Body, URL: raw.URL})
+	}
+	return comments, nil
+}
+
 // decodeStrict decodes one JSON value and rejects empty output and trailing data.
 func decodeStrict(out []byte, v any) error {
 	if len(bytes.TrimSpace(out)) == 0 {

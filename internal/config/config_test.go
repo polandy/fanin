@@ -171,6 +171,10 @@ func TestLoad(t *testing.T) {
 		if diff := cmp.Diff(Gate{GitHub: gh, Gitea: gt}, beta.Gate); diff != "" {
 			t.Errorf("gate (-want +got):\n%s", diff)
 		}
+		if beta.ReviewModel != "sonnet" || beta.ReviewTimeout != Duration(30*time.Minute) {
+			t.Errorf("beta review_model %q review_timeout %s, want sonnet and 30m (OC-3)", beta.ReviewModel,
+				time.Duration(beta.ReviewTimeout))
+		}
 	})
 	t.Run("ST-1_projects_in_name_order", func(t *testing.T) {
 		if names := cfg.ProjectNames(); !cmp.Equal(names, []string{"alpha", "beta"}) {

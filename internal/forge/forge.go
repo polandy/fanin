@@ -107,6 +107,13 @@ type Status struct {
 	TargetURL   string
 }
 
+// Comment is one comment on a pull request's conversation, such as the review's verdict comment.
+type Comment struct {
+	ID   int64
+	Body string
+	URL  string
+}
+
 // OpenRequest opens a pull request from Head into Base.
 type OpenRequest struct {
 	Repo  string

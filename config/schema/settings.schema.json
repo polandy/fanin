@@ -16,6 +16,8 @@
         "worker_kind": {"description": "worker kind from worker-kinds.yaml", "$ref": "#/$defs/name", "default": "claude"},
         "model": {"description": "project model; the owner's model wins over it, it wins over the picked one", "type": "string", "minLength": 1},
         "review_skill": {"description": "skill or command the review runs", "type": "string", "minLength": 1, "default": "/pr-review"},
+        "review_model": {"description": "model of the headless review run", "type": "string", "minLength": 1, "default": "sonnet"},
+        "review_timeout": {"description": "a review run past this is killed (OC-3)", "$ref": "#/$defs/duration", "default": "30m"},
         "oc_merge": {"description": "auto merges a green opencode PR, manual leaves it ready", "enum": ["auto", "manual"], "default": "auto"},
         "stall_after": {"description": "a run without a heartbeat for this long is stalled", "$ref": "#/$defs/duration", "default": "15m"},
         "worker_timeout": {"description": "a run without a heartbeat or result for this long is ended", "$ref": "#/$defs/duration", "default": "45m"},

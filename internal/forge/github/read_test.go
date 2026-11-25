@@ -178,3 +178,49 @@ func TestFiles(t *testing.T) {
 		}
 	})
 }
+
+func TestComments(t *testing.T) {
+	argv := []string{"gh", api, "--paginate", "repos/acme/widget/issues/42/comments", "--jq",
+		".[] | {id, body, html_url} | @json"}
+	t.Run("OC-3_one_comment_per_line", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(argv, testutil.Reply{Stdout: `{"id":7,"body":"first","html_url":"https://github.com/c/7"}` + "\n" +
+			`{"id":9,"body":"## PR quality review\nok","html_url":"https://github.com/c/9"}` + "\n"})
+		got, err := c.Comments(context.Background(), repo, number)
+		want := []forge.Comment{
+			{ID: 7, Body: "first", URL: "https://github.com/c/7"},
+			{ID: 9, Body: "## PR quality review\nok", URL: "https://github.com/c/9"},
+		}
+		if diff := cmp.Diff(want, got); err != nil || diff != "" {
+			t.Errorf("Comments err %v (-want +got):\n%s", err, diff)
+		}
+	})
+	t.Run("no_comments_is_an_empty_list", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(argv, testutil.Reply{})
+		if got, err := c.Comments(context.Background(), repo, number); err != nil || got == nil || len(got) != 0 {
+			t.Errorf("Comments = %#v, %v; want an empty list", got, err)
+		}
+	})
+	for name, line := range map[string]string{
+		"GH-5_broken_json_is_unreadable": `{"id":7,`,
+		"GH-5_missing_id_is_unreadable":  `{"body":"x","html_url":"u"}`,
+		"GH-5_missing_url_is_unreadable": `{"id":7,"body":"x"}`,
+		"GH-5_empty_line_is_unreadable":  "",
+	} {
+		t.Run(name, func(t *testing.T) {
+			c, r := newClient(t)
+			r.Expect(argv, testutil.Reply{Stdout: line + "\n"})
+			if _, err := c.Comments(context.Background(), repo, number); !errors.Is(err, forge.ErrUnreadable) {
+				t.Errorf("err = %v, want ErrUnreadable", err)
+			}
+		})
+	}
+	t.Run("not_found", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(argv, testutil.Reply{ExitCode: 1, Stderr: "gh: Not Found (HTTP 404)"})
+		if _, err := c.Comments(context.Background(), repo, number); !errors.Is(err, forge.ErrNotFound) {
+			t.Errorf("err = %v, want ErrNotFound", err)
+		}
+	})
+}

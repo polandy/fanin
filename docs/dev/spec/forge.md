@@ -17,6 +17,7 @@ with `net/http` (see Gitea below).
 | `ListOpen(repo)` | `gh pr list --repo R --state open --limit 1000 --json …` (no checks, no mergeable) |
 | `Open(req)` | `gh pr create --repo R --head H --base B --title T --body-file -`, body on stdin; returns the PR number |
 | `EnableAutoMerge(req)` | `gh pr merge n --repo R --squash --auto --subject S --body B --match-head-commit SHA` |
+| `Comments(repo, n)` | `gh api --paginate repos/R/issues/n/comments --jq '.[] \| {id, body, html_url} \| @json'`, one JSON object per line; GitHub only, for the review |
 | `PostStatus(st)` | `gh api --method POST repos/R/statuses/SHA -f state= -f context= -f description= [-f target_url=]` |
 | `SquashMerge(req)` | view, then `gh pr merge n --repo R --squash --subject S --body B --match-head-commit SHA` |
 | `DeleteBranch(repo, b)` | `gh api --method DELETE repos/R/git/refs/heads/b` |

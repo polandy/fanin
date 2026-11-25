@@ -15,6 +15,8 @@ settings:
   base: main # default
   worker_kind: opencode # projects/beta.yaml:4
   review_skill: /pr-review # fanin.yaml:9
+  review_model: sonnet # default
+  review_timeout: 30m0s # default
   max_parallel: 1 # projects/beta.yaml:5
   budgets:
     fix_rounds_per_run: 2 # default
