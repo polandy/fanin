@@ -15,6 +15,8 @@ const (
 	AuthOwner Auth = iota
 	// AuthRun needs a bearer token that the handler checks against the run in the path.
 	AuthRun
+	// AuthWebhook needs no token: the handler checks the delivery's HMAC signature.
+	AuthWebhook
 )
 
 // Route is one endpoint: a Go 1.22 mux pattern ("GET /api/v1/health") and the handler built for a Server.
