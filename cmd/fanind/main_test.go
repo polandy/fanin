@@ -58,7 +58,7 @@ type daemon struct {
 	logs   *bytes.Buffer
 }
 
-func start(t *testing.T, cfgPath string) *daemon {
+func start(t *testing.T, cfgPath string, extra ...string) *daemon {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -66,9 +66,9 @@ func start(t *testing.T, cfgPath string) *daemon {
 	ready := make(chan string, 1)
 	env := map[string]string{tokenEnv: token}
 	deps := deps{getenv: func(k string) string { return env[k] }, logOut: d.logs, clock: clock.NewManual(t0),
-		ready: func(addr string) { ready <- addr }}
+		ready: func(addr string) { ready <- addr }, probe: freeLocks{}}
 	safego.Go(ctx, slog.New(slog.DiscardHandler), func(ctx context.Context) {
-		d.done <- run(ctx, []string{flagConfig, cfgPath}, deps)
+		d.done <- run(ctx, append([]string{flagConfig, cfgPath}, extra...), deps)
 	})
 	select {
 	case addr := <-ready:
