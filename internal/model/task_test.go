@@ -12,14 +12,15 @@ import (
 )
 
 func TestTaskModel(t *testing.T) {
+	const opus, sonnet, haiku = "opus", "sonnet", "haiku"
 	tests := []struct {
 		name                   string
 		owner, project, picked string
 		want                   string
 	}{
-		{"owner_wins", "opus", "sonnet", "haiku", "opus"},
-		{"project_over_picked", "", "sonnet", "haiku", "sonnet"},
-		{"picked_last", "", "", "haiku", "haiku"},
+		{"owner_wins", opus, sonnet, haiku, opus},
+		{"project_over_picked", "", sonnet, haiku, sonnet},
+		{"picked_last", "", "", haiku, haiku},
 		{"none", "", "", "", ""},
 	}
 	for _, tt := range tests {

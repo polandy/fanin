@@ -77,9 +77,9 @@ func TestResultValidate(t *testing.T) {
 
 func TestCapField(t *testing.T) {
 	tests := map[string]string{
-		"":                "",
-		"a\r\nb":          "a b",
-		"  a  \t b  ":     "a b",
+		"":               "",
+		"a\r\nb":         "a b",
+		"  a  \t b  ":    "a b",
 		"one line stays": "one line stays",
 	}
 	for in, want := range tests {

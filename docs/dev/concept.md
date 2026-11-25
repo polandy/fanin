@@ -94,6 +94,7 @@ fanin does not run merges itself. It combines existing building blocks and stays
   languages.
 - fanin adds what the SPEC does not cover: forges with PR gates, owner questions as first-class state
   (`needs_owner` with options and a recommendation), project holds and post-merge hooks.
+- The mapping onto the SPEC's terms is in [`spec/model.md`](spec/model.md).
 
 ### D7. The bash orchestrator is frozen
 
