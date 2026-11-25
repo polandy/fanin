@@ -54,6 +54,8 @@
     "/settings/host": "projects/alpha.yaml:2",
     "/settings/loop": "default",
     "/settings/max_parallel": "projects/alpha.yaml:7",
+    "/settings/merge/lock_lease": "default",
+    "/settings/merge/lock_wait": "default",
     "/settings/model": "projects/alpha.yaml:6",
     "/settings/oc_merge": "default",
     "/settings/path": "projects/alpha.yaml:1",
@@ -95,6 +97,10 @@
     "host": "local",
     "loop": "bash",
     "max_parallel": 2,
+    "merge": {
+      "lock_lease": "10m0s",
+      "lock_wait": "1h0m0s"
+    },
     "model": "sonnet",
     "oc_merge": "auto",
     "path": "/path/to/repo",

@@ -156,6 +156,7 @@ type Project struct {
 	ReviewTimeout Duration `yaml:"review_timeout"`
 	MaxParallel   int      `yaml:"max_parallel"`
 	Budgets       Budgets  `yaml:"budgets"`
+	Merge         Merge    `yaml:"merge"`
 	StallAfter    Duration `yaml:"stall_after"`
 	WorkerTimeout Duration `yaml:"worker_timeout"`
 	Gate          Gate     `yaml:"gate"`
@@ -171,6 +172,12 @@ type Budgets struct {
 	RolloverPct     int   `yaml:"rollover_pct"`
 	MaxTokensPerRun int64 `yaml:"max_tokens_per_run"`
 	MaxRunsPerTask  int   `yaml:"max_runs_per_task"`
+}
+
+// Merge bounds the project's merge lock (SCENARIOS MG-2, MG-3).
+type Merge struct {
+	LockWait  Duration `yaml:"lock_wait"`
+	LockLease Duration `yaml:"lock_lease"`
 }
 
 // Gate holds the wait limits of the gate per forge kind.
