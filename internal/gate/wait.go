@@ -57,7 +57,8 @@ type Step struct {
 	// Final is set when the gate is done; Result or Err holds the answer.
 	Final  bool
 	Result Result
-	// Err wraps ErrUnreachable when the reads kept failing; nobody is nudged then.
+	// Err wraps ErrUnreachable when the reads kept failing, or forge.ErrInvalidRequest for a bad target; nobody is
+	// nudged then.
 	Err error
 	// Timer is the armed timer when the gate is not final.
 	Timer store.Timer

@@ -35,7 +35,8 @@ A PR that cannot be read (GH-5), including a review status without a readable ti
 
 All RED reasons are given together: the PR is not open, it aims at another base, `CONFLICTING`, failed checks. A
 conflict thus wins over running checks. Without a RED reason: running checks are PENDING `checks running`, no
-status is PENDING `no checks`, an unknown mergeable is PENDING. Otherwise the files decide: docs-only is
+status is PENDING `no checks`, an unknown mergeable is PENDING. A `fanin/review` status is one more check here,
+so a review still running keeps the gate PENDING. Otherwise the files decide: docs-only is
 `GREEN docs`, anything else `GREEN code`.
 
 An unreadable PR is an error. Unreadable statuses (`forge.ErrChecksUnreadable`) are PENDING
@@ -51,7 +52,8 @@ An unreadable PR is an error. Unreadable statuses (`forge.ErrChecksUnreadable`) 
 `gate.NewWatcher(reader, clock, limits, project, task, target)` runs one task's gate with the `gate` limits of the
 project config. `Turn(ctx, timers, state)` reads once and returns a `Step`: a final result, a final error, or a
 timer row it armed through `timers` (a `store.Tx`) to come back. A timer that cannot be armed is an error. The
-`State` counts what the episode used up; a new head starts from the zero state. A webhook may re-gate before the
+`State` counts what the episode used up; the caller keeps it with the task, and a new head starts from the zero
+state. A webhook may re-gate before the
 timer is due; every turn counts.
 
 | Case | Timer | Limit | Then |

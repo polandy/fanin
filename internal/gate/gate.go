@@ -112,6 +112,14 @@ func Read(ctx context.Context, r Reader, t Target) (Result, error) {
 	}
 }
 
+// The docs-only rule's paths (see SCENARIOS GH-12).
+const (
+	docsDir   = "docs"
+	docExt    = ".md"
+	agentFile = "CLAUDE.md"
+	agentDir  = ".claude"
+)
+
 // DocsOnly reports whether files is non-empty and every path is under docs/ or ends in .md, where any CLAUDE.md
 // and anything under .claude/ count as code (see SCENARIOS GH-12).
 func DocsOnly(files []string) bool {
@@ -119,11 +127,11 @@ func DocsOnly(files []string) bool {
 		return false
 	}
 	for _, f := range files {
-		if path.Base(f) == "CLAUDE.md" || f == ".claude" || strings.HasPrefix(f, ".claude/") ||
-			strings.Contains(f, "/.claude/") {
+		if path.Base(f) == agentFile || f == agentDir || strings.HasPrefix(f, agentDir+"/") ||
+			strings.Contains(f, "/"+agentDir+"/") {
 			return false
 		}
-		if !strings.HasPrefix(f, "docs/") && !strings.HasSuffix(f, ".md") {
+		if !strings.HasPrefix(f, docsDir+"/") && !strings.HasSuffix(f, docExt) {
 			return false
 		}
 	}
