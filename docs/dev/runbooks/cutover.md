@@ -9,9 +9,18 @@ Do one project at a time, low-risk projects first. Every step has a check; do no
 
 ## Before you start
 
-- `fanind` runs on the control host with `--shadow` pointing at the bash state directory, and `fanin status` shows the
-  project as the bash loop left it ([operation](../../user/operation.md#following-the-bash-orchestrator)).
-- `fanin doctor` is clean for the project: config, store, herdr, forge login and the `fanin/review` branch protection.
+- Where `fanind` runs: the scheduler only drives projects with `host: local`, so `fanind` runs on the host that has
+  the project's clone and the herdr server, as the user who owns that herdr server, the `gh` login and `claude`. In
+  the systemd unit set `User=` to that user and drop `ProtectHome`; `gh` cannot read a keyring token under systemd,
+  so put `GH_TOKEN` into the `EnvironmentFile`.
+- `fanind` runs with `--shadow` pointing at the bash state directory, and `fanin status` shows the project as the bash
+  loop left it ([operation](../../user/operation.md#following-the-bash-orchestrator)). The importer reads merge
+  locks from its own host's `/proc/locks`, so `--shadow` only works on the host where the bash loops run; a mounted
+  copy shows every lock free. When the bash loops run on another host, cut over without `--shadow` and check the
+  next point in the project's state file there.
+- `fanin doctor` is clean for the project: config, store, herdr, forge login and systemd. The `fanin/review`
+  branch protection row stays `FAIL` until step 2: the bash loop does not post that status, so requiring it earlier
+  blocks the bash loop's own merges.
 - The project has no task in flight in the bash loop. `fanin status <project>` shows no `running` or `blocked` task and
   no active hold under `open:`; lift or finish what is there first.
 
@@ -34,8 +43,9 @@ In the private repo:
 1. Stop the project's `loop.sh` (and any lane loops) and remove the project from `loop-all.sh`'s list, so nothing
    restarts it.
 2. Leave the state file and `archive/` in place; they are the record for a rollback.
+3. Add `fanin/review` to the required checks of the base branch ([install](../../user/install.md#branch-protection)).
 
-Check: no `loop.sh` process for the project (`pgrep -af loop.sh`), its `.merge.lock` is not held, and `fanin status
+Check: `fanin doctor` is clean, no `loop.sh` process for the project (`pgrep -af loop.sh`), its `.merge.lock` is not held, and `fanin status
 <project>` shows no lock held by the shadow importer after one import interval (30 s).
 
 ## 3. Prove one task end to end
@@ -48,6 +58,14 @@ Queue one small task (`fanin task add`, a forge label or a cron entry) and watch
 
 Check: the task ends `done` with its merge in the event list. A red check that fanin nudges counts as a pass; a
 task that stops with an unreadable gate or forge answer is an error to fix, not to retry.
+
+### fanin as its own project
+
+A PR that changes `fanind` runs like any other task: the worker builds and tests in its own worktree, and the merge
+does not touch the running daemon, which keeps its installed binary. Install the new binary and restart `fanind` by
+hand once `fanin status fanin` shows `merge=free`. Live runs keep their panes and are observed again after the
+restart. Do not set a `post_merge_hook` that restarts `fanind`: the restart lands inside the hook, which keeps its
+merge hold until the owner lifts it.
 
 ## 4. Switch the shadow importer off
 
