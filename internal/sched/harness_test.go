@@ -10,6 +10,7 @@ import (
 
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
+	"github.com/polandy/fanin/internal/hook"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/store"
@@ -60,22 +61,27 @@ func testConfig() config.Config {
 
 // harness runs one scheduler on a real store with the manual clock; until steps it to a condition.
 type harness struct {
-	t       *testing.T
-	cfg     config.Config
-	path    string
-	st      *store.Store
-	clk     *clock.Manual
-	rt      *fakeRuntime
-	pk      *fakePicker
-	up      *fakeUnpushed
-	nt      *fakeNotifier
-	gates   PRGates
-	files   RunFiles
-	logs    *syncBuffer
-	s       *Scheduler
-	cancel  context.CancelFunc
-	waiting chan struct{}
-	done    chan error
+	t      *testing.T
+	cfg    config.Config
+	path   string
+	st     *store.Store
+	clk    *clock.Manual
+	rt     *fakeRuntime
+	pk     *fakePicker
+	up     *fakeUnpushed
+	nt     *fakeNotifier
+	gates  PRGates
+	merger Merger
+	baseCI BaseCI
+	// hookRun, when set, runs the post-merge hook through a real hook.Hook on the current store.
+	hookRun  runtime.Runner
+	stateDir string
+	files    RunFiles
+	logs     *syncBuffer
+	s        *Scheduler
+	cancel   context.CancelFunc
+	waiting  chan struct{}
+	done     chan error
 	// cursor is the loop's event cursor at its latest wait.
 	cursor atomic.Int64
 }
@@ -104,8 +110,13 @@ func (h *harness) start() {
 	h.t.Helper()
 	ctx, cancel := context.WithCancel(h.t.Context())
 	h.cancel, h.waiting, h.done = cancel, make(chan struct{}), make(chan error, 1)
+	var post PostMerge
+	if h.hookRun != nil {
+		post = hook.New(h.st, h.hookRun)
+	}
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
-		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
+		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Hook: post, BaseCI: h.baseCI,
+		StateDir: h.stateDir, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)
 			select {
 			case h.waiting <- struct{}{}:

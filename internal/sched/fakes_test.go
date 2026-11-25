@@ -18,6 +18,8 @@ type fakeRuntime struct {
 	startErr   error
 	observeErr error
 	promptErr  error
+	// promptErrs fails the prompts of single agents.
+	promptErrs map[string]error
 	stopErr    error
 	// prompts are the texts sent per agent; stopped are the stopped agents.
 	prompts map[string][]string
@@ -53,6 +55,9 @@ func (f *fakeRuntime) Prompt(_ context.Context, h runtime.RunHandle, text string
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.prompts[h.Agent] = append(f.prompts[h.Agent], text)
+	if err := f.promptErrs[h.Agent]; err != nil {
+		return err
+	}
 	return f.promptErr
 }
 
@@ -132,13 +137,18 @@ type fakePicker struct {
 	err  error
 	// block makes Pick wait for its ctx.
 	block bool
+	// during, when set, runs inside Pick.
+	during func()
 }
 
 func (f *fakePicker) Pick(ctx context.Context, req pick.Request) (pick.Result, error) {
 	f.mu.Lock()
 	f.reqs = append(f.reqs, req)
-	res, err, block := f.res, f.err, f.block
+	res, err, block, during := f.res, f.err, f.block, f.during
 	f.mu.Unlock()
+	if during != nil {
+		during()
+	}
 	if block {
 		<-ctx.Done()
 		return pick.Result{}, ctx.Err()
