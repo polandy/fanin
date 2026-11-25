@@ -8,5 +8,4 @@ import (
 	_ "github.com/modelcontextprotocol/go-sdk/mcp"
 	_ "github.com/santhosh-tekuri/jsonschema/v6"
 	_ "gopkg.in/yaml.v3"
-	_ "modernc.org/sqlite"
 )

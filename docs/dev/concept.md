@@ -61,6 +61,7 @@ scenarios fanin must pass.
   the per-project Markdown log are rendered from the store, never parsed back.
 - Locks, holds and timers are rows with leases, not lock files or process IDs. A restart reloads every
   non-terminal task, re-attaches to its run and re-arms its timers.
+- Schema, transactions, locks and retention: [`spec/store.md`](spec/store.md).
 
 ### D4. The forge merges (variant D)
 
