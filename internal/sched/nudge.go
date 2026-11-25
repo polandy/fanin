@@ -177,7 +177,13 @@ func (s *Scheduler) afterScan(ctx context.Context, p config.Project, h runtime.R
 // cannot be delivered fails the run at once (AW-13).
 func (s *Scheduler) nudge(ctx context.Context, p config.Project, run model.Run, name prompt.Name,
 	count func(*model.Budget)) error {
-	text, err := prompt.Render(name, prompt.Vars{Repo: p.Path, Base: p.Base})
+	return s.nudgeWith(ctx, p, run, name, "", count)
+}
+
+// nudgeWith is nudge with hint filled into the template.
+func (s *Scheduler) nudgeWith(ctx context.Context, p config.Project, run model.Run, name prompt.Name, hint string,
+	count func(*model.Budget)) error {
+	text, err := prompt.Render(name, prompt.Vars{Repo: p.Path, Base: p.Base, Hint: hint})
 	if err != nil {
 		return fmt.Errorf("sched: nudge run %s: %w", run.ID, err)
 	}

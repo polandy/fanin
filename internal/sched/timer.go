@@ -47,6 +47,10 @@ func (s *Scheduler) onStoreEvent(ctx context.Context, ev model.Event) error {
 		return s.reconcile(ctx, ev.TaskID)
 	case model.EventProjectResumed:
 		delete(s.stopped, ev.Project)
+	case model.EventOwnerGo:
+		return s.startMerge(ctx, p, ev.TaskID, false)
+	case model.EventHoldLifted:
+		return s.retryHeld(ctx, ev.Project)
 	}
 	return nil
 }

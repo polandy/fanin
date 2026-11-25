@@ -1,0 +1,1 @@
+Your PR was gated again before its merge and is not green: {{HINT}}. Fix it on the same branch and push. When the PR is green again, call the MCP tool `fanin_report` once with your result (or run `fanin report` if you have no MCP), then end with your status line.

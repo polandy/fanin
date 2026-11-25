@@ -1,0 +1,1 @@
+CI on `{{BASE}}` is green again: the fix is merged. Merge `origin/{{BASE}}` into your branch (never rebase), push, and carry on with your task. When it is done, call the MCP tool `fanin_report` once with your result (or run `fanin report` if you have no MCP), then end with your status line.
