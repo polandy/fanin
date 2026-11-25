@@ -170,6 +170,7 @@ func TestDeployFailures(t *testing.T) {
 		{"DR-2_digest_unreadable", func(p *fakeProbe, _ *fakeWorkflows) { p.digestErr = errors.New("no manifest") },
 			relEvent, ErrRelease},
 		{"DR-2_no_tag", func(p *fakeProbe, _ *fakeWorkflows) { p.tags = nil }, relEvent, ErrRelease},
+		{"DR-2_bad_repo", nil, ReleaseEvent{Project: projGH, Repo: "--exec/x", Version: relVersion}, ErrRelease},
 		{"DR-2_bad_version", nil, ReleaseEvent{Project: projGH, Repo: relRepo, Version: "v1;rm -rf"}, ErrRelease},
 		{"DR-2_not_a_github_project", nil, ReleaseEvent{Project: projGitea, Repo: relRepo, Version: relVersion},
 			ErrRelease},
