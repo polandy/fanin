@@ -12,7 +12,8 @@ dirs=("$@")
 
 fail=0
 while IFS= read -r f; do
-  lines=$(wc -l < "$f")
+  f=${f#./}
+  lines=$(grep -c '' "$f")
   [ "$lines" -le "$max" ] && continue
   if [ -f "$exceptions" ] && grep -qxF "$f" <(grep -vE '^[[:space:]]*(#|$)' "$exceptions"); then
     continue

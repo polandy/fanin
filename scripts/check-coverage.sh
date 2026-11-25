@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fails when a package's statement coverage in a Go cover profile is below the threshold.
-# A package without profile entries (not written yet) is skipped.
+# A package directory without Go code (not written yet) is skipped; one with code but no profile entries fails.
 # usage: check-coverage.sh <cover.out> <min-percent> <pkg-dir>...   (e.g. internal/gate)
 set -uo pipefail
 
@@ -15,13 +15,18 @@ for pkg in "$@"; do
   read -r total covered < <(awk -v pkg="$pkg" '
     NR > 1 {
       split($1, a, ":"); file = a[1]; sub(/\/[^\/]*$/, "", file)
-      if (file == pkg || substr(file, length(file) - length(pkg)) == "/" pkg) {
+      if (file ~ ("(^|/)" pkg "(/|$)")) {
         total += $2; if ($3 > 0) covered += $2
       }
     }
     END { print total + 0, covered + 0 }' "$profile")
   if [ "$total" -eq 0 ]; then
-    echo "check-coverage: $pkg has no statements in $profile, skipped"
+    if find "$pkg" -name '*.go' -not -name '*_test.go' 2>/dev/null | grep -q .; then
+      echo "check-coverage: $pkg has code but no statements in $profile; add tests" >&2
+      fail=1
+    else
+      echo "check-coverage: $pkg has no code yet, skipped"
+    fi
     continue
   fi
   pct=$(awk -v c="$covered" -v t="$total" 'BEGIN { printf "%.1f", 100 * c / t }')

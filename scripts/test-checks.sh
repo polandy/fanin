@@ -10,7 +10,8 @@ failures=0
 expect() { # expect <pass|fail> <name> <command...>
   local want=$1 name=$2
   shift 2
-  if "$@" >/dev/null 2>&1; then got=pass; else got=fail; fi
+  "$@" >/dev/null 2>&1
+  case $? in 0) got=pass ;; 1) got=fail ;; *) got=error ;; esac
   if [ "$got" = "$want" ]; then echo "ok   $name"; else echo "FAIL $name: wanted $want, got $got" >&2; failures=$((failures + 1)); fi
 }
 
@@ -47,6 +48,9 @@ PROFILE
 expect pass "coverage accepts 80% at threshold 80" scripts/check-coverage.sh "$tmp/cover.out" 80 internal/gate
 expect fail "coverage rejects 80% at threshold 90" scripts/check-coverage.sh "$tmp/cover.out" 90 internal/gate
 expect fail "coverage rejects an uncovered package" scripts/check-coverage.sh "$tmp/cover.out" 90 internal/sched
-expect pass "coverage skips a package that is not written yet" scripts/check-coverage.sh "$tmp/cover.out" 90 internal/store
+expect pass "coverage skips a package without code" scripts/check-coverage.sh "$tmp/cover.out" 90 internal/hook
+mkdir -p "$tmp/w/internal/store"
+echo "package store" > "$tmp/w/internal/store/s.go"
+expect fail "coverage rejects a package with code but no tests" bash -c "cd '$tmp/w' && '$PWD/scripts/check-coverage.sh' '$tmp/cover.out' 90 internal/store"
 
 [ "$failures" -eq 0 ]

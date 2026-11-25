@@ -26,8 +26,8 @@ Go.
 - **I/O-bound work.** Nothing in fanin is CPU-bound, so Rust's performance edge buys nothing here.
 - **Process boundary to herdr.** fanin drives the terminal multiplexer through its CLI and socket, not through a
   linked library, so a shared language gives no integration benefit.
-- **Guidelines are written for Go.** [`guidelines.md`](../guidelines.md) and the CI mirror (vet, shuffle, race,
-  revive, govulncheck) already encode how Go's weak spots are covered: sentinel errors, `ctx` first, `safego.Go`,
+- **Guidelines are written for Go.** [`guidelines.md`](../guidelines.md) and the CI mirror (vet, shuffle, race
+  today; lint and govulncheck planned) encode how Go's weak spots are covered: sentinel errors, `ctx` first, `safego.Go`,
   one writer through the store.
 - **Short worker loop.** The owner's other tools are Go, and a worker that picks up one task has to build,
   test and push in minutes; Go's iteration speed keeps that loop short.
