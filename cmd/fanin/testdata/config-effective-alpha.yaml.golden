@@ -17,6 +17,8 @@ settings:
   worker_kind: claude # default
   model: sonnet # projects/alpha.yaml:6
   review_skill: /pr-review # fanin.yaml:9
+  review_model: sonnet # default
+  review_timeout: 30m0s # default
   max_parallel: 2 # projects/alpha.yaml:7
   budgets:
     fix_rounds_per_run: 2 # projects/alpha.yaml:9

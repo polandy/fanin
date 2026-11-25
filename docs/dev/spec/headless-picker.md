@@ -11,6 +11,7 @@ later as another argv behind the same `Run`.
 `Spec.Dir` with the prompt on stdin. The JSON answer gives `Result.Output` (the final text) and `Result.Usage`
 (input, output, cache creation and cache read tokens).
 
+- `Spec.Env` is added to the process environment, such as the review's `GIT_LFS_SKIP_SMUDGE=1`.
 - `Spec.Timeout` is armed on the Clock; past it the process is killed and `Run` returns `ErrTimeout` with the output tail.
 - A non-zero exit is the runner's `*runtime.ExitError`; unparsable JSON, `is_error` or an empty result is `runtime.ErrOddAnswer`.
 - A spec without model, prompt or a positive timeout is `runtime.ErrInvalidSpec`; nothing is started.

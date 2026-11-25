@@ -400,6 +400,8 @@ func TestReviewD5HeadOnly(t *testing.T) {
 	}
 }
 
+const plainBody = "## PR quality review\n- ok\n\nMerge readiness: Ready"
+
 func TestParse(t *testing.T) {
 	tests := []struct {
 		name string
@@ -407,10 +409,10 @@ func TestParse(t *testing.T) {
 		want review.Verdict
 		text string
 	}{
-		{"OC-5_plain", "## PR quality review\n- ok\n\nMerge readiness: Ready", review.Ready,
-			"## PR quality review\n- ok\n\nMerge readiness: Ready"},
+		{"OC-5_plain", plainBody, review.Ready,
+			plainBody},
 		{"OC-5_preamble_is_dropped", "Here is my review.\n\n## PR quality review\n- ok\nMerge readiness: ready",
-			review.Ready, "## PR quality review\n- ok\n\nMerge readiness: Ready"},
+			review.Ready, plainBody},
 		{"OC-5_fences_are_dropped", "```markdown\n## PR quality review of #42\n- ok\n```\nMerge readiness: Not ready",
 			review.NotReady, "## PR quality review of #42\n- ok\n\nMerge readiness: Not ready"},
 		{"OC-5_bold_reworded_not_ready", "**PR quality review**\n- x.go:1 bug\n**Merge readiness:** NOT READY ❌",

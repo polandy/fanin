@@ -203,10 +203,10 @@ func TestComments(t *testing.T) {
 		}
 	})
 	for name, line := range map[string]string{
-		"GH-5_broken_json_is_unreadable":   `{"id":7,`,
-		"GH-5_missing_id_is_unreadable":    `{"body":"x","html_url":"u"}`,
-		"GH-5_unknown_field_is_unreadable": `{"id":7,"body":"x","html_url":"u","extra":1}`,
-		"GH-5_empty_line_is_unreadable":    "",
+		"GH-5_broken_json_is_unreadable": `{"id":7,`,
+		"GH-5_missing_id_is_unreadable":  `{"body":"x","html_url":"u"}`,
+		"GH-5_missing_url_is_unreadable": `{"id":7,"body":"x"}`,
+		"GH-5_empty_line_is_unreadable":  "",
 	} {
 		t.Run(name, func(t *testing.T) {
 			c, r := newClient(t)

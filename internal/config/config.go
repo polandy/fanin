@@ -126,6 +126,8 @@ type Project struct {
 	WorkerKind    string   `yaml:"worker_kind"`
 	Model         string   `yaml:"model,omitempty"`
 	ReviewSkill   string   `yaml:"review_skill"`
+	ReviewModel   string   `yaml:"review_model"`
+	ReviewTimeout Duration `yaml:"review_timeout"`
 	MaxParallel   int      `yaml:"max_parallel"`
 	Budgets       Budgets  `yaml:"budgets"`
 	StallAfter    Duration `yaml:"stall_after"`

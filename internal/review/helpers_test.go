@@ -20,27 +20,29 @@ import (
 )
 
 const (
-	project    = "alpha"
-	repo       = "acme/widget"
-	number     = 42
-	repoDir    = "/path/to/repo"
-	headBranch = "feat/widget"
-	headSHA    = "abc123def4567890"
-	newSHA     = "fed987cba6543210"
-	model      = "sonnet"
-	commentURL = "https://github.com/acme/widget/pull/42#issuecomment-9"
-	okJSON     = `{"is_error":false,"result":"review posted","usage":` +
+	project     = "alpha"
+	repo        = "acme/widget"
+	number      = 42
+	repoDir     = "/path/to/repo"
+	headBranch  = "feat/widget"
+	headSHA     = "abc123def4567890"
+	newSHA      = "fed987cba6543210"
+	reviewModel = "sonnet"
+	commentURL  = "https://github.com/acme/widget/pull/42#issuecomment-9"
+	okJSON      = `{"is_error":false,"result":"review posted","usage":` +
 		`{"input_tokens":100,"output_tokens":20,"cache_creation_input_tokens":3,"cache_read_input_tokens":7}}`
 	readyBody    = "## PR quality review\n\nHead " + headSHA + ".\n\n- No findings.\n\nMerge readiness: Ready"
 	notReadyBody = "## PR quality review\n\n- internal/x.go:3 lacks a test.\n\n**Merge readiness**: not ready"
 )
 
+const gitBin = "git"
+
 var (
 	worktree   = repoDir + "/.claude/worktrees/fanin-review-42"
-	fetchArgv  = []string{"git", "-C", repoDir, "fetch", "-q", "origin", headBranch}
-	addArgv    = []string{"git", "-C", repoDir, "worktree", "add", "-q", "--detach", worktree, headSHA}
-	removeArgv = []string{"git", "-C", repoDir, "worktree", "remove", "--force", worktree}
-	claudeArgv = []string{"claude", "-p", "--output-format", "json", "--model", model, "--allowedTools",
+	fetchArgv  = []string{gitBin, "-C", repoDir, "fetch", "-q", "origin", headBranch}
+	addArgv    = []string{gitBin, "-C", repoDir, "worktree", "add", "-q", "--detach", worktree, headSHA}
+	removeArgv = []string{gitBin, "-C", repoDir, "worktree", "remove", "--force", worktree}
+	claudeArgv = []string{"claude", "-p", "--output-format", "json", "--model", reviewModel, "--allowedTools",
 		strings.Join(review.AllowedTools, ",")}
 	start = time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
 )
@@ -178,7 +180,7 @@ type setup struct {
 
 func newSetup(r runtime.Runner, f *fakeForge) *setup {
 	return &setup{runner: r, clock: clock.NewManual(start), forge: f, events: &fakeEvents{},
-		cfg: review.Config{Model: model}}
+		cfg: review.Config{Model: reviewModel}}
 }
 
 func (s *setup) reviewer() *review.Reviewer {

@@ -88,7 +88,8 @@ fanin does not run merges itself. It combines existing building blocks and stays
   model or worker kind).
 - A review counts only for the head it reviewed. A new push needs a new review; an unreadable review is an
   error, never a verdict.
-- The gate verdicts and the wait policy: [`spec/gate.md`](spec/gate.md).
+- The review run: [`spec/review.md`](spec/review.md). The gate verdicts and the wait policy:
+  [`spec/gate.md`](spec/gate.md).
 
 ### D6. The data model follows the Symphony SPEC
 
