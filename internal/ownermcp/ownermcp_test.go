@@ -15,6 +15,11 @@ import (
 	"github.com/polandy/fanin/internal/api/client"
 )
 
+const (
+	argTask   = "task"
+	argAnswer = "answer"
+)
+
 var update = flag.Bool("update", false, "rewrite the golden files")
 
 // connect serves New(c) in memory and returns a connected client session.
@@ -68,8 +73,8 @@ func TestOwnerMCPConnectionError(t *testing.T) {
 	cs := connect(t, client.New(url, "tok", nil), url)
 	for name, args := range map[string]map[string]any{
 		ToolQuestions: {},
-		ToolAnswer:    {"task": "a1", "answer": "1"},
-		ToolGo:        {"task": "a1"},
+		ToolAnswer:    {argTask: "a1", argAnswer: "1"},
+		ToolGo:        {argTask: "a1"},
 		ToolStatus:    {},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -88,7 +93,7 @@ func TestOwnerMCPConnectionError(t *testing.T) {
 func TestOwnerMCPMissingArguments(t *testing.T) {
 	cs := connect(t, client.New("http://127.0.0.1:1", "", nil), "http://127.0.0.1:1")
 	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: ToolAnswer,
-		Arguments: map[string]any{"task": "a1", "answer": ""}})
+		Arguments: map[string]any{argTask: "a1", argAnswer: ""}})
 	if err != nil {
 		t.Fatalf("CallTool: %v", err)
 	}

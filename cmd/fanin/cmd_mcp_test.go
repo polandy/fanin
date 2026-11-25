@@ -12,6 +12,11 @@ import (
 	"github.com/polandy/fanin/internal/ownermcp"
 )
 
+const (
+	argTask   = "task"
+	argAnswer = "answer"
+)
+
 // mcpCall serves the owner server against url and calls one tool; it returns the text and the tool-error flag.
 func mcpCall(t *testing.T, url, tool string, args map[string]any) (string, bool) {
 	t.Helper()
@@ -64,7 +69,7 @@ func TestOwnerMCP(t *testing.T) {
 		})
 		t.Run(tc.name+"/mcp", func(t *testing.T) {
 			_, del, url := startOwnerDaemon(t)
-			text, isErr := mcpCall(t, url, ownermcp.ToolAnswer, map[string]any{"task": "a1", "answer": tc.answer})
+			text, isErr := mcpCall(t, url, ownermcp.ToolAnswer, map[string]any{argTask: "a1", argAnswer: tc.answer})
 			if isErr != tc.wantFail || !strings.Contains(text, tc.want) || len(del.got) != tc.sent {
 				t.Errorf("isError %v, text %q, sent %d; want fail=%v with %q, sent %d", isErr, text, len(del.got), tc.wantFail, tc.want, tc.sent)
 			}
@@ -73,7 +78,7 @@ func TestOwnerMCP(t *testing.T) {
 	t.Run("OA-3_failed_delivery_is_a_tool_error", func(t *testing.T) {
 		_, del, url := startOwnerDaemon(t)
 		del.err = errPaneGone
-		if text, isErr := mcpCall(t, url, ownermcp.ToolAnswer, map[string]any{"task": "a1", "answer": "1"}); !isErr {
+		if text, isErr := mcpCall(t, url, ownermcp.ToolAnswer, map[string]any{argTask: "a1", argAnswer: "1"}); !isErr {
 			t.Errorf("text %q, want a tool error", text)
 		}
 	})
@@ -97,7 +102,7 @@ func TestOwnerMCP(t *testing.T) {
 	})
 	t.Run("go_on_a_task_that_is_not_ready_is_a_tool_error", func(t *testing.T) {
 		_, _, url := startOwnerDaemon(t)
-		if text, isErr := mcpCall(t, url, ownermcp.ToolGo, map[string]any{"task": "a1"}); !isErr {
+		if text, isErr := mcpCall(t, url, ownermcp.ToolGo, map[string]any{argTask: "a1"}); !isErr {
 			t.Errorf("text %q, want a tool error", text)
 		}
 	})
