@@ -60,20 +60,25 @@ func TestOwnerQuestionValidate(t *testing.T) {
 		}
 		return out
 	}
+	const tk = model.QuestionTranscript
 	tests := []struct {
 		name string
 		in   model.OwnerQuestion
 		ok   bool
 	}{
-		{"valid", model.OwnerQuestion{Question: "Which DB?", Options: opts("sqlite", "pg"), Recommended: 0}, true},
-		{"four_options", model.OwnerQuestion{Question: "Q?", Options: opts("a", "b", "c", "d"), Recommended: 3}, true},
-		{"no_question", model.OwnerQuestion{Options: opts("a", "b")}, false},
-		{"one_option", model.OwnerQuestion{Question: "Q?", Options: opts("a")}, false},
-		{"five_options", model.OwnerQuestion{Question: "Q?", Options: opts("a", "b", "c", "d", "e")}, false},
-		{"empty_label", model.OwnerQuestion{Question: "Q?", Options: opts("a", " ")}, false},
-		{"duplicate_label", model.OwnerQuestion{Question: "Q?", Options: opts("a", "a")}, false},
-		{"recommendation_out_of_range", model.OwnerQuestion{Question: "Q?", Options: opts("a", "b"), Recommended: 2}, false},
-		{"negative_recommendation", model.OwnerQuestion{Question: "Q?", Options: opts("a", "b"), Recommended: -1}, false},
+		{"valid", model.OwnerQuestion{Kind: tk, Question: "Which DB?", Options: opts("sqlite", "pg"), Recommended: 0}, true},
+		{"four_options", model.OwnerQuestion{Kind: tk, Question: "Q?", Options: opts("a", "b", "c", "d"), Recommended: 3}, true},
+		{"no_question", model.OwnerQuestion{Kind: tk, Options: opts("a", "b")}, false},
+		{"one_option", model.OwnerQuestion{Kind: tk, Question: "Q?", Options: opts("a")}, false},
+		{"five_options", model.OwnerQuestion{Kind: tk, Question: "Q?", Options: opts("a", "b", "c", "d", "e")}, false},
+		{"empty_label", model.OwnerQuestion{Kind: tk, Question: "Q?", Options: opts("a", " ")}, false},
+		{"duplicate_label", model.OwnerQuestion{Kind: tk, Question: "Q?", Options: opts("a", "a")}, false},
+		{"recommendation_out_of_range", model.OwnerQuestion{Kind: tk, Question: "Q?", Options: opts("a", "b"), Recommended: 2}, false},
+		{"dialog", model.OwnerQuestion{Kind: model.QuestionDialog, Question: "Q?", Options: opts("a", "b")}, true},
+		{"dialog_with_text", model.OwnerQuestion{Kind: model.QuestionDialog, AllowText: true, Question: "Q?",
+			Options: opts("a", "b")}, false},
+		{"no_kind", model.OwnerQuestion{Question: "Q?", Options: opts("a", "b")}, false},
+		{"negative_recommendation", model.OwnerQuestion{Kind: tk, Question: "Q?", Options: opts("a", "b"), Recommended: -1}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

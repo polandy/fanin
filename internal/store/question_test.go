@@ -34,7 +34,7 @@ func TestOwnerQuestions(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := question("t1")
-	want.ID, want.Project, want.AskedAt = id, project, t0
+	want.ID, want.Project, want.Kind, want.AskedAt = id, project, model.QuestionTranscript, t0
 	if d := cmp.Diff([]model.OwnerQuestion{want}, open); d != "" {
 		t.Errorf("open questions (-want +got):\n%s", d)
 	}
@@ -107,5 +107,106 @@ func TestOwnerQuestionFailures(t *testing.T) {
 	}
 	if _, err := s.Question(ctx, "q1"); !errors.Is(err, ErrCorrupt) {
 		t.Errorf("Question on a corrupt row: %v, want ErrCorrupt", err)
+	}
+}
+
+func TestOpenTaskQuestion(t *testing.T) {
+	s, clk := newStore(t)
+	ctx := context.Background()
+	createTasks(t, s, "t1", "t2")
+	if _, err := s.OpenTaskQuestion(ctx, "t1"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("OpenTaskQuestion without a question = %v, want ErrNotFound", err)
+	}
+	dialog := question("t1")
+	dialog.Kind = model.QuestionDialog
+	var first, second string
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		var err error
+		first, err = tx.AskQuestion(ctx, question("t1"))
+		return err
+	})
+	clk.Advance(time.Second)
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		var err error
+		second, err = tx.AskQuestion(ctx, dialog)
+		return err
+	})
+	got, err := s.OpenTaskQuestion(ctx, "t1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != second || got.Kind != model.QuestionDialog || got.AllowText {
+		t.Errorf("OpenTaskQuestion = %q %s text=%v, want the newest %q dialog without text", got.ID, got.Kind,
+			got.AllowText, second)
+	}
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error { return tx.AnswerQuestion(ctx, second, "now") })
+	if got, err := s.OpenTaskQuestion(ctx, "t1"); err != nil || got.ID != first {
+		t.Errorf("OpenTaskQuestion after the answer = %q %v, want %q", got.ID, err, first)
+	}
+	if _, err := s.OpenTaskQuestion(ctx, "t2"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("OpenTaskQuestion of another task = %v, want ErrNotFound", err)
+	}
+}
+
+func TestQuestionAllowText(t *testing.T) {
+	s, _ := newStore(t)
+	createTasks(t, s, "t1")
+	q := question("t1")
+	q.AllowText = true
+	var id string
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		var err error
+		id, err = tx.AskQuestion(ctx, q)
+		return err
+	})
+	got, err := s.Question(context.Background(), id)
+	if err != nil || !got.AllowText {
+		t.Errorf("Question = %+v %v, want AllowText", got, err)
+	}
+	bad := question("t1")
+	bad.Kind, bad.AllowText = model.QuestionDialog, true
+	err = s.Transition(context.Background(), func(ctx context.Context, tx *Tx) error {
+		_, err := tx.AskQuestion(ctx, bad)
+		return err
+	})
+	if !errors.Is(err, model.ErrInvalidQuestion) {
+		t.Errorf("AskQuestion of a dialog with free text = %v, want ErrInvalidQuestion", err)
+	}
+}
+
+// OA-2: the answer is logged as "owner answer for <run>: <answer>".
+func TestAnswerQuestionEvent(t *testing.T) {
+	s, _ := newStore(t)
+	createTasks(t, s, "t1")
+	noRun := question("t1")
+	noRun.RunID = ""
+	var withRun, taskOnly string
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		var err error
+		if withRun, err = tx.AskQuestion(ctx, question("t1")); err != nil {
+			return err
+		}
+		taskOnly, err = tx.AskQuestion(ctx, noRun)
+		return err
+	})
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		if err := tx.AnswerQuestion(ctx, withRun, "now"); err != nil {
+			return err
+		}
+		return tx.AnswerQuestion(ctx, taskOnly, "later")
+	})
+	evs, err := s.Events(context.Background(), "t1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, e := range evs {
+		if e.Type == model.EventQuestionAnswered {
+			got = append(got, e.Detail)
+		}
+	}
+	want := []string{"owner answer for r1: now", "owner answer for t1: later"}
+	if d := cmp.Diff(want, got); d != "" {
+		t.Errorf("answer events (-want +got):\n%s", d)
 	}
 }
