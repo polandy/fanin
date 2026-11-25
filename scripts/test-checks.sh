@@ -62,6 +62,7 @@ expect fail "scenarios report fails on an unknown ID" scripts/check-scenarios.sh
 expect fail "scenarios strict fails on an unknown ID" scripts/check-scenarios.sh --strict $sc/scenarios.md $sc/unknown
 expect error "scenarios without a mode is a usage error" scripts/check-scenarios.sh $sc/scenarios.md
 expect pass "scenarios report passes on the repo tree" scripts/check-scenarios.sh --report
+expect error "scenarios rejects a missing directory" scripts/check-scenarios.sh --report $sc/scenarios.md $sc/nope
 equals() { # equals <name> <want> <got>
   if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: wanted '$2', got '$3'" >&2; failures=$((failures + 1)); fi
 }

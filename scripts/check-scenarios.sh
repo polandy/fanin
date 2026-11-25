@@ -5,6 +5,7 @@
 # --report lists missing IDs per section and exits 0; --strict exits 1 when any ID is missing.
 # An ID cited in a test that the scenarios file does not define fails in both modes.
 set -euo pipefail
+export LC_ALL=C
 
 mode=${1:-}
 case $mode in
@@ -12,8 +13,11 @@ case $mode in
   *) echo "usage: $0 --report|--strict [scenarios.md [dir...]]" >&2; exit 2 ;;
 esac
 scenarios=${1:-docs/dev/scenarios.md}
-[ $# -gt 0 ] && shift
-[ $# -gt 0 ] || set -- cmd internal pkg
+if [ $# -gt 0 ]; then shift; fi
+if [ $# -eq 0 ]; then
+  for d in cmd internal pkg; do [ -d "$d" ] && set -- "$@" "$d"; done
+fi
+for d in "$@"; do [ -d "$d" ] || { echo "check-scenarios: $d is not a directory; pass the Go source dirs to scan" >&2; exit 2; }; done
 [ -r "$scenarios" ] || { echo "check-scenarios: cannot read $scenarios; pass the scenarios file as argument 2" >&2; exit 2; }
 
 id='[A-Z]+-[0-9]+'
