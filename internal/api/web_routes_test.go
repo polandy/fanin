@@ -26,9 +26,18 @@ func TestWebUIIsServed(t *testing.T) {
 			t.Errorf("GET %s: empty body", path)
 		}
 	}
-	if resp := e.do(t, http.MethodGet, "/", "", nil); resp.StatusCode != http.StatusFound ||
-		resp.Header.Get("Location") != "/ui/" {
-		t.Errorf("GET / = %d %q, want a redirect to /ui/", resp.StatusCode, resp.Header.Get("Location"))
+	noFollow := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, e.srv.URL+"/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := noFollow.Do(req)
+	if err != nil {
+		t.Fatalf("GET /: %v", err)
+	}
+	_ = root.Body.Close()
+	if root.StatusCode != http.StatusFound || root.Header.Get("Location") != "/ui/" {
+		t.Errorf("GET / = %d %q, want a redirect to /ui/", root.StatusCode, root.Header.Get("Location"))
 	}
 	if resp := e.do(t, http.MethodGet, "/ui/nope.js", "", nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("GET /ui/nope.js = %d, want 404", resp.StatusCode)
@@ -80,7 +89,10 @@ func TestUIAnswerEqualsCLIAnswer(t *testing.T) {
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("answer event, UI vs CLI (-cli +ui):\n%s", diff)
 	}
-	if len(ui.del.got) != 1 || len(cli.del.got) != 1 || ui.del.got[0] != cli.del.got[0] {
-		t.Errorf("delivery UI %v vs CLI %v, want the same one delivery", ui.del.got, cli.del.got)
+	if len(cli.del.got) != 1 {
+		t.Fatalf("CLI delivered %d answers, want 1", len(cli.del.got))
+	}
+	if diff := cmp.Diff(cli.del.got, ui.del.got); diff != "" {
+		t.Errorf("delivery, UI vs CLI (-cli +ui):\n%s", diff)
 	}
 }

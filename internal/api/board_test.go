@@ -111,7 +111,7 @@ func TestSnapshot(t *testing.T) {
 			t.Fatalf("board has %d projects, want one per project %v", len(snap.Board), snap.Projects)
 		}
 		sections := map[string]func(wire.BoardProject) any{
-			"done":      func(b wire.BoardProject) any { return b.Done },
+			"completed": func(b wire.BoardProject) any { return b.Done },
 			"next":      func(b wire.BoardProject) any { return b.Next },
 			"waiting":   func(b wire.BoardProject) any { return b.Waiting },
 			"holds":     func(b wire.BoardProject) any { return b.Holds },
@@ -168,16 +168,16 @@ func TestSnapshot(t *testing.T) {
 			{Name: "nuc", Warning: "herdr unreachable: ssh timed out"},
 			{Name: "box", Workers: []wire.Worker{
 				{Agent: "o1", Project: projAlpha, Kind: wire.WorkerOwner, Status: "idle"},
-				{Agent: "w2", Project: projAlpha, Kind: wire.WorkerManaged, Status: "working"},
-				{Agent: "w1", Project: projAlpha, Kind: wire.WorkerManaged, Status: "blocked", WaitingOwner: true},
+				{Agent: "w2", Project: projAlpha, Kind: wire.WorkerManaged, Status: string(model.RunWorking)},
+				{Agent: "w1", Project: projAlpha, Kind: wire.WorkerManaged, Status: string(model.RunStalled), WaitingOwner: true},
 			}},
 		}}
 		got := snapshot(t, newFleetEnv(t, fleet)).Hosts
 		want := []wire.Host{
 			{Name: "nuc", Warning: "herdr unreachable: ssh timed out", Workers: []wire.Worker{}},
 			{Name: "box", Workers: []wire.Worker{
-				{Agent: "w1", Project: projAlpha, Kind: wire.WorkerManaged, Status: "blocked", WaitingOwner: true},
-				{Agent: "w2", Project: projAlpha, Kind: wire.WorkerManaged, Status: "working"},
+				{Agent: "w1", Project: projAlpha, Kind: wire.WorkerManaged, Status: string(model.RunStalled), WaitingOwner: true},
+				{Agent: "w2", Project: projAlpha, Kind: wire.WorkerManaged, Status: string(model.RunWorking)},
 				{Agent: "o1", Project: projAlpha, Kind: wire.WorkerOwner, Status: "idle"},
 			}},
 		}
