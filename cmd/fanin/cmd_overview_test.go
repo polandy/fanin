@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/polandy/fanin/internal/api/wire"
+	"github.com/polandy/fanin/internal/model"
 )
 
 var overviewT0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
@@ -23,9 +24,9 @@ func overviewSnapshot() wire.Snapshot {
 	task := func(id, title, state string) wire.BoardTask {
 		return wire.BoardTask{ID: id, Title: title, State: state, Shape: "pr", UpdatedAt: overviewT0}
 	}
-	blocked := task("a7", "after the next", "queued")
+	blocked := task("a7", "after the next", string(model.TaskQueued))
 	blocked.Blocked = true
-	asking := task("a8", "pick a model", "needs_owner")
+	asking := task("a8", "pick a model", string(model.TaskNeedsOwner))
 	asking.QuestionID = "q1"
 	return wire.Snapshot{
 		Projects: []string{"alpha", "gamma"},
@@ -33,16 +34,16 @@ func overviewSnapshot() wire.Snapshot {
 			{
 				Project: "alpha",
 				Done: wire.BoardDone{Count: 5, Newest: []wire.BoardTask{
-					task("a5", "fifth", "done"), task("a4", "fourth", "done"), task("a3", "third", "done"),
-					task("a2", "second", "done"),
+					task("a5", "fifth", string(model.TaskDone)), task("a4", "fourth", string(model.TaskDone)), task("a3", "third", string(model.TaskDone)),
+					task("a2", "second", string(model.TaskDone)),
 				}},
-				Next:    []wire.BoardTask{task("a6", "the next one", "queued"), blocked},
-				Waiting: []wire.BoardTask{asking, task("a9", "paused for a while", "paused")},
+				Next:    []wire.BoardTask{task("a6", "the next one", string(model.TaskQueued)), blocked},
+				Waiting: []wire.BoardTask{asking, task("a9", "paused for a while", string(model.TaskPaused))},
 				Holds: []wire.Hold{
 					{ID: "h1", Project: "alpha", Kind: "ci", Reason: "main is red", FixTask: "a10"},
 					{ID: "h2", Project: "alpha", Kind: "merge", Reason: "hook failed"},
 				},
-				Decisions: []wire.BoardTask{task("a11", "choose the store layout", "queued")},
+				Decisions: []wire.BoardTask{task("a11", "choose the store layout", string(model.TaskQueued))},
 			},
 			{Project: "gamma"},
 		},

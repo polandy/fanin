@@ -9,6 +9,7 @@ import (
 	"github.com/polandy/fanin/internal/api/client"
 	"github.com/polandy/fanin/internal/api/wire"
 	"github.com/polandy/fanin/internal/cli"
+	"github.com/polandy/fanin/internal/model"
 )
 
 // Layout of the overview (see SCENARIOS ST-2).
@@ -84,7 +85,7 @@ func taskLines(tasks []wire.BoardTask) []string {
 		if t.Blocked {
 			notes = append(notes, "blocked")
 		}
-		if t.State != "" && t.State != "done" && t.State != "queued" {
+		if t.State != "" && t.State != string(model.TaskDone) && t.State != string(model.TaskQueued) {
 			notes = append(notes, t.State)
 		}
 		if t.QuestionID != "" {
