@@ -225,16 +225,12 @@ func (r *mergeRig) ready(id model.TaskID, pr int) model.Run {
 	return run
 }
 
-// readyOwnerPR moves the running owner PR task id to gating with pr reported, as a gated PR task.
-func (r *mergeRig) readyOwnerPR(id model.TaskID, pr int) model.Run {
+// reportOwnerPR reports pr for the running owner PR task id; its green gate merges it without a go.
+func (r *mergeRig) reportOwnerPR(id model.TaskID, pr int) model.Run {
 	r.t.Helper()
 	r.until(r.runIn(RunID(id, 1), model.RunWorking))
 	run := r.run(RunID(id, 1))
 	r.report(run, model.Result{Kind: model.ResultDonePR, PR: pr})
-	r.until(r.runIn(run.ID, model.RunReported))
-	r.tx(func(ctx context.Context, tx *store.Tx) error {
-		return tx.SetTaskState(ctx, id, model.TaskGating, GatingDetail+"#"+strconv.Itoa(pr))
-	})
 	return run
 }
 
@@ -631,8 +627,7 @@ func TestMergeCIHold(t *testing.T) {
 		r.rt.mu.Unlock()
 		r.ready("a1", prNumber)
 		h := redHold(t, r)
-		r.readyOwnerPR(h.FixTask, prThird)
-		r.goMerge(h.FixTask)
+		r.reportOwnerPR(h.FixTask, prThird)
 		r.until(r.taskIn(h.FixTask, model.TaskDone))
 		got := r.lastDetail(h.FixTask)
 		want := MergedDetail + "#44" + liftNote + h.ID + " lifted, nudged " + w1.Worker.Agent + "; " +
@@ -662,8 +657,7 @@ func TestMergeCIHold(t *testing.T) {
 			t.Fatal(err)
 		}
 		r.until(r.taskIn("a1", model.TaskDone))
-		r.readyOwnerPR(h.FixTask, prThird)
-		r.goMerge(h.FixTask)
+		r.reportOwnerPR(h.FixTask, prThird)
 		r.until(r.taskIn(h.FixTask, model.TaskDone))
 		if got := r.lastDetail(h.FixTask); got != MergedDetail+"#44" {
 			t.Errorf("fix detail = %q, want %q", got, MergedDetail+"#44")
