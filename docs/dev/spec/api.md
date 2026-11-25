@@ -8,7 +8,7 @@ client for the CLI). Direction: [concept](../concept.md), owner UI. Rules: [guid
 - `net/http` with the Go 1.22 mux patterns (`"GET /api/v1/health"`); no framework. Paths start with `/api/v1/`.
 - Bodies are JSON. Every non-2xx answer is `{"error": {"code": "<code>", "message": "<what, and the fix>"}}` with
   one of the codes in `wire`: `not_found`, `unauthorized`, `forbidden`, `bad_request`, `too_large`, `conflict`, `delivery_failed`,
-  `internal`.
+  `busy`, `internal`.
   An unknown path is a JSON 404 too.
 - An unreadable store is a 500 `internal`, never an empty answer.
 
@@ -25,6 +25,9 @@ client for the CLI). Direction: [concept](../concept.md), owner UI. Rules: [guid
 - A route with `Auth: api.AuthRun` takes a worker's run token instead: the middleware only requires a non-empty
   bearer, and the handler checks it against the run inside the store transaction (see
   [worker contract](worker-contract.md)). The webhook-header 403 and the body cap apply as above.
+- A route with `Auth: api.AuthWebhook` (only `POST /api/v1/webhooks/{name}`) takes no token and skips the
+  webhook-header 403: the handler checks the delivery's signature instead ([intake](intake.md#webhooks)). The body
+  cap applies.
 - GET endpoints need no token: the API is meant for a loopback or tailnet listener.
 
 ## Route registry
@@ -51,6 +54,7 @@ none of the existing ones.
 | `POST /api/v1/holds/{id}/lift` | `wire.Ack`; 404 for no active hold |
 | `POST /api/v1/projects/{p}/pause`, `/resume` | `wire.Ack`; 404 for a project outside the config |
 | `POST /api/v1/runs/{id}/report`, `/progress` | run token; `wire.Ack`, see [worker contract](worker-contract.md) |
+| `POST /api/v1/webhooks/{name}` | signature, no token; `wire.WebhookResult` `{outcome, task}`: 201 `queued`, 200 `duplicate` or `ignored`, 202 `deploying`. 401 bad signature (nothing queued), 404 unknown webhook, 400 unreadable payload, 503 `busy` release queue, 413 too large |
 
 The owner routes answer 500 when the server has no `Config.Owner`, `POST /api/v1/tasks` when it has no
 `Config.Intake`, the run routes when it has no `Config.Reports`.
@@ -78,4 +82,6 @@ body, out)` for the typed calls other strands add. Owner calls: `Answer`, `Go`, 
 `internal/api/api_test.go` (httptest, real SQLite): POST without a token 401 and with it 200; a webhook-shaped call
 refused; a route registered from its own function; the snapshot golden file (`go test ./internal/api -update`);
 SSE after a store write, waiting on a channel; resume by cursor; keep-alive from the manual clock. `owner_routes_test.go`: every owner route through the client with a fake
-`Deliverer`, its failure codes, and `wait` with a cursor, a cancel and a bad parameter.
+`Deliverer`, its failure codes, and `wait` with a cursor, a cancel and a bad parameter. `webhook_routes_test.go`:
+a bad signature 401 with nothing queued, no token needed, a signed call on a command endpoint refused, and each
+outcome's and error's status.

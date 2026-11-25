@@ -11,7 +11,7 @@ config/
   hosts.yaml          # remote worker hosts
   forges.yaml         # GitHub and Gitea forges
   worker-kinds.yaml   # claude, opencode, headless: models and the picker
-  triggers.yaml       # reserved; leave it empty or out
+  triggers.yaml       # webhooks, cron entries and release deploys
   projects/
     alpha.yaml        # one file per project; the file name is the project name
 ```
@@ -135,10 +135,43 @@ A duration is a Go duration string with a non-zero leading number (`90s`, `15m`,
 
 A project value overrides `defaults` in `fanin.yaml`, which overrides the built-in default.
 
+## triggers.yaml
+
+Sources that queue tasks besides `fanin task add`. All keys are optional.
+
+```yaml
+webhooks:
+  issues:                       # served at POST /api/v1/webhooks/issues
+    kind: forge                 # forge | alert | release
+    project: alpha
+    secret_env: FANIN_HOOK_ISSUES
+    label: fanin                # forge only: issues with this label become tasks
+cron:
+  dependencies:
+    project: alpha
+    every: 168h                 # first due one interval after fanind first arms it
+    task: Update the Go dependencies and fix what breaks.   # or analyze: <question>
+release:
+  project: alpha                # the config repo whose compose module is bumped
+  compose_glob: modules/*/docker-compose.yml   # default
+  registry: ghcr.io             # default
+  model: sonnet                 # default; must be a model of the project's worker kind
+```
+
+- `forge`: point a GitHub or Gitea repository webhook (issue events, JSON) at the URL with the secret. Only people
+  who may set the label can start work.
+- `alert`: the sender must sign the JSON body with HMAC-SHA256 in `X-Hub-Signature-256: sha256=<hex>`. A firing
+  alert queues an analysis; a repeat of the same firing queues nothing more.
+- `release`: a GitHub release webhook of the released project. `fanind` waits for the image build, reads its
+  digest and queues one task on `release.project` that bumps the image in the one compose module that runs it.
+  It needs `git`, `gh` and `docker buildx` on the control host, and both projects on host `local`.
+
+`webhooks.<name>.model` and `cron.<name>.model` are optional and must be models of the project's worker kind.
+
 ## Secrets
 
-The files name secrets, never hold them: `owner_token_env` and `token_env` are upper-case variable names.
-`fanind` refuses to start while the owner token variable is empty.
+The files name secrets, never hold them: `owner_token_env`, `token_env` and `secret_env` are upper-case variable
+names. `fanind` refuses to start while the owner token variable or a webhook's secret variable is empty.
 
 Under systemd the variables come from the unit's `EnvironmentFile` (`/etc/fanin/fanind.env`, mode 0600), see
 [Install](install.md#secrets). `fanind` reads nothing else from the environment but `FANIN_CONFIG` as the

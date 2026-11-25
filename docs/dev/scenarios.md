@@ -905,28 +905,28 @@ Webhooks, cron and the release webhook queue the same `intake.TaskRequest` as th
 **IN-1**
 - A delivery to `POST /api/v1/webhooks/<name>` without the HMAC-SHA256 signature of its secret, or with a wrong
   one, is 401 and queues nothing. An unknown name is 404. The route needs no owner token, and a webhook delivery
-  to a command endpoint is refused.
-- Source: —. Test: —. Mark: CHANGES (C-LOOP).
+  to a command endpoint is refused. An unset secret stops the start.
+- Source: —. Test: `internal/api/webhook_routes_test.go`, `internal/intake/webhook_test.go`, `cmd/fanind/intake_test.go`. Mark: CHANGES (C-LOOP).
 
 **IN-2**
 - Forge webhook: an issue that carries the configured label queues one owner task `<project>-issue-<n>`; a
   redelivery queues nothing more. Other events and issues without the label are ignored.
-- Source: —. Test: —. Mark: CHANGES (C-LOOP).
+- Source: —. Test: `internal/intake/webhook_test.go`, `cmd/fanind/intake_test.go`. Mark: CHANGES (C-LOOP).
 
 **IN-3**
 - Alert webhook: a firing Alertmanager group queues one analysis; a repeat of the same group and start queues
   nothing more; a resolved group is ignored.
-- Source: —. Test: —. Mark: CHANGES (C-LOOP).
+- Source: —. Test: `internal/intake/webhook_test.go`. Mark: CHANGES (C-LOOP).
 
 **IN-4**
 - Cron: each entry is a `timers` row; every due queues its task exactly once, also across a restart, and arms
   the next due.
-- Source: —. Test: —. Mark: CHANGES (C-LOCK).
+- Source: —. Test: `internal/intake/cron_test.go`. Mark: CHANGES (C-LOCK).
 
 **IN-5**
 - Release webhook: a published GitHub release starts DR-1 for the webhook's project; any other event or action is
   ignored.
-- Source: `deploy-release.sh`. Test: —. Mark: CHANGES (C-LOOP).
+- Source: `deploy-release.sh`. Test: `internal/intake/webhook_test.go`. Mark: CHANGES (C-LOOP).
 
 ## Coverage gaps today
 

@@ -11,8 +11,8 @@ fanind --config /path/to/config
 ```
 
 `fanind` opens (or creates) the store, serves the API on `listen` and logs `fanind: serving` with the address.
-It exits with 1 and a message naming the fix when the config is missing or invalid, the token variable is empty,
-or the address is taken.
+It exits with 1 and a message naming the fix when the config is missing or invalid, the token variable or a
+webhook secret variable is empty, or the address is taken.
 
 SIGINT or SIGTERM stops it: open requests end, the store is closed and the exit code is 0. A stop changes no task.
 
@@ -26,6 +26,17 @@ With `--shadow`, `fanind` reads the bash orchestrator's state directory (`<proje
 every 30 s and mirrors it into the store, so `fanin status` shows the bash state. It never writes to that
 directory. An unreadable directory or file stops the start with exit 1 and a message naming it; later failures are
 logged at `ERROR` and the next import tries again. Imported task IDs start with `shadow-`.
+
+### Webhooks, cron and releases
+
+With a `triggers.yaml` ([Configuration](configuration.md#triggersyaml)), `fanind` also serves
+`POST /api/v1/webhooks/<name>` and runs the cron entries and release deploys. A webhook needs no owner token but a
+valid signature; a wrong one gets 401 and queues nothing. To reach it from a forge, expose only that path (for
+example through a reverse proxy at `https://hooks.example.com`), never the rest of the API.
+
+Cron and release tasks are logged as `intake: cron task queued` and `intake: release bump queued`; a failed
+release deploy is logged at `ERROR` with the reason and queues nothing. A release still waiting in the queue when
+`fanind` stops is dropped; redeliver it from the forge's webhook page.
 
 ## fanin status
 

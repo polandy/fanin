@@ -1,7 +1,8 @@
 # Config
 
 Status: implemented in `internal/config`, schemas in `config/schema/`, example tree in `config/examples/`.
-Direction: [concept](../concept.md) (Configuration, C-CONFIG). Scenarios: ST-4, PK-5, LN-2, GH-7, GT-4, GT-10.
+Direction: [concept](../concept.md) (Configuration, C-CONFIG). Scenarios: ST-4, PK-5, LN-2, GH-7, GT-4, GT-10,
+IN-1 to IN-5, DR-1.
 
 ## The directory
 
@@ -13,7 +14,7 @@ Direction: [concept](../concept.md) (Configuration, C-CONFIG). Scenarios: ST-4, 
 | `hosts.yaml` | `hosts.schema.json` | no | remote worker hosts |
 | `forges.yaml` | `forges.schema.json` | no | forges and their token names |
 | `worker-kinds.yaml` | `worker-kinds.schema.json` | no | worker kinds, their models and the picker |
-| `triggers.yaml` | `triggers.schema.json` | no | nothing yet: only an empty mapping validates |
+| `triggers.yaml` | `triggers.schema.json` | no | webhooks, cron entries and the release target ([intake](intake.md)) |
 | `projects/<name>.yaml` | `project.schema.json` | no | one project; the file name is the project name |
 
 A project file must end in `.yaml`; a `.yml` one is an error. A missing optional file counts as empty, but every reference must resolve: a project names a forge, so
@@ -28,11 +29,13 @@ Projects are listed (and `fanin status` shows them) in file-name order.
 3. It is decoded with `KnownFields(true)`.
 4. Each project is merged: schema defaults, then `defaults` of `fanin.yaml`, then the project file. Maps merge
    key by key; any other value replaces. The schema is the only place a default value lives.
-5. References are checked: host, forge, worker kind, fallback kind and models.
+5. References are checked: host, forge, worker kind, fallback kind and models; in `triggers.yaml` the projects,
+   the models of their worker kinds and the release section.
 
 Errors: `config.ErrRead` for an unreadable directory or `fanin.yaml`; `config.ErrInvalid` for everything else.
 The message names the file, the JSON pointer, the rule (a schema keyword path or one of `file-known`,
-`host-known`, `forge-known`, `kind-known`, `model-known`, `retired-key`) and the fix. A value that breaks the
+`host-known`, `forge-known`, `kind-known`, `model-known`, `project-known`, `release-known`, `retired-key`) and
+the fix. A value that breaks the
 secret-name rule is not repeated, since it may be a pasted token.
 
 ## fanin.yaml
@@ -121,6 +124,27 @@ Settings, in a project file or under `defaults`:
 | `gate.gitea.max_polls` | integer ≥ 1 | `40` | polls of running checks before RED |
 
 A duration is a Go duration string with a non-zero leading number (`90s`, `15m`, `1h30m`).
+
+## triggers.yaml
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `webhooks.<name>.kind` | `forge` \| `alert` \| `release` | required | served at `POST /api/v1/webhooks/<name>` |
+| `webhooks.<name>.project` | project | required | the task's project; for `release` the released project |
+| `webhooks.<name>.secret_env` | variable name | required | holds the HMAC secret; unset refuses the start |
+| `webhooks.<name>.label` | string | none | required for `forge`, refused otherwise |
+| `webhooks.<name>.model` | string | none | one of the project's kind's `models` |
+| `cron.<name>.project` | project | required | |
+| `cron.<name>.every` | duration | required | the first run is due one interval after the entry is first armed |
+| `cron.<name>.task`, `.analyze` | string | one required | owner task or owner question |
+| `cron.<name>.model` | string | none | as above |
+| `release.project` | project | required with `release` | the config repo; its `base` is read |
+| `release.compose_glob` | git pathspec | `modules/*/docker-compose.yml` | where the compose modules live |
+| `release.registry` | string | `ghcr.io` | the image is `<registry>/<owner>/<repo>` |
+| `release.model` | string | `sonnet` | model of the bump task; must be a model of the target's kind |
+
+A `release` webhook needs the `release` section (`release-known`). Every named project must exist
+(`project-known`) and every model, defaults included, must be one of its kind's `models` (`model-known`).
 
 ## Retired keys
 
