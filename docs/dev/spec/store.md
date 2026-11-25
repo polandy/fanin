@@ -59,6 +59,14 @@ nil and rolls back every row and event otherwise. Each `Tx` write appends its ev
 
 `ArmTimer` and `DisarmTimer` write no event; they ride in the transaction of the state change they belong to.
 
+## Feed for the API
+
+- `Changed()` returns a channel that closes after the next committed `Transition`; take it before reading, then wait
+  on it. A rolled-back transaction does not close it.
+- `EventsAfter(ctx, seq, limit)` reads events above `seq` in append order; `LastEventSeq` is the newest `seq`
+  (0 when empty); `AllHolds` lists the active holds of every project. The SSE stream and the snapshot build on
+  them ([api](api.md)).
+
 ## Project lock (C-LOCK)
 
 One row per project in `project_locks`, with a holder (a task or run ID) and a lease.

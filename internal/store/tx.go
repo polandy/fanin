@@ -22,9 +22,28 @@ func (t *Tx) Now() time.Time { return t.now }
 // Transition runs fn in one transaction. It commits when fn returns nil and rolls back every row and event
 // otherwise. fn reads and writes only through tx: a Store method called inside fn blocks on the one connection.
 func (s *Store) Transition(ctx context.Context, fn func(ctx context.Context, tx *Tx) error) error {
-	return s.inTx(ctx, func(tx *sql.Tx) error {
+	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		return fn(ctx, &Tx{tx: tx, now: s.clock.Now()})
 	})
+	if err == nil {
+		s.signalChanged()
+	}
+	return err
+}
+
+// Changed returns a channel that is closed after the next committed Transition. Take it before reading, then
+// wait on it, so a commit in between is never missed.
+func (s *Store) Changed() <-chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.changed
+}
+
+func (s *Store) signalChanged() {
+	s.mu.Lock()
+	close(s.changed)
+	s.changed = make(chan struct{})
+	s.mu.Unlock()
 }
 
 // AppendEvent appends ev, stamped with the transaction time when At is zero, and returns its sequence number.
