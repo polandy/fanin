@@ -21,7 +21,7 @@ for pkg in "$@"; do
     }
     END { print total + 0, covered + 0 }' "$profile")
   if [ "$total" -eq 0 ]; then
-    if find "$pkg" -name '*.go' -not -name '*_test.go' 2>/dev/null | grep -q .; then
+    if [ -n "$(find "$pkg" -name '*.go' -not -name '*_test.go' 2>/dev/null)" ]; then
       echo "check-coverage: $pkg has code but no statements in $profile; add tests" >&2
       fail=1
     else
