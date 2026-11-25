@@ -79,6 +79,13 @@ type Deps struct {
 	Gates PRGates
 	// Waiting, when set, is called each time the loop is about to block.
 	Waiting func()
+	// Merger merges a gating task's PR on the owner's go; nil merges nothing.
+	Merger Merger
+	// Hook runs the post-merge hook in StateDir; both are needed with a Merger.
+	Hook     PostMerge
+	StateDir string
+	// BaseCI reads the base branch's checks before a merge; nil skips the CI hold rule (SCENARIOS MG-8).
+	BaseCI BaseCI
 }
 
 // Scheduler is the reactor of store events, runtime events and due timers. Only Run's goroutine touches it.
@@ -95,7 +102,12 @@ type Scheduler struct {
 	// gates is the gate episode of each gating analysis task; busy marks a turn in flight.
 	gates map[model.TaskID]gate.State
 	busy  map[model.TaskID]turnState
-	done  chan func(context.Context)
+	// merging marks a merge in flight, held a merge a hold paused and goAgain a standing go that the next green
+	// gate merges on.
+	merging map[model.TaskID]bool
+	held    map[model.TaskID]mergeJob
+	goAgain map[model.TaskID]bool
+	done    chan func(context.Context)
 	// applied counts the runtime events and stream ends the loop handled.
 	applied atomic.Int64
 }
@@ -109,7 +121,11 @@ type reservation struct {
 func New(d Deps) (*Scheduler, error) {
 	s := &Scheduler{d: d, watched: map[model.RunID]*watch{}, picking: map[model.TaskID]reservation{},
 		stopped: map[string]bool{}, done: make(chan func(context.Context)),
-		gates: map[model.TaskID]gate.State{}, busy: map[model.TaskID]turnState{}}
+		gates: map[model.TaskID]gate.State{}, busy: map[model.TaskID]turnState{}, merging: map[model.TaskID]bool{},
+		held: map[model.TaskID]mergeJob{}, goAgain: map[model.TaskID]bool{}}
+	if err := checkMergeDeps(d); err != nil {
+		return nil, err
+	}
 	if s.d.Notify == nil {
 		s.d.Notify = notify.NewLog(d.Log)
 	}

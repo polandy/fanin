@@ -110,6 +110,8 @@ Settings, in a project file or under `defaults`:
 | `budgets.rollover_pct` | 1–100 | `75` | context use that rolls over to a fresh run |
 | `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | |
 | `budgets.max_runs_per_task` | integer ≥ 1 | `3` | |
+| `merge.lock_wait` | duration | `1h` | a merge waits this long for the project lock, then goes to the owner (MG-2) |
+| `merge.lock_lease` | duration | `10m` | lease of the merge lock, renewed while held; a dead holder frees it after this (MG-3) |
 | `gate.github.watch_timeout` | duration | `30m` | longest wait on pending checks (GH-7) |
 | `gate.github.settle` | duration | `20s` | pause before the re-read once pending checks settled |
 | `gate.github.max_waits` | integer ≥ 1 | `12` | pending waits before RED; see [`gate.md`](gate.md) |

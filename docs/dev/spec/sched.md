@@ -2,7 +2,7 @@
 
 Status: implemented in `internal/sched` and wired into `cmd/fanind` for every project with `loop: fanin`.
 Direction: [concept](../concept.md) D1, C-LOOP, C-SLOTS and C-BUDGET. Scenarios: PK-3 to PK-6, SP-8, SP-10, SP-11,
-LN-1 to LN-5, WD-1 to WD-3, FP-3, FP-6, AW-10 to AW-13, GH-11, GH-12.
+LN-1 to LN-6, WD-1 to WD-3, FP-3, FP-6, AW-10 to AW-13, GH-11, GH-12, MG-1 to MG-5, MG-8.
 
 `fanind` is the event loop. The owner session only answers. The bash orchestrator keeps every project with
 `loop: bash` (the default), and `fanind --shadow` keeps importing the bash state of those projects only.
@@ -138,11 +138,49 @@ An analysis task (`fanin task add --analyze`) ends by the result its run reports
 - `done_pr`: the task moves to `gating` with `gating #<n>` and the PR's gate is read (`gate.Watcher`). Its
   `gate_retry`, `gate_wait`, `gate_settle` and `gate_poll` timers read it again. A green PR records a
   `gate_verdict` of `ready #<n>: GREEN <title>; <note>`, where the note says whether it changes more than docs
-  (`gate.DocsOnly`, unreadable files count as code). The task stays gating for the owner's go; nothing merges.
-  A red PR goes to the owner as blocked; an unreadable gate as `ERROR #<n>: <cause>`.
+  (`gate.DocsOnly`, unreadable files count as code). The task stays gating for the owner's go, which merges it
+  (see Merge). A red PR goes to the owner as blocked; an unreadable gate as `ERROR #<n>: <cause>`.
 - Any other kind (`done`, `pushed`) goes to the owner as blocked: an analysis ends with one of the four above.
 
 Without `Deps.Gates` the verdict is `ready #<n>: gate unread, no forge reader; check the PR before the go`.
+
+## Merge (MG-1 to MG-5, MG-8, LN-6)
+
+The owner's go (`owner_go`) on a gating task whose latest run reported `done_pr` merges it, when `Deps.Merger` is
+set. `Deps.Merger` needs `Deps.Hook` and `Deps.StateDir`, else `New` returns `ErrMergeDeps`. One merge per project
+runs at a time:
+
+- The merge takes the project lock (`store.AcquireLock`, holder the task ID, lease `merge.lock_lease`) and renews it
+  every half lease. A held lock is waited for up to `merge.lock_wait`; a longer wait goes to the owner as
+  `ERROR #<n>: merge lock of project <p> held for over <wait> by <holder>`. An expired lease of a dead holder is
+  taken over (MG-3). A lock lost to an expired lease is only logged, on renew and on release: the merge goes on.
+- Under the lock it checks the holds (`store.MergeHold`). A held merge logs `merge_held` with `paused #<n>: merge
+  held (<kind> hold <id>: <reason>) (worker <agent> still open)` and waits; a `hold_lifted` of the project starts
+  every held merge again. The holds are checked only under the lock, so a merge that waits for the lock is not
+  paused by the hold of the hook running before it.
+- After a wait for the lock, and on every retry of a held merge, the gate is read again (`gate.Watcher`): another
+  merge may have changed the base. A red re-gate sends the run back to working with `re-gate #<n> <verdict>`
+  and the `nudge-regate` nudge; the go stands, so the next green report merges without a new go. A pending
+  re-gate reads the gate again on its timers and merges once it settles green. An unreadable re-gate, or none
+  without `Deps.Gates`, goes to the owner.
+- `Deps.Merger.Merge` merges the PR; `merged` is logged and the task moves to `post_merge` with `merged #<n>`.
+  A failed merge goes to the owner.
+- The post-merge hook (`internal/hook`) runs in `Deps.StateDir` under a merge hold. On success the run ends
+  succeeded, the task `done` and the pane is closed. A failed hook leaves its hold: the PR counts as merged, the
+  detail is `ERROR #<n>: post-merge hook failed: <last line>; merging held for all slots until 'fanin hold lift
+  <id>'` and the owner gets a note. A restart inside the hook keeps the running hold (MG-5).
+- The hook runs `sh -c <post_merge_hook>` through `runtime.Runner` with `FANIN_PROJECT` and `FANIN_PR` and no lane
+  variable; an empty `post_merge_hook` runs nothing and holds nothing.
+
+### CI hold (MG-8)
+
+Before a merge, `Deps.BaseCI` reads the required checks of the project's base branch. A failed or cancelled check
+creates an owner task `fix red CI on <base>: <names>` and a `ci` hold naming it as the fix task, in one
+transaction; the merge is then held. A `ci` hold stops every merge but its fix task's, and every fresh worker but
+the fix task's: `nextTask` skips the held tasks, and a task held while its picker ran is logged with `paused: CI
+held, no new worker` and stays queued. The fix task's own merge skips the base check and lifts the hold with the
+merge; the project's other live workers get the `nudge-ci-fixed` nudge, and a nudge that fails is named in the
+merged detail. An unreadable base CI goes to the owner; without `Deps.BaseCI` nothing is read.
 
 ## Restart (SP-10, SP-11)
 
@@ -178,5 +216,9 @@ A stop by ctx is never a task failure:
 - A pending pause does not stop a handover; the fresh run continues the task.
 - `fanind` passes no `Deps.Gates` yet (no forge reader is wired), so an analysis PR is never read there.
 - The gate state of a gating analysis is held in memory; after a restart only an armed gate timer reads it again.
-- A green docs-only analysis PR waits for the owner's go like any other; there is no merge path yet.
+- `fanind` wires no `Deps.Merger`, `Deps.BaseCI`, `Deps.Hook` or `Deps.StateDir` yet, so a go merges nothing there.
+- The CI hold rule is a first simple one: any failed or cancelled check on the base branch, read before each merge.
+- The merging, held and standing-go state is held in memory; after a restart a held merge needs a new go.
+- A store error inside a merge is logged as a failed step and the merge is not retried; the owner gives the go again.
+- Only analysis tasks reach gating yet; PR-shape tasks merge once their gate path lands.
 - A stop between the end of an analysis and its pane close leaves the pane open.

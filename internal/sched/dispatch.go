@@ -118,6 +118,13 @@ func (s *Scheduler) picked(ctx context.Context, p config.Project, id model.TaskI
 	if task.State != model.TaskQueued {
 		return
 	}
+	if _, held, err := s.d.Store.DispatchHold(ctx, p.Name, id); err != nil {
+		s.fail(ctx, fmt.Errorf("sched: read the holds of %s before a spawn: %w", p.Name, err))
+		return
+	} else if held {
+		log.InfoContext(ctx, "sched: "+CIHeldDetail)
+		return
+	}
 	var hint, mdl string
 	switch {
 	case perr != nil:

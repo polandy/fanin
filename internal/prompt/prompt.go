@@ -31,13 +31,17 @@ const (
 	NudgeContinue Name = "nudge-continue"
 	NudgeSecure   Name = "nudge-secure"
 	NudgeStall    Name = "nudge-stall"
+	// NudgeRegate carries the reasons of a red re-gate under the merge lock (SCENARIOS MG-2).
+	NudgeRegate Name = "nudge-regate"
+	// NudgeCIFixed tells a worker that the base branch is green again (SCENARIOS MG-8).
+	NudgeCIFixed Name = "nudge-ci-fixed"
 )
 
 // Names lists every shipped worker template.
 var Names = []Name{Worker, WorkerOC, WorkerGitea, WorkerAnalyze, WorkerGiteaAnalyze}
 
 // Nudges lists every shipped nudge.
-var Nudges = []Name{NudgeContinue, NudgeSecure, NudgeStall}
+var Nudges = []Name{NudgeContinue, NudgeSecure, NudgeStall, NudgeRegate, NudgeCIFixed}
 
 // ErrTemplate is a template or include part that is missing or unreadable.
 var ErrTemplate = errors.New("prompt: template unavailable")

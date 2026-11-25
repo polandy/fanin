@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"fmt"
 
 	"github.com/polandy/fanin/internal/model"
@@ -51,6 +52,23 @@ func (t *Tx) LiftHold(ctx context.Context, id string) error {
 		Detail: fmt.Sprintf("%s hold %s lifted", hold.Kind, id),
 	})
 	return err
+}
+
+// SetHoldReason rewrites the reason of one active hold, as a failed post-merge hook does (see SCENARIOS MG-4).
+func (t *Tx) SetHoldReason(ctx context.Context, id, reason string) error {
+	res, err := t.tx.ExecContext(ctx, `UPDATE holds SET reason = ? WHERE id = ? AND lifted_at = 0`,
+		model.CapField(reason), id)
+	if err != nil {
+		return fmt.Errorf("store: set the reason of hold %q: %w", id, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: set the reason of hold %q: %w", id, err)
+	}
+	if n == 0 {
+		return notFound(sql.ErrNoRows, "active hold", id)
+	}
+	return nil
 }
 
 const holdColumns = `id, project, kind, reason, fix_task, created_at, lifted_at`

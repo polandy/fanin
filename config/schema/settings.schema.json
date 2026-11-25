@@ -22,6 +22,14 @@
         "loop": {"description": "bash keeps the bash orchestrator and its shadow import; fanin lets fanind schedule the project", "enum": ["bash", "fanin"], "default": "bash"},
         "stall_after": {"description": "a run without a heartbeat for this long is stalled", "$ref": "#/$defs/duration", "default": "15m"},
         "worker_timeout": {"description": "a run without a heartbeat or result for this long is ended", "$ref": "#/$defs/duration", "default": "45m"},
+        "merge": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lock_wait": {"description": "a merge waits this long for the project lock, then goes to the owner (MG-2)", "$ref": "#/$defs/duration", "default": "1h"},
+            "lock_lease": {"description": "lease of the merge lock, renewed while held; a dead holder frees it after this (MG-3)", "$ref": "#/$defs/duration", "default": "10m"}
+          }
+        },
         "budgets": {
           "type": "object",
           "additionalProperties": false,

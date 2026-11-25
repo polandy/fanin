@@ -25,6 +25,9 @@ settings:
     rollover_pct: 75 # default
     max_tokens_per_run: 3000000 # default
     max_runs_per_task: 3 # fanin.yaml:11
+  merge:
+    lock_wait: 1h0m0s # default
+    lock_lease: 10m0s # default
   stall_after: 15m0s # default
   worker_timeout: 45m0s # default
   gate:

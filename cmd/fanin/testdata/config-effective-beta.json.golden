@@ -57,6 +57,8 @@
     "/settings/host": "projects/beta.yaml:2",
     "/settings/loop": "default",
     "/settings/max_parallel": "projects/beta.yaml:5",
+    "/settings/merge/lock_lease": "default",
+    "/settings/merge/lock_wait": "default",
     "/settings/oc_merge": "projects/beta.yaml:6",
     "/settings/path": "projects/beta.yaml:1",
     "/settings/pre_go_check": "projects/beta.yaml:7",
@@ -94,6 +96,10 @@
     "host": "host-a",
     "loop": "bash",
     "max_parallel": 1,
+    "merge": {
+      "lock_lease": "10m0s",
+      "lock_wait": "1h0m0s"
+    },
     "oc_merge": "manual",
     "path": "/path/to/repo",
     "pre_go_check": "/path/to/repo/scripts/dry-activate.sh",
