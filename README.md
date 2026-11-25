@@ -18,7 +18,7 @@ fanin runs coding agents on your projects' task lists and brings their work back
 starts one fresh worker (Claude Code, opencode, …) in its own [herdr](https://github.com/herdrdev/herdr) pane and
 worktree, watches it until it reports, and turns the result into one reviewable pull request.
 
-> **Status: concept.** Nothing is runnable yet; the two binaries are stubs. See [Status](#status).
+> **Status: concept.** `fanind` is a stub and `fanin` has only `fanin version`. See [Status](#status).
 
 ## Why fanin
 
