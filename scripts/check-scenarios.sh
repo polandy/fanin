@@ -4,8 +4,8 @@
 # test names (TestX/GH-2_..., t.Run("GH-2_...")) and comments (see SCENARIOS GH-2).
 # --report lists missing IDs per section and exits 0; --strict exits 1 when any ID is missing.
 # An ID cited in a test that the scenarios file does not define fails in both modes.
-# SCENARIO_EXCEPTIONS (default scripts/scenario-exceptions.txt, only for docs/dev/scenarios.md) lists "ID<TAB>reason" for behaviour that is retired
-# or lives outside this repo; an excepted ID counts as covered. An exception for an unknown or tested ID fails.
+# SCENARIO_EXCEPTIONS (default scripts/scenario-exceptions.txt, only for docs/dev/scenarios.md) lists
+# "ID<TAB>reason" for behaviour that is retired or lives outside this repo; an excepted ID counts as covered. An exception for an unknown or tested ID fails.
 set -euo pipefail
 export LC_ALL=C
 
