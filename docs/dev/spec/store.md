@@ -35,7 +35,8 @@ tags C-STORE and C-LOCK.
 | `project_locks` | `project` | holder, `acquired_at`, `expires_at` |
 | `holds` | `id` | `model.Hold`; `lifted_at = 0` while active |
 | `timers` | `id` | project, task, kind, `due_at`; `disarmed_at = 0` while armed |
-| `owner_questions` | `id` | `model.OwnerQuestion`; `options` is JSON, `answered_at = 0` while open |
+| `owner_questions` | `id` | `model.OwnerQuestion`; `options` is JSON, `kind` and `allow_text` (0002), `answered_at = 0` while open |
+| `project_pauses` | `project` | the one-shot pause flag and its `requested_at` (0002) |
 
 Enum columns hold the lowercase `internal/model` constants. Reading a value that `model.Parse*` does not know, or
 JSON that does not decode, is `store.ErrCorrupt`, never a state.
@@ -55,6 +56,7 @@ nil and rolls back every row and event otherwise. Each `Tx` write appends its ev
 | `SetRunBudget` | `token_usage` |
 | `SetHold` / `LiftHold` | `hold_set` / `hold_lifted` |
 | `AskQuestion` (validated) / `AnswerQuestion` | `question_asked` / `question_answered` |
+| `RequestPause` / `Resume` / `ConsumePause` | `project_paused` / `project_resumed` / `pause_consumed` |
 | `AppendEvent` | any other event type |
 
 `ArmTimer` and `DisarmTimer` write no event; they ride in the transaction of the state change they belong to.
@@ -65,7 +67,8 @@ nil and rolls back every row and event otherwise. Each `Tx` write appends its ev
   on it. A rolled-back transaction does not close it.
 - `EventsAfter(ctx, seq, limit)` reads events above `seq` in append order; `LastEventSeq` is the newest `seq`
   (0 when empty); `AllHolds` lists the active holds of every project; `Locks` lists every lock row, expired leases
-  included; `LatestEvents` returns the newest event of each project. The SSE stream and the snapshot build on them
+  included; `LatestEvents` returns the newest event of each project. `OpenTaskQuestion` is the newest open question of a
+  task; `Paused` reads a project's pause flag. The SSE stream and the snapshot build on them
   ([api](api.md)).
 
 ## Project lock (C-LOCK)

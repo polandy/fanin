@@ -19,6 +19,7 @@ import (
 	"github.com/polandy/fanin/internal/api"
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
+	"github.com/polandy/fanin/internal/owner"
 	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/store"
 	"github.com/polandy/fanin/internal/version"
@@ -90,7 +91,7 @@ func run(ctx context.Context, args []string, d deps) error {
 	reg := api.NewRegistry()
 	api.RegisterBuiltins(reg)
 	h, err := api.New(api.Config{Source: st, OwnerToken: token, Clock: d.clock, Logger: log, Registry: reg,
-		Projects: cfg.ProjectNames()})
+		Projects: cfg.ProjectNames(), Owner: owner.New(st, owner.NoDeliverer{}, log)})
 	if err != nil {
 		return fmt.Errorf("fanind: %w", err)
 	}

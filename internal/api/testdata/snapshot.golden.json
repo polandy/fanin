@@ -59,6 +59,8 @@
       "task_id": "t2",
       "run_id": "",
       "project": "beta",
+      "kind": "transcript",
+      "allow_text": false,
       "question": "beta: which?",
       "options": [
         {
