@@ -16,6 +16,7 @@ import (
 
 	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/forge"
+	"github.com/polandy/fanin/internal/gate"
 	"github.com/polandy/fanin/internal/hook"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/owner"
@@ -61,15 +62,19 @@ func (l *mergeLog) all() []string {
 
 // fakeMerger logs each merge and fails it with err.
 type fakeMerger struct {
-	log *mergeLog
-	mu  sync.Mutex
-	err error
+	log    *mergeLog
+	mu     sync.Mutex
+	err    error
+	during func()
 }
 
 func (f *fakeMerger) Merge(_ context.Context, _ config.Project, pr int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.log.add("merge #" + strconv.Itoa(pr))
+	if f.during != nil {
+		f.during()
+	}
 	return f.err
 }
 
@@ -240,6 +245,15 @@ func (r *mergeRig) goMerge(id model.TaskID) {
 	}
 }
 
+// ghostLock takes the project lock for a holder that never renews it.
+func (r *mergeRig) ghostLock() {
+	r.t.Helper()
+	if err := r.st.AcquireLock(r.t.Context(), store.LockRequest{Project: projAlpha, Holder: "gone",
+		Lease: lockLease}); err != nil {
+		r.t.Fatal(err)
+	}
+}
+
 func (r *mergeRig) holds() []model.Hold {
 	r.t.Helper()
 	hs, err := r.st.Holds(r.t.Context(), projAlpha)
@@ -358,6 +372,28 @@ func TestMerge(t *testing.T) {
 		}
 	})
 
+	t.Run("MG-2_a_pending_re-gate_reads_again_and_merges_once_green", func(t *testing.T) {
+		cfg := mergeConfig()
+		cfg.Projects[0].Gate = gateConfig().Projects[0].Gate
+		r := newMergeRig(t, cfg)
+		r.f.prs = []forge.PR{greenPR(), pendingPR(), pendingPR(), greenPR()}
+		r.start()
+		r.ready("a1", prNumber)
+		r.ghostLock()
+		r.goMerge("a1")
+		r.await(r.waits)
+		r.advance(lockLease)
+		r.until(func() bool { _, ok := r.timers("a1")[gate.TimerWait]; return ok })
+		if got := r.log.all(); len(got) != 0 {
+			t.Fatalf("merges = %v, want none while the re-gate is pending", got)
+		}
+		r.advance(30 * time.Minute)
+		r.until(r.taskIn("a1", model.TaskDone))
+		if diff := cmp.Diff([]string{"merge #42", "hook #42"}, r.log.all()); diff != "" {
+			t.Errorf("merges (-want +got):\n%s", diff)
+		}
+	})
+
 	t.Run("MG-2_a_lock_held_past_the_wait_goes_to_the_owner_naming_holder_and_duration", func(t *testing.T) {
 		cfg := mergeConfig()
 		cfg.Projects[0].Merge.LockLease = config.Duration(2 * lockWait)
@@ -383,14 +419,33 @@ func TestMerge(t *testing.T) {
 		}
 	})
 
+	t.Run("MG-3_a_lock_lost_inside_the_hook_still_ends_the_merged_task", func(t *testing.T) {
+		r := newMergeRig(t, mergeConfig())
+		release := r.blockHook()
+		r.start()
+		r.ready("a1", prNumber)
+		r.goMerge("a1")
+		r.await(r.hr.in)
+		if err := r.st.ReleaseLock(t.Context(), projAlpha, "a1"); err != nil {
+			t.Fatal(err)
+		}
+		r.advance(lockLease / 2)
+		release()
+		done := r.taskIn("a1", model.TaskDone)
+		r.until(func() bool { return done() || r.logged(stepFailed)() })
+		if !done() {
+			t.Fatalf("task state = %s, want %s: the PR is merged", r.task("a1").State, model.TaskDone)
+		}
+		if got := r.lastDetail("a1"); got != MergedDetail+"#42" {
+			t.Errorf("task detail = %q, want %q", got, MergedDetail+"#42")
+		}
+	})
+
 	t.Run("MG-3_an_expired_lease_frees_the_lock", func(t *testing.T) {
 		r := newMergeRig(t, mergeConfig())
 		r.start()
 		r.ready("a1", prNumber)
-		if err := r.st.AcquireLock(t.Context(), store.LockRequest{Project: projAlpha, Holder: "gone",
-			Lease: lockLease}); err != nil {
-			t.Fatal(err)
-		}
+		r.ghostLock()
 		r.goMerge("a1")
 		r.await(r.waits)
 		r.advance(lockLease)
@@ -632,16 +687,31 @@ func TestMergeFails(t *testing.T) {
 		r.f.errs = []error{nil, forge.ErrNetwork}
 		r.start()
 		r.ready("a1", prNumber)
-		if err := r.st.AcquireLock(t.Context(), store.LockRequest{Project: projAlpha, Holder: "gone",
-			Lease: lockLease}); err != nil {
-			t.Fatal(err)
-		}
+		r.ghostLock()
 		r.goMerge("a1")
 		r.await(r.waits)
 		r.advance(lockLease)
 		r.until(r.taskIn("a1", model.TaskNeedsOwner))
 		if got := r.lastDetail("a1"); !strings.Contains(got, "re-gate unreadable") {
 			t.Errorf("task detail = %q, want the cause", got)
+		}
+		if got := r.log.all(); len(got) != 0 {
+			t.Errorf("merges = %v, want none", got)
+		}
+	})
+
+	t.Run("MG-2_a_re-gate_without_a_forge_reader_goes_to_the_owner", func(t *testing.T) {
+		r := newMergeRig(t, mergeConfig())
+		r.gates = nil
+		r.start()
+		r.ready("a1", prNumber)
+		r.ghostLock()
+		r.goMerge("a1")
+		r.await(r.waits)
+		r.advance(lockLease)
+		r.until(r.taskIn("a1", model.TaskNeedsOwner))
+		if got := r.lastDetail("a1"); !strings.Contains(got, GateUnreadNote) {
+			t.Errorf("task detail = %q, want %q", got, GateUnreadNote)
 		}
 		if got := r.log.all(); len(got) != 0 {
 			t.Errorf("merges = %v, want none", got)
@@ -658,6 +728,81 @@ func TestMergeFails(t *testing.T) {
 		if got := r.lastDetail("a1"); !strings.Contains(got, errBaseCI.Error()) {
 			t.Errorf("task detail = %q, want the cause", got)
 		}
+		if got := r.log.all(); len(got) != 0 {
+			t.Errorf("merges = %v, want none", got)
+		}
+	})
+
+	t.Run("MG-1_a_pane_that_does_not_close_after_the_merge_leaves_the_task_done", func(t *testing.T) {
+		r := newMergeRig(t, mergeConfig())
+		r.rt.stopErr = errPaneGone
+		r.start()
+		run := r.ready("a1", prNumber)
+		r.goMerge("a1")
+		r.until(r.taskIn("a1", model.TaskDone))
+		r.until(r.stopped(run.Worker.Agent))
+	})
+
+	t.Run("MG-1_a_go_on_a_task_that_is_not_gating_merges_nothing", func(t *testing.T) {
+		r := newMergeRig(t, mergeConfig())
+		r.start()
+		r.startAnalysis("a1")
+		r.tx(func(ctx context.Context, tx *store.Tx) error {
+			_, err := tx.AppendEvent(ctx, model.Event{Type: model.EventOwnerGo, Project: projAlpha, TaskID: "a1"})
+			return err
+		})
+		r.quiet()
+		if got := r.log.all(); len(got) != 0 {
+			t.Errorf("merges = %v, want none", got)
+		}
+	})
+
+	t.Run("MG-1_a_go_on_a_gating_task_without_a_PR_merges_nothing", func(t *testing.T) {
+		r := newMergeRig(t, mergeConfig())
+		r.start()
+		run := r.startAnalysis("a1")
+		r.report(run, model.Result{Kind: model.ResultPushed, Branch: "feat/x"})
+		r.until(r.taskIn("a1", model.TaskNeedsOwner))
+		r.tx(func(ctx context.Context, tx *store.Tx) error {
+			for _, st := range []model.TaskState{model.TaskRunning, model.TaskGating} {
+				if err := tx.SetTaskState(ctx, "a1", st, GatingDetail+"#42"); err != nil {
+					return err
+				}
+			}
+			_, err := tx.AppendEvent(ctx, model.Event{Type: model.EventOwnerGo, Project: projAlpha, TaskID: "a1"})
+			return err
+		})
+		r.quiet()
+		if got := r.log.all(); len(got) != 0 {
+			t.Errorf("merges = %v, want none", got)
+		}
+	})
+
+	t.Run("MG-1_a_task_canceled_inside_the_merge_runs_no_hook", func(t *testing.T) {
+		r := newMergeRig(t, mergeConfig())
+		r.m.during = func() {
+			r.tx(func(ctx context.Context, tx *store.Tx) error {
+				return tx.SetTaskState(ctx, "a1", model.TaskCanceled, "owner cancel")
+			})
+		}
+		r.start()
+		r.ready("a1", prNumber)
+		r.goMerge("a1")
+		r.until(r.taskIn("a1", model.TaskCanceled))
+		r.until(r.logged("record the merge of a1"))
+		if c := r.hr.calls(); len(c) != 0 {
+			t.Errorf("hook runs = %v, want none", c)
+		}
+	})
+
+	t.Run("MG-1_an_untakeable_lock_merges_nothing", func(t *testing.T) {
+		cfg := mergeConfig()
+		cfg.Projects[0].Merge.LockLease = 0
+		r := newMergeRig(t, cfg)
+		r.start()
+		r.ready("a1", prNumber)
+		r.goMerge("a1")
+		r.until(r.logged("take the merge lock of " + projAlpha))
 		if got := r.log.all(); len(got) != 0 {
 			t.Errorf("merges = %v, want none", got)
 		}
