@@ -14,7 +14,10 @@ import (
 	"github.com/polandy/fanin/internal/store"
 )
 
-const doctorToken = "ghp_0123456789abcdefghijklmnopqrstuv"
+const (
+	doctorToken    = "ghp_0123456789abcdefghijklmnopqrstuv"
+	mainConfigFile = "fanin.yaml"
+)
 
 // doctorFake answers every program with the same output, or fails the ones in fail.
 type doctorFake struct{ fail map[string]error }
@@ -39,7 +42,7 @@ func (f doctorFake) Run(_ context.Context, cmd runtime.Cmd) (runtime.Result, err
 func doctorConfig(t *testing.T) string {
 	t.Helper()
 	dir := writeConfig(t, map[string]string{
-		"fanin.yaml":          "listen: 127.0.0.1:7420\nstore: fanin.db\nowner_token_env: FANIN_OWNER_TOKEN\n",
+		mainConfigFile:        "listen: 127.0.0.1:7420\nstore: fanin.db\nowner_token_env: FANIN_OWNER_TOKEN\n",
 		"projects/alpha.yaml": "path: /r/alpha\nhost: local\nforge: github\nbase: main\nmax_parallel: 1\n",
 		"worker-kinds.yaml":   "kinds:\n  claude:\n    runtime: herdr\n",
 		"forges.yaml":         "forges:\n  github:\n    kind: github\n    token_env: GH_TOKEN\n",

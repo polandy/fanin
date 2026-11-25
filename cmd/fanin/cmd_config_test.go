@@ -47,7 +47,7 @@ func effective(t *testing.T, dir string, args ...string) (int, string, string) {
 func TestConfigEffective(t *testing.T) {
 	t.Run("ST-4_project_value_overrides_fanin_yaml_default", func(t *testing.T) {
 		dir := writeConfig(t, map[string]string{
-			"fanin.yaml": "listen: 127.0.0.1:7420\nstore: fanin.db\nowner_token_env: FANIN_OWNER_TOKEN\n" +
+			mainConfigFile: "listen: 127.0.0.1:7420\nstore: fanin.db\nowner_token_env: FANIN_OWNER_TOKEN\n" +
 				"defaults:\n  review_skill: /from-defaults\n  base: trunk\n",
 			"projects/own.yaml":   "path: /path/to/repo\nhost: local\nforge: github\nmax_parallel: 1\nreview_skill: /from-project\n",
 			"projects/other.yaml": "path: /path/to/repo\nhost: local\nforge: github\nmax_parallel: 1\n",
@@ -73,7 +73,7 @@ func TestConfigEffective(t *testing.T) {
 
 	t.Run("GT-10_a_secret_value_is_never_printed", func(t *testing.T) {
 		t.Setenv("GH_TOKEN", secretValue)
-		code, stdout, _ := effective(t, examplesDir, "alpha")
+		code, stdout, _ := effective(t, examplesDir, projAlpha)
 		if code != cli.ExitOK || strings.Contains(stdout, secretValue) ||
 			!strings.Contains(stdout, "set: true # environment") {
 			t.Fatalf("code=%d, want the token marked set without its value:\n%s", code, stdout)
@@ -89,7 +89,7 @@ func TestConfigEffective(t *testing.T) {
 
 	t.Run("ST-4_invalid_config_names_file_path_and_rule", func(t *testing.T) {
 		dir := writeConfig(t, map[string]string{
-			"fanin.yaml":        "listen: 127.0.0.1:7420\nstore: fanin.db\nowner_token_env: FANIN_OWNER_TOKEN\n",
+			mainConfigFile:      "listen: 127.0.0.1:7420\nstore: fanin.db\nowner_token_env: FANIN_OWNER_TOKEN\n",
 			"projects/bad.yaml": "path: /path/to/repo\nhost: local\nforge: github\nmax_parallel: 0\n",
 		})
 		for _, args := range [][]string{
@@ -115,7 +115,7 @@ func TestConfigEffective(t *testing.T) {
 	t.Run("ST-4_usage_errors", func(t *testing.T) {
 		for _, args := range [][]string{
 			{cmdConfig}, {cmdConfig, "bogus"}, {cmdConfig, subValidate}, {cmdConfig, subEffective, projAlpha},
-			{flagConfig, examplesDir, cmdConfig, subEffective}, {flagConfig, examplesDir, cmdConfig, subEffective, "-x", "alpha"},
+			{flagConfig, examplesDir, cmdConfig, subEffective}, {flagConfig, examplesDir, cmdConfig, subEffective, "-x", projAlpha},
 			{cmdConfig, subValidate, "a", "b"},
 		} {
 			if code, _, _ := runArgs(t, defaultRegistry, nil, args...); code != cli.ExitUsage {

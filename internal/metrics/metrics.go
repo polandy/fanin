@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -62,7 +61,7 @@ func Handler(src Source, log *slog.Logger) http.Handler {
 }
 
 // Write renders every metric to w.
-func Write(ctx context.Context, w io.Writer, src Source) error {
+func Write(ctx context.Context, w *bytes.Buffer, src Source) error {
 	tasks, err := src.TaskCounts(ctx)
 	if err != nil {
 		return fmt.Errorf("metrics: tasks: %w", err)
@@ -103,7 +102,7 @@ func Write(ctx context.Context, w io.Writer, src Source) error {
 	return nil
 }
 
-func gauge(w io.Writer, name, help string, projects, states []string, counts []store.Count) {
+func gauge(w *bytes.Buffer, name, help string, projects, states []string, counts []store.Count) {
 	fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s gauge\n", name, help, name)
 	for _, p := range projects {
 		for _, s := range states {

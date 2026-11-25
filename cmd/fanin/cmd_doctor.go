@@ -34,11 +34,14 @@ func runDoctor(ctx context.Context, g Globals, out cli.Output, _ []string) error
 		return cli.Usagef("doctor needs the config directory; set --config or $%s", envConfig)
 	}
 	res := doctor.Run(ctx, doctor.Deps{ConfigDir: g.Config, Getenv: g.Getenv, Runner: doctorRunner})
-	var sb strings.Builder
-	tw := tabwriter.NewWriter(&sb, 0, 0, doctorPad, ' ', 0)
-	fmt.Fprintln(tw, "CHECK\tSUBJECT\tSTATUS\tDETAIL")
+	var rows, sb strings.Builder
+	rows.WriteString("CHECK\tSUBJECT\tSTATUS\tDETAIL\n")
 	for _, r := range res {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", r.Check, orDash(r.Subject), r.Status, oneLine(r.Detail))
+		fmt.Fprintf(&rows, "%s\t%s\t%s\t%s\n", r.Check, orDash(r.Subject), r.Status, oneLine(r.Detail))
+	}
+	tw := tabwriter.NewWriter(&sb, 0, 0, doctorPad, ' ', 0)
+	if _, err := tw.Write([]byte(rows.String())); err != nil {
+		return fmt.Errorf("doctor: render the table: %w", err)
 	}
 	if err := tw.Flush(); err != nil {
 		return fmt.Errorf("doctor: render the table: %w", err)

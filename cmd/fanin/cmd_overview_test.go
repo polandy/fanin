@@ -29,10 +29,10 @@ func overviewSnapshot() wire.Snapshot {
 	asking := task("a8", "pick a model", string(model.TaskNeedsOwner))
 	asking.QuestionID = "q1"
 	return wire.Snapshot{
-		Projects: []string{"alpha", "gamma"},
+		Projects: []string{projAlpha, projGamma},
 		Board: []wire.BoardProject{
 			{
-				Project: "alpha",
+				Project: projAlpha,
 				Done: wire.BoardDone{Count: 5, Newest: []wire.BoardTask{
 					task("a5", "fifth", string(model.TaskDone)), task("a4", "fourth", string(model.TaskDone)), task("a3", "third", string(model.TaskDone)),
 					task("a2", "second", string(model.TaskDone)),
@@ -40,12 +40,12 @@ func overviewSnapshot() wire.Snapshot {
 				Next:    []wire.BoardTask{task("a6", "the next one", string(model.TaskQueued)), blocked},
 				Waiting: []wire.BoardTask{asking, task("a9", "paused for a while", string(model.TaskPaused))},
 				Holds: []wire.Hold{
-					{ID: "h1", Project: "alpha", Kind: "ci", Reason: "main is red", FixTask: "a10"},
-					{ID: "h2", Project: "alpha", Kind: "merge", Reason: "hook failed"},
+					{ID: "h1", Project: projAlpha, Kind: "ci", Reason: "main is red", FixTask: "a10"},
+					{ID: "h2", Project: projAlpha, Kind: "merge", Reason: "hook failed"},
 				},
 				Decisions: []wire.BoardTask{task("a11", "choose the store layout", string(model.TaskQueued))},
 			},
-			{Project: "gamma"},
+			{Project: projGamma},
 		},
 	}
 }
@@ -89,8 +89,8 @@ func TestOverview(t *testing.T) {
 
 	t.Run("ST-2_one_project_by_name_and_an_unknown_one_is_an_error", func(t *testing.T) {
 		url := serveSnapshot(t, overviewSnapshot())
-		code, out, _ := runArgs(t, defaultRegistry, map[string]string{envURL: url}, "overview", "gamma")
-		if code != 0 || strings.Contains(out, "alpha") || !strings.Contains(out, "gamma") {
+		code, out, _ := runArgs(t, defaultRegistry, map[string]string{envURL: url}, "overview", projGamma)
+		if code != 0 || strings.Contains(out, projAlpha) || !strings.Contains(out, projGamma) {
 			t.Errorf("overview gamma = %d %q, want only gamma", code, out)
 		}
 		code, _, errOut := runArgs(t, defaultRegistry, map[string]string{envURL: url}, "overview", "nope")

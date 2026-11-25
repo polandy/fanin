@@ -18,6 +18,9 @@ import (
 const (
 	ghToken    = "ghp_0123456789abcdefghijklmnopqrstuv"
 	giteaToken = "gitea-secret-token-value"
+	projAlpha  = "alpha"
+	projBeta   = "beta"
+	cmdGhAuth  = "gh auth status"
 )
 
 var errNotFound = errors.New("executable file not found in $PATH")
@@ -50,13 +53,13 @@ func (f *fakeRunner) Run(_ context.Context, cmd runtime.Cmd) (runtime.Result, er
 
 func healthy() *fakeRunner {
 	return &fakeRunner{answers: map[string]string{
-		"herdr workspace list":                               "[]",
-		"systemctl is-active":                                "active\n",
-		"git -C /r/alpha remote":                             "git@github.com:acme/alpha.git\n",
-		"git -C /r/beta remote":                              "https://git.example.com/acme/beta.git\n",
-		"gh auth status":                                     "Logged in\n",
-		"gh api repos/acme/alpha":                            `["ci","fanin/review"]`,
-		"curl url = \"https://git.example.com/api/v1/user\"": `{"login":"bot"}`,
+		"herdr workspace list":    "[]",
+		"systemctl is-active":     "active\n",
+		"git -C /r/alpha remote":  "git@github.com:acme/alpha.git\n",
+		"git -C /r/beta remote":   "https://git.example.com/acme/beta.git\n",
+		cmdGhAuth:                 "Logged in\n",
+		"gh api repos/acme/alpha": `["ci","fanin/review"]`,
+		"curl url = \"https://git.example.com/api/v1/user\"":                                    `{"login":"bot"}`,
 		"curl url = \"https://git.example.com/api/v1/repos/acme/beta/branch_protections/main\"": `{"status_check_contexts":["ci","fanin/review"]}`,
 	}}
 }
@@ -130,8 +133,8 @@ func TestDoctor(t *testing.T) {
 		}
 		for _, c := range []struct{ check, subject string }{
 			{doctor.CheckConfig, ""}, {doctor.CheckStore, ""}, {doctor.CheckHerdr, ""}, {doctor.CheckSystemd, doctor.Unit},
-			{doctor.CheckForgeAuth, "alpha"}, {doctor.CheckForgeAuth, "beta"},
-			{doctor.CheckProtection, "alpha"}, {doctor.CheckProtection, "beta"},
+			{doctor.CheckForgeAuth, projAlpha}, {doctor.CheckForgeAuth, projBeta},
+			{doctor.CheckProtection, projAlpha}, {doctor.CheckProtection, projBeta},
 		} {
 			find(t, res, c.check, c.subject)
 		}
@@ -147,10 +150,10 @@ func TestDoctor(t *testing.T) {
 		}{
 			{"herdr", doctor.CheckHerdr, "", "herdr workspace list"},
 			{"systemd", doctor.CheckSystemd, doctor.Unit, "systemctl is-active"},
-			{"github_auth", doctor.CheckForgeAuth, "alpha", "gh auth status"},
-			{"gitea_auth", doctor.CheckForgeAuth, "beta", "curl url = \"https://git.example.com/api/v1/user\""},
-			{"github_protection", doctor.CheckProtection, "alpha", "gh api repos/acme/alpha"},
-			{"repo_unknown", doctor.CheckProtection, "beta", "git -C /r/beta remote"},
+			{"github_auth", doctor.CheckForgeAuth, projAlpha, cmdGhAuth},
+			{"gitea_auth", doctor.CheckForgeAuth, projBeta, "curl url = \"https://git.example.com/api/v1/user\""},
+			{"github_protection", doctor.CheckProtection, projAlpha, "gh api repos/acme/alpha"},
+			{"repo_unknown", doctor.CheckProtection, projBeta, "git -C /r/beta remote"},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				r := healthy()
@@ -179,7 +182,7 @@ func TestDoctor(t *testing.T) {
 	t.Run("OB-3_branch_protection_without_the_review_status_is_an_error", func(t *testing.T) {
 		r := healthy()
 		r.answers["gh api repos/acme/alpha"] = `["ci"]`
-		got := find(t, run(t, writeConfig(t, nil), r, env), doctor.CheckProtection, "alpha")
+		got := find(t, run(t, writeConfig(t, nil), r, env), doctor.CheckProtection, projAlpha)
 		if got.Status != doctor.Fail || !strings.Contains(got.Detail, "fanin/review") {
 			t.Errorf("protection = %s %q, want fail naming fanin/review", got.Status, got.Detail)
 		}
@@ -188,7 +191,7 @@ func TestDoctor(t *testing.T) {
 	t.Run("OB-3_unreadable_protection_answer_is_an_error_not_a_verdict", func(t *testing.T) {
 		r := healthy()
 		r.answers["gh api repos/acme/alpha"] = "not json"
-		got := find(t, run(t, writeConfig(t, nil), r, env), doctor.CheckProtection, "alpha")
+		got := find(t, run(t, writeConfig(t, nil), r, env), doctor.CheckProtection, projAlpha)
 		if got.Status != doctor.Fail {
 			t.Errorf("protection = %s, want fail", got.Status)
 		}
@@ -201,7 +204,7 @@ func TestDoctor(t *testing.T) {
 			}
 			return env(name)
 		}
-		got := find(t, run(t, writeConfig(t, nil), healthy(), noToken), doctor.CheckForgeAuth, "beta")
+		got := find(t, run(t, writeConfig(t, nil), healthy(), noToken), doctor.CheckForgeAuth, projBeta)
 		if got.Status != doctor.Fail || !strings.Contains(got.Detail, "GITEA_TOKEN") {
 			t.Errorf("forge auth = %s %q, want fail naming GITEA_TOKEN", got.Status, got.Detail)
 		}
@@ -236,7 +239,7 @@ func TestDoctor(t *testing.T) {
 			f["hosts.yaml"] = "hosts:\n  far:\n    address: far.example.com\n"
 			f["projects/alpha.yaml"] = "path: /r/alpha\nhost: far\nforge: github\nbase: main\nmax_parallel: 1\n"
 		})
-		got := find(t, run(t, dir, healthy(), env), doctor.CheckProtection, "alpha")
+		got := find(t, run(t, dir, healthy(), env), doctor.CheckProtection, projAlpha)
 		if got.Status != doctor.Skip || !strings.Contains(got.Detail, "far") {
 			t.Errorf("protection = %s %q, want skip naming the host", got.Status, got.Detail)
 		}
@@ -245,7 +248,7 @@ func TestDoctor(t *testing.T) {
 	t.Run("GT-10_tokens_never_appear_in_any_result_or_command_line", func(t *testing.T) {
 		r := healthy()
 		// A tool that echoes the token in its error must not leak it through the table.
-		r.fails = map[string]error{"gh auth status": errors.New("auth failed for " + ghToken + " Authorization: token " + giteaToken)}
+		r.fails = map[string]error{cmdGhAuth: errors.New("auth failed for " + ghToken + " Authorization: token " + giteaToken)}
 		res := run(t, writeConfig(t, nil), r, env)
 		for _, x := range res {
 			for _, secret := range []string{ghToken, giteaToken} {
