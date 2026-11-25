@@ -55,7 +55,7 @@ func TestHolds(t *testing.T) {
 		for _, task := range []model.TaskID{"t1", "t2"} {
 			checkHolds(t, s, task, holdCheck{merge: id})
 		}
-		other, ok, err := s.MergeHold(context.Background(), "proj-b", "t1")
+		other, ok, err := s.MergeHold(context.Background(), projectB, "t1")
 		if err != nil || ok {
 			t.Errorf("MergeHold of another project = %q %v %v, want none", other.ID, ok, err)
 		}

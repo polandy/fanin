@@ -96,3 +96,13 @@ func (s *Store) OpenQuestions(ctx context.Context) ([]model.OwnerQuestion, error
 	}
 	return scanAll(rows, scanQuestion)
 }
+
+// ProjectQuestions returns every owner question of a project, open or answered, oldest first.
+func (s *Store) ProjectQuestions(ctx context.Context, project string) ([]model.OwnerQuestion, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+questionColumns+` FROM owner_questions WHERE project = ?
+		ORDER BY asked_at, id`, project)
+	if err != nil {
+		return nil, fmt.Errorf("store: read questions of project %q: %w", project, err)
+	}
+	return scanAll(rows, scanQuestion)
+}

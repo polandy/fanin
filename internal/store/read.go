@@ -172,3 +172,25 @@ func (s *Store) LastEventSeq(ctx context.Context) (int64, error) {
 	}
 	return seq, nil
 }
+
+// ProjectTasks returns every task of a project, oldest first, whatever its state.
+func (s *Store) ProjectTasks(ctx context.Context, project string) ([]model.Task, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+taskColumns+` FROM tasks WHERE project = ?
+		ORDER BY created_at, id`, project)
+	if err != nil {
+		return nil, fmt.Errorf("store: read tasks of project %q: %w", project, err)
+	}
+	return scanAll(rows, scanTask)
+}
+
+// Projects returns the names of every project with a task, sorted.
+func (s *Store) Projects(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT project FROM tasks ORDER BY project`)
+	if err != nil {
+		return nil, fmt.Errorf("store: read projects: %w", err)
+	}
+	return scanAll(rows, func(sc scanner) (string, error) {
+		var p string
+		return p, sc.Scan(&p)
+	})
+}

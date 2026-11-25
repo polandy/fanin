@@ -89,3 +89,36 @@ func TestLastEventSeqTracksTheNewestEvent(t *testing.T) {
 		t.Errorf("LastEventSeq = %d, %v; want %d", got, err, evs[len(evs)-1].Seq)
 	}
 }
+
+func TestProjectReads(t *testing.T) {
+	s, _ := newStore(t)
+	other := task("other")
+	other.Project = projectB
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		for _, tk := range []model.Task{task("a1"), task("a2"), other} {
+			if err := tx.CreateTask(ctx, tk); err != nil {
+				return err
+			}
+		}
+		for _, id := range []model.TaskID{"a1", "other"} {
+			if _, err := tx.AskQuestion(ctx, model.OwnerQuestion{TaskID: id, Question: "q " + string(id),
+				Options: []model.Option{{Label: "x"}, {Label: "y"}}}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	ctx := context.Background()
+	tasks, err := s.ProjectTasks(ctx, project)
+	if err != nil || len(tasks) != 2 || tasks[0].ID != "a1" || tasks[1].ID != "a2" {
+		t.Fatalf("ProjectTasks = %v, %v; want a1, a2", tasks, err)
+	}
+	qs, err := s.ProjectQuestions(ctx, project)
+	if err != nil || len(qs) != 1 || qs[0].TaskID != "a1" {
+		t.Fatalf("ProjectQuestions = %v, %v; want one for a1", qs, err)
+	}
+	projects, err := s.Projects(ctx)
+	if err != nil || len(projects) != 2 || projects[0] != project || projects[1] != projectB {
+		t.Fatalf("Projects = %v, %v; want proj-a, proj-b", projects, err)
+	}
+}
