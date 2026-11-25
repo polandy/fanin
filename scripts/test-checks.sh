@@ -63,6 +63,12 @@ expect fail "scenarios strict fails on an unknown ID" scripts/check-scenarios.sh
 expect error "scenarios without a mode is a usage error" scripts/check-scenarios.sh $sc/scenarios.md
 expect pass "scenarios report passes on the repo tree" scripts/check-scenarios.sh --report
 expect error "scenarios rejects a missing directory" scripts/check-scenarios.sh --report $sc/scenarios.md $sc/nope
+# check-docs-links
+expect pass "docs-links accepts links outside docs/dev" scripts/check-docs-links.sh scripts/testdata/docs-good
+expect fail "docs-links rejects a link into docs/dev" scripts/check-docs-links.sh scripts/testdata/docs-bad
+expect error "docs-links rejects a missing directory" scripts/check-docs-links.sh scripts/testdata/nope
+expect pass "docs-links passes on the repo tree" scripts/check-docs-links.sh
+
 equals() { # equals <name> <want> <got>
   if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: wanted '$2', got '$3'" >&2; failures=$((failures + 1)); fi
 }
