@@ -252,3 +252,33 @@ func TestCorruptRowsAreErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestTxRunReads(t *testing.T) {
+	s, _ := newStore(t)
+	createTasks(t, s, "t1", "t2")
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		for _, r := range []model.Run{{ID: "r2", TaskID: "t1", Number: 2}, {ID: "r1", TaskID: "t1", Number: 1}} {
+			if err := tx.CreateRun(ctx, r); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		r, err := tx.Run(ctx, "r1")
+		if err != nil || r.Number != 1 {
+			t.Errorf("Run(r1) = %+v, %v; want number 1", r, err)
+		}
+		latest, err := tx.LatestRun(ctx, "t1")
+		if err != nil || latest.ID != "r2" {
+			t.Errorf("LatestRun(t1) = %+v, %v; want r2", latest, err)
+		}
+		if _, err := tx.Run(ctx, "nope"); !errors.Is(err, ErrNotFound) {
+			t.Errorf("Run(nope) = %v, want ErrNotFound", err)
+		}
+		if _, err := tx.LatestRun(ctx, "t2"); !errors.Is(err, ErrNotFound) {
+			t.Errorf("LatestRun(t2) = %v, want ErrNotFound", err)
+		}
+		return nil
+	})
+}

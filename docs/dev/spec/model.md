@@ -80,7 +80,8 @@ The bash statuses become `ResultKind` values; each kind requires one field (`Res
 | `blocked` | `BLOCKED: …` | `Text` |
 
 `Result.Normalize` joins every whitespace run of `Branch` and `Text` into one space and cuts them to
-`model.FieldCap` (400) characters (SCENARIOS AW-2).
+`model.FieldCap` (400) characters (SCENARIOS AW-2). The optional `IssueURL` of an `issue` must be an absolute
+`http(s)` URL of at most `FieldCap` characters; it is refused, never cut.
 
 ## fanin additions
 

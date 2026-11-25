@@ -59,7 +59,8 @@ nil and rolls back every row and event otherwise. Each `Tx` write appends its ev
 | `RequestPause` / `Resume` / `ConsumePause` | `project_paused` / `project_resumed` / `pause_consumed` |
 | `AppendEvent` | any other event type |
 
-`ArmTimer` and `DisarmTimer` write no event; they ride in the transaction of the state change they belong to.
+`Tx.Run`, `Tx.LatestRun` (the task's run with the highest number) and `Tx.Task` read inside the transaction, so a
+check and the write it guards see the same rows. `ArmTimer` and `DisarmTimer` write no event; they ride in the transaction of the state change they belong to.
 
 ## Feed for the API
 

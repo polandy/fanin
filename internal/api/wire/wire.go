@@ -63,11 +63,12 @@ type Budget struct {
 
 // Result is the last report of a run.
 type Result struct {
-	Kind   string `json:"kind"`
-	PR     int    `json:"pr,omitempty"`
-	Branch string `json:"branch,omitempty"`
-	Issue  int    `json:"issue,omitempty"`
-	Text   string `json:"text,omitempty"`
+	Kind     string `json:"kind"`
+	PR       int    `json:"pr,omitempty"`
+	Branch   string `json:"branch,omitempty"`
+	Issue    int    `json:"issue,omitempty"`
+	IssueURL string `json:"issue_url,omitempty"`
+	Text     string `json:"text,omitempty"`
 }
 
 // Run is one worker session; its report token is never part of the API.

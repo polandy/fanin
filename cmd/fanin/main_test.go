@@ -93,6 +93,10 @@ func TestGlobalFlagsEnvFallback(t *testing.T) {
 			if code != cli.ExitOK || !ran {
 				t.Fatalf("code=%d ran=%v stderr=%s", code, ran, stderr)
 			}
+			if got.Getenv == nil {
+				t.Fatal("Globals.Getenv is nil; run must pass its getenv on")
+			}
+			got.Getenv = nil
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("globals mismatch (-want +got):\n%s", diff)
 			}

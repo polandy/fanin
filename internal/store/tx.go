@@ -190,6 +190,21 @@ func (t *Tx) SetRunState(ctx context.Context, id model.RunID, to model.RunState,
 	return err
 }
 
+// Run reads one run inside the transaction; a missing one is ErrNotFound.
+func (t *Tx) Run(ctx context.Context, id model.RunID) (model.Run, error) {
+	return readRun(ctx, t.tx, id)
+}
+
+// LatestRun reads the task's run with the highest number; a task without runs is ErrNotFound.
+func (t *Tx) LatestRun(ctx context.Context, task model.TaskID) (model.Run, error) {
+	r, err := scanRun(t.tx.QueryRowContext(ctx,
+		`SELECT `+runColumns+` FROM runs WHERE task_id = ? ORDER BY number DESC LIMIT 1`, string(task)))
+	if err != nil {
+		return model.Run{}, notFound(err, "latest run of task", string(task))
+	}
+	return r, nil
+}
+
 // SetRunResult stores the worker's validated, normalised report and appends result_reported.
 func (t *Tx) SetRunResult(ctx context.Context, id model.RunID, res model.Result) error {
 	res = res.Normalize()

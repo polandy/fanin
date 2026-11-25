@@ -1,0 +1,61 @@
+[
+  {
+    "description": "Tell fanin the run is still working, with a short note. Call it at least every few minutes during long work; a run without a heartbeat counts as stalled.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "description": "what the worker is doing now; one line, at most 400 characters are kept",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "fanin_progress"
+  },
+  {
+    "description": "Report this run's result to fanin once the work is done or cannot go on. Each kind needs one field: done_pr a pr number, pushed and committed a branch, issue an issue number, nothing and blocked a text. Report again after a fix round; the newest report counts.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "description": "branch name; required for pushed and committed",
+          "type": "string"
+        },
+        "issue": {
+          "description": "issue number; required for issue",
+          "type": "integer"
+        },
+        "issue_url": {
+          "description": "web address of the issue, absolute http(s)",
+          "type": "string"
+        },
+        "kind": {
+          "description": "the outcome: done_pr, pushed, committed, issue, nothing or blocked",
+          "enum": [
+            "done_pr",
+            "pushed",
+            "committed",
+            "issue",
+            "nothing",
+            "blocked"
+          ],
+          "type": "string"
+        },
+        "pr": {
+          "description": "pull request number; required for done_pr",
+          "type": "integer"
+        },
+        "text": {
+          "description": "reason for nothing, the question for blocked, or a note; one line, at most 400 characters are kept",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "name": "fanin_report"
+  }
+]

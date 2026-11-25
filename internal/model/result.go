@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -42,6 +43,8 @@ type Result struct {
 	Branch string
 	// Issue is the issue number of issue.
 	Issue int
+	// IssueURL is the optional web address of Issue.
+	IssueURL string
 	// Text is the reason of nothing, the question of blocked, or a note on any kind.
 	Text string
 }
@@ -50,6 +53,7 @@ type Result struct {
 func (r Result) Normalize() Result {
 	r.Branch = CapField(r.Branch)
 	r.Text = CapField(r.Text)
+	r.IssueURL = strings.TrimSpace(r.IssueURL)
 	return r
 }
 
@@ -78,6 +82,20 @@ func (r Result) Validate() error {
 	}
 	if missing != "" {
 		return fmt.Errorf("%w: kind %q needs %s", ErrInvalidResult, r.Kind, missing)
+	}
+	return validIssueURL(r.IssueURL)
+}
+
+// validIssueURL accepts an empty URL or an absolute http(s) URL of at most FieldCap characters; a URL is never cut.
+func validIssueURL(s string) error {
+	if s == "" {
+		return nil
+	}
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || len([]rune(s)) > FieldCap ||
+		strings.ContainsAny(s, " \t\r\n") {
+		return fmt.Errorf("%w: issue URL %q; send an absolute http(s) URL of at most %d characters or none",
+			ErrInvalidResult, s, FieldCap)
 	}
 	return nil
 }

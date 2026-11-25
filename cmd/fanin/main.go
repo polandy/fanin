@@ -25,7 +25,7 @@ func main() {
 
 // run parses the global flags, dispatches to the subcommand and returns the exit code.
 func run(ctx context.Context, reg *Registry, args []string, getenv func(string) string, out cli.Output) int {
-	var g Globals
+	g := Globals{Getenv: getenv}
 	fs := flag.NewFlagSet("fanin", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&g.Config, "config", getenv(envConfig), "path to the config directory ($"+envConfig+")")
