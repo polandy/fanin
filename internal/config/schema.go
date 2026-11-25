@@ -29,6 +29,8 @@ const (
 	schemaName = schemaSettings + "#/$defs/name"
 	// settingsPointer locates the overridable project settings inside schemaSettings.
 	settingsPointer = "/$defs/settings"
+	// schemaBase makes schema locations absolute so they never resolve against the working directory.
+	schemaBase = "https://fanin.invalid/schema/"
 )
 
 var compiler = sync.OnceValues(func() (*jsonschema.Compiler, error) {
@@ -46,7 +48,7 @@ var compiler = sync.OnceValues(func() (*jsonschema.Compiler, error) {
 		if err != nil {
 			return nil, fmt.Errorf("config: embedded schema %s: %w", name, err)
 		}
-		if err := c.AddResource(name, doc); err != nil {
+		if err := c.AddResource(schemaBase+name, doc); err != nil {
 			return nil, fmt.Errorf("config: embedded schema %s: %w", name, err)
 		}
 	}
@@ -69,7 +71,7 @@ func compile(loc string) (*jsonschema.Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	s, err := c.Compile(loc)
+	s, err := c.Compile(schemaBase + loc)
 	if err != nil {
 		return nil, fmt.Errorf("config: embedded schema %s: %w", loc, err)
 	}

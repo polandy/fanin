@@ -20,7 +20,7 @@ config/
 
 ```yaml
 listen: 127.0.0.1:7420              # keep it on loopback or a private network
-store: fanin.db                     # SQLite file; relative to this directory
+store: /var/lib/fanin/fanin.db      # SQLite file; a relative path is relative to this directory
 log:
   format: json                      # json (default) or text
   level: info                       # debug, info (default), warn or error
@@ -124,6 +124,15 @@ A project value overrides `defaults` in `fanin.yaml`, which overrides the built-
 
 The files name secrets, never hold them: `owner_token_env` and `token_env` are upper-case variable names.
 `fanind` refuses to start while the owner token variable is empty.
+
+Under systemd the variables come from the unit's `EnvironmentFile` (`/etc/fanin/fanind.env`, mode 0600), see
+[Install](install.md#secrets). `fanind` reads nothing else from the environment but `FANIN_CONFIG` as the
+fallback of `--config`.
+
+## Listening
+
+Worker hosts report results to the API at `listen`. For workers on other hosts set it to a private address of
+the control host (never a public one) and make sure each worker host reaches that port.
 
 ## Retired keys
 
