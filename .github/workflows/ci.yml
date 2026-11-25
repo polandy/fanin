@@ -19,5 +19,7 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@v23
       - name: make ci
         run: nix develop -c make ci
+      - name: make integration
+        run: nix develop -c make integration
       - name: nix flake check
         run: nix flake check

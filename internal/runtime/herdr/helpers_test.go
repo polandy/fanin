@@ -124,7 +124,9 @@ func (f *fixture) start(t *testing.T, s runtime.RunSpec) (runtime.RunHandle, []t
 			waits = append(waits, d)
 			f.clock.Advance(d)
 		case res := <-done:
-			f.runner.Done()
+			if f.runner != nil {
+				f.runner.Done()
+			}
 			return res.handle, waits, res.err
 		}
 	}
