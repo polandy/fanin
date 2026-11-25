@@ -116,7 +116,7 @@ func TestGitHubWaits(t *testing.T) {
 	running := pendingPR(check("ci", forge.CheckPending, 0), review(forge.CheckSuccess, 1, ""))
 	t.Run("GH-7_pending_waits_12_times_1800s_then_red", func(t *testing.T) {
 		step, armed := drive(t, answer(running), limits(), githubTarget())
-		want := redFor("still checks running after 12 waits")
+		want := redFor(gate.CauseTimeout, "still checks running after 12 waits")
 		if diff := cmp.Diff(want, step.Result); diff != "" || step.Err != nil {
 			t.Fatalf("final (-want +got):\n%s err %v", diff, step.Err)
 		}
@@ -198,7 +198,7 @@ func TestGiteaPolls(t *testing.T) {
 	t.Run("GT-4_running_checks_are_red_after_40_polls", func(t *testing.T) {
 		pr := pendingPR(check("build", forge.CheckPending, 0))
 		step, armed := drive(t, answer(pr), limits(), giteaTarget())
-		want := redFor("still checks running after 40 polls")
+		want := redFor(gate.CauseTimeout, "still checks running after 40 polls")
 		if diff := cmp.Diff(want, step.Result); diff != "" {
 			t.Fatalf("final (-want +got):\n%s", diff)
 		}
