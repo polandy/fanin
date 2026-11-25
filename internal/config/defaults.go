@@ -13,20 +13,30 @@ import (
 // settingsDefaults returns the schema defaults of the project settings as a nested mapping; the schema is the
 // only place the default values live.
 var settingsDefaults = sync.OnceValues(func() (map[string]any, error) {
-	raw, err := schema.FS.ReadFile(schemaSettings)
+	return schemaDefaults(schemaSettings, settingsPointer)
+})
+
+// releaseDefaults returns the schema defaults of the release section of triggers.yaml.
+var releaseDefaults = sync.OnceValues(func() (map[string]any, error) {
+	return schemaDefaults(schemaTriggers, releasePointer)
+})
+
+// schemaDefaults returns the defaults of the object schema at ptr in the embedded schema file.
+func schemaDefaults(file, ptr string) (map[string]any, error) {
+	raw, err := schema.FS.ReadFile(file)
 	if err != nil {
-		return nil, fmt.Errorf("config: embedded schema %s: %w", schemaSettings, err)
+		return nil, fmt.Errorf("config: embedded schema %s: %w", file, err)
 	}
 	var doc any
 	if err := yaml.Unmarshal(raw, &doc); err != nil {
-		return nil, fmt.Errorf("config: embedded schema %s: %w", schemaSettings, err)
+		return nil, fmt.Errorf("config: embedded schema %s: %w", file, err)
 	}
-	node, ok := lookup(doc, settingsPointer)
+	node, ok := lookup(doc, ptr)
 	if !ok {
-		return nil, fmt.Errorf("config: embedded schema %s has no %s", schemaSettings, settingsPointer)
+		return nil, fmt.Errorf("config: embedded schema %s has no %s", file, ptr)
 	}
 	return collectDefaults(node), nil
-})
+}
 
 // collectDefaults gathers the default of each property of an object schema, recursing into nested objects.
 func collectDefaults(node any) map[string]any {

@@ -715,13 +715,13 @@ These scenarios cover sandboxed opencode workers and the PR review.
   - Find exactly one compose module in the NixOS config repo's `origin/master`.
   - If already current: "nothing to do". Else run `loop.sh <nixos-project> --task "bump …" --model sonnet`
     (`--print-task` only prints).
-- Source: `deploy-release.sh`. Test: —. Mark: CHANGES.
-  Becomes an intake source (release webhook) that queues a task on the NixOS config repo. The nixos code gate (owner's go)
-  applies.
+- Source: `deploy-release.sh`. Test: `internal/intake/release_test.go`. Mark: CHANGES.
+  Becomes an intake source (release webhook, IN-5) that queues a task on the NixOS config repo. The nixos code gate
+  (owner's go) applies.
 
 **DR-2**
 - No or several compose modules, no workflow, or no digest: ERROR, no task.
-- Source: `deploy-release.sh`. Test: —. Mark: PARITY.
+- Source: `deploy-release.sh`. Test: `internal/intake/release_test.go`. Mark: PARITY.
 
 ## 14. status / overview / agents
 
@@ -898,11 +898,40 @@ These scenarios cover herdr, gh and ssh errors and the scripts' strictness.
   projects. A failed first import stops `fanind` with exit 1.
 - Source: —. Test: —. Mark: CHANGES (C-STORE).
 
+## 19. Intake sources
+
+Webhooks, cron and the release webhook queue the same `intake.TaskRequest` as the CLI ([spec](spec/intake.md)).
+
+**IN-1**
+- A delivery to `POST /api/v1/webhooks/<name>` without the HMAC-SHA256 signature of its secret, or with a wrong
+  one, is 401 and queues nothing. An unknown name is 404. The route needs no owner token, and a webhook delivery
+  to a command endpoint is refused.
+- Source: —. Test: —. Mark: CHANGES (C-LOOP).
+
+**IN-2**
+- Forge webhook: an issue that carries the configured label queues one owner task `<project>-issue-<n>`; a
+  redelivery queues nothing more. Other events and issues without the label are ignored.
+- Source: —. Test: —. Mark: CHANGES (C-LOOP).
+
+**IN-3**
+- Alert webhook: a firing Alertmanager group queues one analysis; a repeat of the same group and start queues
+  nothing more; a resolved group is ignored.
+- Source: —. Test: —. Mark: CHANGES (C-LOOP).
+
+**IN-4**
+- Cron: each entry is a `timers` row; every due queues its task exactly once, also across a restart, and arms
+  the next due.
+- Source: —. Test: —. Mark: CHANGES (C-LOCK).
+
+**IN-5**
+- Release webhook: a published GitHub release starts DR-1 for the webhook's project; any other event or action is
+  ignored.
+- Source: `deploy-release.sh`. Test: —. Mark: CHANGES (C-LOOP).
+
 ## Coverage gaps today
 
 These have no test and need one in fanin:
 
-- **deploy-release** (DR-1, DR-2).
 - **Spawn's tab title restore** after a resume.
 
 Write the tests for the failure paths of these first.

@@ -1,7 +1,62 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "triggers.schema.json",
-  "title": "triggers.yaml; no trigger keys yet",
+  "title": "triggers.yaml: the intake sources besides the CLI",
   "type": "object",
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "model": {"description": "model of the queued task; one of the project's worker kind models", "type": "string", "minLength": 1}
+  },
+  "properties": {
+    "webhooks": {
+      "description": "signed webhooks by name, served at POST /api/v1/webhooks/<name>",
+      "type": "object",
+      "propertyNames": {"$ref": "settings.schema.json#/$defs/name"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "project", "secret_env"],
+        "properties": {
+          "kind": {"description": "forge: a labelled issue queues a task; alert: a firing alert queues an analysis; release: a published release deploys its image", "enum": ["forge", "alert", "release"]},
+          "project": {"description": "project the task goes to; for release the project whose release is deployed", "$ref": "settings.schema.json#/$defs/name"},
+          "secret_env": {"description": "environment variable that holds the HMAC-SHA256 secret of the signature", "$ref": "secret.schema.json"},
+          "label": {"description": "forge: the issue label that queues the task", "type": "string", "minLength": 1},
+          "model": {"$ref": "#/$defs/model"}
+        },
+        "if": {"properties": {"kind": {"const": "forge"}}},
+        "then": {"required": ["label"]},
+        "else": {"not": {"required": ["label"]}}
+      }
+    },
+    "cron": {
+      "description": "tasks queued on a fixed interval, by name",
+      "type": "object",
+      "propertyNames": {"$ref": "settings.schema.json#/$defs/name"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project", "every"],
+        "properties": {
+          "project": {"$ref": "settings.schema.json#/$defs/name"},
+          "every": {"description": "interval between two runs; the first is due one interval after it is first armed", "$ref": "settings.schema.json#/$defs/duration"},
+          "task": {"description": "owner task text (shape pr)", "type": "string", "minLength": 1},
+          "analyze": {"description": "owner question text (shape analysis)", "type": "string", "minLength": 1},
+          "model": {"$ref": "#/$defs/model"}
+        },
+        "oneOf": [{"required": ["task"]}, {"required": ["analyze"]}]
+      }
+    },
+    "release": {
+      "description": "where a release webhook queues the image bump (SCENARIOS DR-1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project"],
+      "properties": {
+        "project": {"description": "the config repo project whose compose module is bumped; its base is read", "$ref": "settings.schema.json#/$defs/name"},
+        "compose_glob": {"description": "git pathspec of the compose modules in the config repo", "type": "string", "minLength": 1, "default": "modules/*/docker-compose.yml"},
+        "registry": {"description": "registry of the default image <registry>/<owner>/<repo>", "type": "string", "minLength": 1, "default": "ghcr.io"},
+        "model": {"description": "model of the bump task", "type": "string", "minLength": 1, "default": "sonnet"}
+      }
+    }
+  }
 }

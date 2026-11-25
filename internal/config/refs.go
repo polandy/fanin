@@ -32,7 +32,7 @@ func (t tree) checkRefs(c Config) error {
 			return err
 		}
 	}
-	return nil
+	return t.checkTriggers(c)
 }
 
 // checkProject checks the references of one project; a value may also come from defaults in fanin.yaml.
