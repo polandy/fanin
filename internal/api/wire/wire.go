@@ -14,6 +14,9 @@ const (
 	CodeBadRequest   = "bad_request"
 	CodeTooLarge     = "too_large"
 	CodeInternal     = "internal"
+	CodeConflict     = "conflict"
+	// CodeDeliveryFailed is an answer that could not reach the worker; nothing was recorded.
+	CodeDeliveryFailed = "delivery_failed"
 )
 
 // Error is the body of every non-2xx answer, wrapped as {"error": {...}}.
@@ -92,6 +95,8 @@ type Question struct {
 	TaskID      string    `json:"task_id"`
 	RunID       string    `json:"run_id"`
 	Project     string    `json:"project"`
+	Kind        string    `json:"kind"`
+	AllowText   bool      `json:"allow_text"`
 	Question    string    `json:"question"`
 	Options     []Option  `json:"options"`
 	Recommended int       `json:"recommended"`
@@ -141,4 +146,21 @@ type Event struct {
 	RunID   string    `json:"run_id"`
 	At      time.Time `json:"at"`
 	Detail  string    `json:"detail"`
+}
+
+// Questions is the answer of GET /api/v1/questions: the open owner questions, oldest first.
+type Questions struct {
+	Questions []Question `json:"questions"`
+}
+
+// AnswerRequest is the body of POST /api/v1/tasks/{id}/answer: an option number 1-9, or free text when the
+// question allows it.
+type AnswerRequest struct {
+	Answer string `json:"answer"`
+}
+
+// Ack is the answer of an owner command; Detail says what it did.
+type Ack struct {
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
 }

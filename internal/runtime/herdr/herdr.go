@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/polandy/fanin/internal/clock"
@@ -50,6 +51,8 @@ const (
 const (
 	StatusWorking = string(model.RunWorking)
 	StatusBlocked = "blocked"
+	StatusIdle    = "idle"
+	StatusDone    = string(model.TaskDone)
 	StatusGone    = "gone"
 )
 
@@ -61,9 +64,19 @@ type Config struct {
 	ShellPause        time.Duration
 	WorkChecks        int
 	WorkCheckInterval time.Duration
+	PollInterval      time.Duration
+	ReadRetries       int
+	ReadRetryInterval time.Duration
+	// StallSlice times StallSlices of an unchanged pane is a quiet stall; MaxBGWaits slices cap a live footer's hold.
+	StallSlice    time.Duration
+	StallSlices   int
+	BGShellWindow time.Duration
+	MaxBGWaits    int
+	ResumeEnters  int
+	ResumeGrace   time.Duration
 }
 
-// DefaultConfig returns the limits of SCENARIOS SP-2 and SP-6.
+// DefaultConfig returns the limits of SCENARIOS SP-2, SP-6 and AW-3 to AW-8.
 func DefaultConfig() Config {
 	return Config{
 		StartTries:        DefaultStartTries,
@@ -72,6 +85,15 @@ func DefaultConfig() Config {
 		ShellPause:        DefaultShellPause,
 		WorkChecks:        DefaultWorkChecks,
 		WorkCheckInterval: DefaultWorkCheckInterval,
+		PollInterval:      DefaultPollInterval,
+		ReadRetries:       DefaultReadRetries,
+		ReadRetryInterval: DefaultReadRetryInterval,
+		StallSlice:        DefaultStallSlice,
+		StallSlices:       DefaultStallSlices,
+		BGShellWindow:     DefaultBGShellWindow,
+		MaxBGWaits:        DefaultMaxBGWaits,
+		ResumeEnters:      DefaultResumeEnters,
+		ResumeGrace:       DefaultResumeGrace,
 	}
 }
 
@@ -81,13 +103,16 @@ type Runtime struct {
 	clock  clock.Clock
 	logger *slog.Logger
 	cfg    Config
+	mu     sync.Mutex
+	// prompted is when fanin last sent each agent input, keyed by host and agent.
+	prompted map[string]time.Time
 }
 
 var _ runtime.WorkerRuntime = (*Runtime)(nil)
 
 // New returns a herdr runtime.
 func New(runner runtime.Runner, clk clock.Clock, logger *slog.Logger, cfg Config) *Runtime {
-	return &Runtime{runner: runner, clock: clk, logger: logger, cfg: cfg}
+	return &Runtime{runner: runner, clock: clk, logger: logger, cfg: cfg, prompted: map[string]time.Time{}}
 }
 
 // Start finds or creates the project's workspace, opens a tab, starts claude and sends the prompt (SCENARIOS SP-1..SP-6).
@@ -95,7 +120,7 @@ func (r *Runtime) Start(ctx context.Context, spec runtime.RunSpec) (runtime.RunH
 	if err := validate(spec); err != nil {
 		return runtime.RunHandle{}, err
 	}
-	h := runtime.RunHandle{Host: spec.Host, Agent: spec.Agent}
+	h := runtime.RunHandle{TaskID: spec.TaskID, RunID: spec.RunID, Project: spec.Project, Host: spec.Host, Agent: spec.Agent}
 	var err error
 	if h.Workspace, err = r.workspace(ctx, spec); err != nil {
 		return h, err
@@ -264,8 +289,8 @@ func (r *Runtime) awaitWorking(ctx context.Context, h runtime.RunHandle, prompt 
 			if err := r.Prompt(ctx, h, prompt); err != nil {
 				return err
 			}
-		} else if _, err := r.herdr(ctx, h.Host, "agent", "send-keys", h.Agent, KeyEnter); err != nil {
-			return fmt.Errorf("%w: Enter to %s (pane %s) failed: %w", runtime.ErrPromptRefused, h.Agent, h.Pane, err)
+		} else if err := r.enter(ctx, h); err != nil {
+			return err
 		}
 	}
 }

@@ -9,15 +9,16 @@ adapter. Every herdr call goes through `runtime.Runner`, every wait through the 
 |---|---|
 | `Start(ctx, RunSpec) (RunHandle, error)` | workspace, tab, agent start, prompt; returns once the agent works |
 | `Prompt(ctx, RunHandle, text) error` | sends text; a refusal is an error at once (SP-5, AW-13) |
-| `Observe(ctx, RunHandle) (<-chan RunEvent, error)` | stub: the channel sends nothing and closes with `ctx` |
+| `Observe(ctx, RunHandle) (<-chan RunEvent, error)` | polls herdr and the pane and streams `RunEvent`s (see Observe) |
 | `Stop(ctx, RunHandle) error` | closes the run's pane, never its tab (FP-7, MG-7) |
 
 `RunSpec` carries the task and run IDs (for logs), the project label, host, worktree, agent name, short title, model, prompt and MCP config path.
 The session name is `<project> · <short title> · <agent>` (SP-1); the title is left out when empty. Agent names
-are slot names without a lane (C-SLOTS). `RunHandle` names host, agent, workspace, tab and pane.
+are slot names without a lane (C-SLOTS). `RunHandle` names host, agent, workspace, tab and pane, plus the task and run IDs and the project for logs.
 
 Errors are sentinels in `internal/runtime`, matched with `errors.Is`: `ErrInvalidSpec`, `ErrOddAnswer`,
-`ErrStartFailed`, `ErrAgentTaken`, `ErrTrustDialog`, `ErrPromptRefused`, `ErrNotWorking`, `ErrStatusUnknown`.
+`ErrStartFailed`, `ErrAgentTaken`, `ErrTrustDialog`, `ErrPromptRefused`, `ErrNotWorking`, `ErrStatusUnknown`,
+`ErrUnreachable`.
 Each wraps herdr's `*runtime.ExitError` where there is one, and names the agent, pane and tab.
 
 ## herdr commands
@@ -60,6 +61,48 @@ has no readable status, is `ErrStatusUnknown` (SP-11): never a verdict, and neve
 
 A failed pane read, resend or Enter is an error, not a skipped step.
 
+## Observe (AW-3 to AW-9, AW-12, WA-3)
+
+The pane text is read only to spot dialogs, stalls and live background work, never for the result (C-REPORT):
+the result comes from `fanin_report` or `result.json`.
+
+Every `PollInterval` one probe runs `agent get` and `pane read <pane> --lines 200`. Its events:
+
+| Event | When | Carries |
+|---|---|---|
+| `working` | the agent starts working | |
+| `idle` | herdr says `idle` or `done`, once per stop | `LastWords`, `Tail` |
+| `gone` | herdr no longer lists the agent; the channel closes, the pane is not read (AW-7) | |
+| `dialog` | herdr says `blocked`; again when the dialog text changes | `Dialog` |
+| `stalled` | see Stalls | `Reason`, `LastWords`, `Tail` |
+| `answered_in_pane` | the agent leaves a dialog, or goes from idle to working, and fanin sent it no prompt or Enter since it began waiting (WA-3) | |
+| `unreachable` | a read stayed failed after every retry, or an Enter failed; the channel closes | `Err` |
+
+Every event carries herdr's `Status` and the clock time `At`. The channel also closes when `ctx` ends.
+
+- **Reads (AW-6, AW-7).** A failed `agent get` (with its `agent list`), a failed `pane read` and an empty pane
+  are re-read up to `ReadRetries` times, `ReadRetryInterval` apart. A failed read is never a sample, so a hiccup
+  between two samples neither stalls nor settles the run. After the last retry the event is `unreachable`, wrapping
+  `ErrUnreachable` and herdr's error. A status word other than `working`, `blocked`, `idle` or `done` is an odd
+  answer and goes the same way.
+- **Dialogs (AW-9).** The bottom `DialogLines` (30) are searched for numbered options counted from 1, at least two,
+  one of them behind claude's `❯` cursor. The question is the nearest text line above the first option.
+  `Dialog` is `<question> 1. <option> / 2. <option>`, cut to 400 runes. A blocked pane without such options is
+  `unreadable`. A numbered list in a reply has no cursor and is no dialog.
+- **Background work (AW-3).** A footer in the bottom `FooterLines` (4) that counts background tasks, agents or
+  shells holds an idle agent: no `idle` is sent for up to `MaxBGWaits` (50) slices of `StallSlice`. A footer
+  further up the scrollback does not count.
+- **Stalls (AW-4, AW-5).** The pane fingerprint drops the spinner line and timers and token counts. A working
+  agent whose fingerprint stays the same for `StallSlices` (3) times `StallSlice` (300 s) is `stalled` with reason
+  `quiet`; an idle agent held by a live shell footer whose tail stays the same for `BGShellWindow` (20 min) is
+  `stalled` with reason `bg-shell`. Real output restarts the window, and each stall starts the next one. The
+  daemon takes a missing `fanin_progress` heartbeat as the stall signal; the fingerprint is the fallback for
+  workers without MCP.
+- **Resume (AW-8).** Within `ResumeGrace` (120 s) of Observe's start, text left in an idle agent's input box gets
+  Enter, at most `ResumeEnters` (2) times, and no `idle` is sent while the grace lasts.
+- **Last words (AW-12).** `LastWords` is the last 5 non-empty lines above the input box, so the box and the footer
+  are dropped. `Tail` is the whole pane read; the daemon stores it per run.
+
 ## Limits
 
 `herdr.Config`, defaults from `DefaultConfig()`:
@@ -72,10 +115,18 @@ A failed pane read, resend or Enter is an error, not a skipped step.
 | `ShellPause` | 5 s | SP-1 |
 | `WorkChecks` | 10 | SP-6 |
 | `WorkCheckInterval` | 3 s | SP-6 |
+| `PollInterval` | 30 s between probes | AW-3 to AW-9 |
+| `ReadRetries` | 3 | AW-6 |
+| `ReadRetryInterval` | 30 s | AW-6 |
+| `StallSlice` | 300 s | AW-3, AW-4 |
+| `StallSlices` | 3 | AW-4 |
+| `BGShellWindow` | 20 min | AW-5 |
+| `MaxBGWaits` | 50 slices | AW-3 |
+| `ResumeEnters` | 2 | AW-8 |
+| `ResumeGrace` | 120 s | AW-8 |
 
 They are not in the YAML config yet; the daemon wiring adds them when it starts workers.
 
 ## Not yet
 
-Observe (pane reads for dialogs and stalls), Remote Control names and opencode workers (SP-9) come with later
-work packages.
+Remote Control names and opencode workers (SP-9) come with later work packages.

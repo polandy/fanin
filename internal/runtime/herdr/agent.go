@@ -3,9 +3,9 @@ package herdr
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/polandy/fanin/internal/runtime"
-	"github.com/polandy/fanin/internal/safego"
 )
 
 // agentState is what herdr says about one agent.
@@ -75,17 +75,36 @@ func (r *Runtime) Prompt(ctx context.Context, h runtime.RunHandle, text string) 
 	if _, err := r.herdr(ctx, h.Host, "agent", "prompt", h.Agent, text); err != nil {
 		return fmt.Errorf("%w: prompt to %s (pane %s) failed: %w", runtime.ErrPromptRefused, h.Agent, h.Pane, err)
 	}
+	r.notePrompt(h)
 	return nil
 }
 
-// Observe is a stub until the observer lands: its channel sends nothing and closes when ctx ends.
-func (r *Runtime) Observe(ctx context.Context, _ runtime.RunHandle) (<-chan runtime.RunEvent, error) {
-	ch := make(chan runtime.RunEvent)
-	safego.Go(ctx, r.logger, func(ctx context.Context) {
-		<-ctx.Done()
-		close(ch)
-	})
-	return ch, nil
+// enter presses Enter in the agent's input box.
+func (r *Runtime) enter(ctx context.Context, h runtime.RunHandle) error {
+	if _, err := r.herdr(ctx, h.Host, "agent", "send-keys", h.Agent, KeyEnter); err != nil {
+		return fmt.Errorf("%w: Enter to %s (pane %s) failed: %w", runtime.ErrPromptRefused, h.Agent, h.Pane, err)
+	}
+	r.notePrompt(h)
+	return nil
+}
+
+func promptKey(h runtime.RunHandle) string { return h.Host + promptKeySep + h.Agent }
+
+const promptKeySep = "/"
+
+// notePrompt records that fanin just sent input to h's agent.
+func (r *Runtime) notePrompt(h runtime.RunHandle) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.prompted[promptKey(h)] = r.clock.Now()
+}
+
+// promptedSince reports whether fanin sent h's agent input at or after t.
+func (r *Runtime) promptedSince(h runtime.RunHandle, t time.Time) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	at, ok := r.prompted[promptKey(h)]
+	return ok && !at.Before(t)
 }
 
 // Stop closes the run's pane, never its tab: the tab may hold other panes (SCENARIOS FP-7, MG-7).

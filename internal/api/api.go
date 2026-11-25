@@ -16,6 +16,7 @@ import (
 	"github.com/polandy/fanin/internal/api/wire"
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/model"
+	"github.com/polandy/fanin/internal/owner"
 )
 
 // MaxBodyBytes caps the body of a command request.
@@ -55,6 +56,17 @@ type Config struct {
 	Registry   *Registry
 	// Projects are the configured project names in config order.
 	Projects []string
+	// Owner runs the owner commands; without it they answer 500 and change nothing.
+	Owner Owner
+}
+
+// Owner is the owner channel the command endpoints call (internal/owner).
+type Owner interface {
+	Answer(ctx context.Context, task model.TaskID, raw string) (owner.Delivery, error)
+	Go(ctx context.Context, task model.TaskID) error
+	LiftHold(ctx context.Context, id string) error
+	Pause(ctx context.Context, project string) (bool, error)
+	Resume(ctx context.Context, project string) error
 }
 
 // Server is the state the route handlers share.

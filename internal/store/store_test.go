@@ -43,8 +43,12 @@ func TestOpenAppliesMigrationsOnce(t *testing.T) {
 	if err := s.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM schema_migrations").Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if n != 1 {
-		t.Errorf("schema_migrations has %d rows, want 1", n)
+	ms, err := loadMigrations(migrationFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(ms) {
+		t.Errorf("schema_migrations has %d rows, want %d", n, len(ms))
 	}
 }
 
