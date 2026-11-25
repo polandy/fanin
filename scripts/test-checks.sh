@@ -67,6 +67,6 @@ equals() { # equals <name> <want> <got>
 }
 equals "scenarios counts IDs per section" "1. Alpha: 1 of 2 covered, missing: AA-2
 2. Beta: 1 of 2 covered, missing: BB-10" "$(scripts/check-scenarios.sh --report $sc/scenarios.md $sc/tests 2>&1)"
-equals "scenarios report lists all 17 sections" 17 "$(scripts/check-scenarios.sh --report | grep -c '^[0-9]*\. ')"
+equals "scenarios report lists every section" "$(grep -c '^## [0-9]*\. ' docs/dev/scenarios.md)" "$(scripts/check-scenarios.sh --report | grep -c '^[0-9]*\. ')"
 
 [ "$failures" -eq 0 ]
