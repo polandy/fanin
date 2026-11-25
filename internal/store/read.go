@@ -194,3 +194,13 @@ func (s *Store) Projects(ctx context.Context) ([]string, error) {
 		return p, sc.Scan(&p)
 	})
 }
+
+// DoneTasks returns every task in state done, the least recently updated first.
+func (s *Store) DoneTasks(ctx context.Context) ([]model.Task, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+taskColumns+` FROM tasks WHERE state = ?
+		ORDER BY updated_at, id`, string(model.TaskDone))
+	if err != nil {
+		return nil, fmt.Errorf("store: read done tasks: %w", err)
+	}
+	return scanAll(rows, scanTask)
+}

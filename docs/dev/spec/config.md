@@ -126,7 +126,13 @@ A duration is a Go duration string with a non-zero leading number (`90s`, `15m`,
 The config holds secret names only (`owner_token_env`, `token_env`; upper-case variable names).
 `Config.Effective(project, secrets)` resolves one project with its host, forge and worker kind; each secret
 appears as `{env, set}`, where `set` comes from the `config.Secrets` lookup. `Effective.WriteYAML` prints it and
-never holds a value (GT-10). The `fanin config effective` subcommand that prints it is not built yet.
+never holds a value (GT-10).
+
+`fanin config effective [--json] <project>` prints it through `Config.Explain`: every value gets a line comment
+with its origin (`projects/x.yaml:5`, `fanin.yaml:9`, `hosts.yaml:3`, `default`, `built-in`, `environment`).
+`Load` records the line of every key of every file for this. Keys follow the struct order, JSON keys are sorted
+and carry the origins by JSON pointer under `origins`. An unknown project is a usage error (exit 2);
+`fanin config validate [DIR]` exits 1 on an invalid config (ST-4).
 
 ## schema-check
 

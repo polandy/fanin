@@ -1,0 +1,13 @@
+{
+  "alpha": [
+    {
+      "id": "h1",
+      "project": "alpha",
+      "kind": "ci",
+      "reason": "main is red",
+      "fix_task": "d5",
+      "created_at": "2026-03-04T06:26:07Z"
+    }
+  ],
+  "gamma": []
+}
