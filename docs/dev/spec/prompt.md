@@ -1,0 +1,37 @@
+# Prompt spec
+
+`internal/prompt` renders the worker prompts (SCENARIOS SP-7). The templates are embedded Markdown under
+`internal/prompt/templates/`, ported from the bash orchestrator's `prompts/` and cleaned of host names, paths and
+people.
+
+## Templates
+
+| Name | For |
+|---|---|
+| `worker` | a worker with forge access: task to reviewed PR |
+| `worker-oc` | a sandboxed worker without network: task to a commit |
+| `worker-gitea` | a worker without forge access in a repo that deploys: task to a pushed branch |
+| `worker-analyze` | an analysis question, answered as a docs PR or an owner-decision issue |
+| `worker-gitea-analyze` | the analysis variant without forge access |
+
+Shared text lives in `templates/parts/` (`owner-input`, `no-herdr-no-ssh`, `hard-limits-hosts`, `status-line`).
+
+## Rendering
+
+`prompt.Render(name, Vars{Repo, Base, Hint})`:
+
+1. `{{INCLUDE:part}}` is replaced by `parts/<part>.md`, repeatedly (at most 16 rounds, so a cycle is an error).
+2. Any remaining placeholder other than `{{REPO}}`, `{{BASE}}`, `{{HINT}}` is `ErrPlaceholder`.
+3. The three values go in in one pass, so a hint is inserted literally: a `{{REPO}}` or `{{INCLUDE:x}}` in it stays as typed.
+
+A missing template or part is `ErrTemplate` (wrapping `fs.ErrNotExist`); the renderer never returns a prompt with an
+include left in. The output ends with one newline.
+
+## Report instruction
+
+The bash status-line part becomes the `status-line` part: before finishing, call the MCP tool
+`fanin_report` (`faninmcp.ToolReport`) once, then end with the one-line format of the template. The instruction is the
+line right before the format line and appears once. The worker prompt asks for a review of the local diff
+(`/pr-review local diff, no PR yet`) before the first push and for `/pr-review` on the PR after it.
+
+Golden files in `internal/prompt/testdata` pin each rendered template (`go test ./internal/prompt -update`).
