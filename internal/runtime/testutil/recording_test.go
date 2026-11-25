@@ -10,6 +10,11 @@ import (
 	"github.com/polandy/fanin/internal/runtime/testutil"
 )
 
+const (
+	git    = "git"
+	status = "status"
+)
+
 type fakeTB struct{ errs []string }
 
 func (f *fakeTB) Helper() {}
@@ -20,10 +25,10 @@ func (f *fakeTB) Errorf(format string, args ...any) {
 func TestRecordingRunnerScriptedAnswers(t *testing.T) {
 	tb := &fakeTB{}
 	r := testutil.NewRecordingRunner(tb)
-	r.Expect([]string{"git", "status"}, testutil.Reply{Stdout: "clean"})
+	r.Expect([]string{git, status}, testutil.Reply{Stdout: "clean"})
 	r.Expect([]string{"gh", "pr", "list"}, testutil.Reply{Stderr: "denied", ExitCode: 4})
 
-	res, err := r.Run(context.Background(), runtime.Cmd{Argv: []string{"git", "status"}, Dir: "/w"})
+	res, err := r.Run(context.Background(), runtime.Cmd{Argv: []string{git, status}, Dir: "/w"})
 	if err != nil || string(res.Stdout) != "clean" {
 		t.Fatalf("first call: %q %v", res.Stdout, err)
 	}
@@ -44,9 +49,9 @@ func TestRecordingRunnerScriptedAnswers(t *testing.T) {
 func TestRecordingRunnerFailsOnArgvMismatch(t *testing.T) {
 	tb := &fakeTB{}
 	r := testutil.NewRecordingRunner(tb)
-	r.Expect([]string{"git", "status"}, testutil.Reply{})
+	r.Expect([]string{git, status}, testutil.Reply{})
 
-	_, err := r.Run(context.Background(), runtime.Cmd{Argv: []string{"git", "stauts"}})
+	_, err := r.Run(context.Background(), runtime.Cmd{Argv: []string{git, "stauts"}})
 	if !errors.Is(err, testutil.ErrUnexpectedCall) {
 		t.Errorf("err = %v, want ErrUnexpectedCall", err)
 	}
