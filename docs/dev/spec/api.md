@@ -22,6 +22,9 @@ client for the CLI). Direction: [concept](../concept.md), owner UI. Rules: [guid
     `X-Gitlab-*`, `X-Hub-Signature*`): 403 `forbidden`. A webhook proves itself by its signature on its own intake
     route, never as the owner.
   - The body is capped at `api.MaxBodyBytes` (1 MiB).
+- A route with `Auth: api.AuthRun` takes a worker's run token instead: the middleware only requires a non-empty
+  bearer, and the handler checks it against the run inside the store transaction (see
+  [worker contract](worker-contract.md)). The webhook-header 403 and the body cap apply as above.
 - GET endpoints need no token: the API is meant for a loopback or tailnet listener.
 
 ## Route registry
@@ -44,8 +47,10 @@ none of the existing ones.
 | `POST /api/v1/tasks/{id}/go` | `wire.Ack`; 409 `conflict` when the task is not in `gating` |
 | `POST /api/v1/holds/{id}/lift` | `wire.Ack`; 404 for no active hold |
 | `POST /api/v1/projects/{p}/pause`, `/resume` | `wire.Ack`; 404 for a project outside the config |
+| `POST /api/v1/runs/{id}/report`, `/progress` | run token; `wire.Ack`, see [worker contract](worker-contract.md) |
 
-The command routes answer 500 when the server has no `Config.Owner`.
+The owner routes answer 500 when the server has no `Config.Owner`, the run routes when it has no
+`Config.Reports`.
 
 The snapshot never carries a run's report token. `last_seq` is read before the rest, so a client that opens the
 stream with `after=<last_seq>` sees every later change at least once.
