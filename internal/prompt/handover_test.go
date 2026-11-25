@@ -25,6 +25,24 @@ func TestNudges(t *testing.T) {
 			t.Errorf("secure nudge = %q, want it to ask for a push", out)
 		}
 	})
+
+	t.Run("CF-1_conflict_nudge_merges_the_base_and_never_rebases", func(t *testing.T) {
+		out := mustRender(t, NudgeConflict, Vars{Base: testBase, Hint: "#42 RED: CONFLICTING"})
+		for _, want := range []string{"origin/" + testBase, "never rebase", "#42 RED: CONFLICTING"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("conflict nudge = %q, want %q", out, want)
+			}
+		}
+	})
+
+	t.Run("GH-9_GH-10_fix_and_review_nudges_carry_the_reasons", func(t *testing.T) {
+		for _, n := range []Name{NudgeFix, NudgeReview} {
+			if out := mustRender(t, n, Vars{Hint: "#42 RED: failed: ci FAILURE"}); !strings.Contains(out,
+				"#42 RED: failed: ci FAILURE") {
+				t.Errorf("%s = %q, want the reasons", n, out)
+			}
+		}
+	})
 }
 
 func TestHandover(t *testing.T) {
