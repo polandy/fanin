@@ -94,6 +94,7 @@ func (h *hangRunner) Run(ctx context.Context, _ runtime.Cmd) (runtime.Result, er
 	return runtime.Result{}, ctx.Err()
 }
 
+// see SCENARIOS PK-2
 func TestPickPK2_GiteaGetsNoGhTools(t *testing.T) {
 	rr := testutil.NewRecordingRunner(t)
 	rr.Expect(argv("Read,Glob,Grep"), reply("PICK sonnet: fix the thing"))

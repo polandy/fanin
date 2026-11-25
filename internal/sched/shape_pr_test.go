@@ -127,6 +127,7 @@ func TestPRGreen(t *testing.T) {
 		}
 	})
 
+	// see SCENARIOS OC-7
 	ocMerge := []struct {
 		name, merge string
 		merged      bool
@@ -338,6 +339,7 @@ func TestPRRed(t *testing.T) {
 		r.noMerge()
 	})
 
+	// see SCENARIOS GH-10, OC-8
 	review := []struct{ name, kind string }{
 		{"GH-10_a_review_red_does_not_use_the_fix_budget_up_to_3_then_paused", ""},
 		{"OC-8_an_opencode_review_red_sends_the_reviewer_text", kindOC},

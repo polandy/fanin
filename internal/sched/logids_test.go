@@ -45,6 +45,7 @@ func matchesAny(subs []string, line string) bool {
 }
 
 // TestLogIDs: every task-bound line the scheduler logs carries project, task_id and run_id.
+// see SCENARIOS FP-5
 func TestLogIDs(t *testing.T) {
 	t.Run("OB-4_idle_pick_logs_carry_the_ids", func(t *testing.T) {
 		h := newHarness(t, testConfig())
