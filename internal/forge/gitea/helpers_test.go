@@ -22,6 +22,7 @@ const (
 	token      = "0123456789abcdef0123456789abcdef01234567"
 	doneAt     = "2026-11-25T09:05:00Z"
 	review     = "fanin/review"
+	reviewText = "review running"
 
 	pullPath   = "GET /api/v1/repos/acme/widget/pulls/42"
 	statusPath = "GET /api/v1/repos/acme/widget/commits/abc123def456/status"
@@ -146,6 +147,12 @@ func prWith(key string, v any) map[string]any {
 
 func status(context, state string) map[string]any {
 	return map[string]any{keyContext: context, keyStatus: state, "created_at": "2026-11-25T09:00:00Z", "updated_at": doneAt}
+}
+
+// described sets the description of a status.
+func described(st map[string]any, text string) map[string]any {
+	st["description"] = text
+	return st
 }
 
 func combined(statuses ...map[string]any) map[string]any {

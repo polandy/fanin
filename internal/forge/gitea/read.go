@@ -37,10 +37,11 @@ type prJSON struct {
 }
 
 type statusJSON struct {
-	Context   string `json:"context"`
-	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	Context     string `json:"context"`
+	Status      string `json:"status"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	Description string `json:"description"`
 }
 
 type combinedJSON struct {
@@ -164,7 +165,7 @@ func toCheck(s statusJSON) (forge.Check, error) {
 	if err != nil {
 		return forge.Check{}, fmt.Errorf("status %s time %q: %w", s.Context, at, err)
 	}
-	return forge.Check{Name: s.Context, State: state, UpdatedAt: t.UTC()}, nil
+	return forge.Check{Name: s.Context, State: state, UpdatedAt: t.UTC(), Description: s.Description}, nil
 }
 
 // toPR maps a Gitea PR; mergeable false counts as conflicting, as gitea-gate.sh did.

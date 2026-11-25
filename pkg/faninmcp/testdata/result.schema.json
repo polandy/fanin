@@ -1,0 +1,46 @@
+{
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "description": "the run token from $FANIN_RUN_TOKEN"
+    },
+    "kind": {
+      "type": "string",
+      "description": "the outcome: done_pr, pushed, committed, issue, nothing or blocked",
+      "enum": [
+        "done_pr",
+        "pushed",
+        "committed",
+        "issue",
+        "nothing",
+        "blocked"
+      ]
+    },
+    "pr": {
+      "type": "integer",
+      "description": "pull request number; required for done_pr"
+    },
+    "branch": {
+      "type": "string",
+      "description": "branch name; required for pushed and committed"
+    },
+    "issue": {
+      "type": "integer",
+      "description": "issue number; required for issue"
+    },
+    "issue_url": {
+      "type": "string",
+      "description": "web address of the issue, absolute http(s)"
+    },
+    "text": {
+      "type": "string",
+      "description": "reason for nothing, the question for blocked, or a note; one line, at most 400 characters are kept"
+    }
+  },
+  "required": [
+    "token",
+    "kind"
+  ],
+  "additionalProperties": false
+}

@@ -27,7 +27,8 @@ func TestPR(t *testing.T) {
 			Checks: []forge.Check{
 				{Name: "ci", State: forge.CheckSuccess, UpdatedAt: time.Date(2026, 11, 25, 9, 5, 0, 0, time.UTC)},
 				{Name: "lint", State: forge.CheckPending, UpdatedAt: time.Date(2026, 11, 25, 9, 1, 0, 0, time.UTC)},
-				{Name: reviewContext, State: forge.CheckSuccess, UpdatedAt: time.Date(2026, 11, 25, 9, 6, 0, 0, time.UTC)},
+				{Name: reviewContext, State: forge.CheckSuccess, UpdatedAt: time.Date(2026, 11, 25, 9, 6, 0, 0, time.UTC),
+					Description: reviewText},
 			},
 		}
 		if diff := cmp.Diff(want, got); diff != "" {

@@ -150,7 +150,7 @@ func runDTO(r model.Run) wire.Run {
 	}
 	if r.Result != nil {
 		out.Result = &wire.Result{Kind: string(r.Result.Kind), PR: r.Result.PR, Branch: r.Result.Branch,
-			Issue: r.Result.Issue, Text: r.Result.Text}
+			Issue: r.Result.Issue, IssueURL: r.Result.IssueURL, Text: r.Result.Text}
 	}
 	return out
 }

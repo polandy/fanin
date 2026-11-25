@@ -25,7 +25,8 @@ Checks are normalised to `pending`, `success`, `failure`, `cancelled` and `skipp
 `COMPLETED` is pending; `NEUTRAL` counts as success; `TIMED_OUT`, `ACTION_REQUIRED`, `STARTUP_FAILURE` and
 `STALE` count as failure. A commit status (`StatusContext`, such as the review verdict of D5) maps `EXPECTED` and
 `PENDING` to pending and `ERROR` to failure. `Check.UpdatedAt` is the completion time, the start time while a run
-is pending, and the post time of a status.
+is pending, and the post time of a status. `Check.Description` is a status's description, such as the review's
+reasons; a check run has none.
 
 A PR number a worker reports goes through `forge.ParseNumber` (`42` or `#42`); anything else is
 `ErrInvalidRequest` before any forge call (SCENARIOS GT-6).

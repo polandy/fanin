@@ -13,6 +13,8 @@ type Globals struct {
 	Config    string
 	DaemonURL string
 	Token     string
+	// Getenv reads the environment; commands with their own variables use it.
+	Getenv func(string) string
 }
 
 // Command is one fanin subcommand.
