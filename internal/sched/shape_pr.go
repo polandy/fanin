@@ -64,6 +64,8 @@ func (s *Scheduler) finishPR(ctx context.Context, p config.Project, ev model.Eve
 	switch res.Kind {
 	case model.ResultDonePR:
 		return s.checkHead(ctx, p, run, res.PR)
+	case model.ResultCommitted:
+		return s.committed(ctx, p, task, run, res)
 	case model.ResultIssue:
 		return s.closeAnalysis(ctx, p, run, AnalysisIssueDetail+issueRef(res))
 	case model.ResultNothing:

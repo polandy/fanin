@@ -71,6 +71,21 @@ systemd starts the unit with a bare environment: only `PATH` from the unit, the 
 `EnvironmentFile`, and `--config /etc/fanin`. Nothing is read from a home directory or a login shell. Adjust the
 `PATH` line when the tools your workers need live elsewhere.
 
+## Opencode sandbox
+
+Opencode workers run as the sandbox user `aiagent` in its clone `/srv/aiagent/<project>`; fanind calls `sudo -n`,
+so a password prompt is an error that names the missing line. Give the daemon's user these NOPASSWD commands, and
+add the sandbox clone to each opencode project's checkout as the remote `aiagent`:
+
+```sh
+# /etc/sudoers.d/fanin-opencode (edit with visudo -f)
+fanin ALL=(aiagent) NOPASSWD: /usr/bin/git, /bin/sh, /usr/local/bin/oc-sandbox
+git -C <project checkout> remote add aiagent /srv/aiagent/<project>
+```
+
+fanind writes the launcher shim to `oc-bin/` next to the store. Leftovers in a sandbox clone stop the next spawn
+("is not clean"): move them out, never delete them.
+
 ## Branch protection
 
 fanin merges a PR only after both required checks are green. Set them as required on the base branch of every

@@ -29,6 +29,7 @@ import (
 	"github.com/polandy/fanin/internal/runtime/exec"
 	"github.com/polandy/fanin/internal/runtime/headless"
 	"github.com/polandy/fanin/internal/runtime/herdr"
+	"github.com/polandy/fanin/internal/runtime/opencode"
 	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/sched"
 	"github.com/polandy/fanin/internal/shadow"
@@ -69,6 +70,9 @@ type deps struct {
 
 // RunsDir is the directory next to the store that holds the per-run files (MCP config).
 const RunsDir = "runs"
+
+// OCShimDir is the directory next to the store that holds the opencode launcher shim.
+const OCShimDir = "oc-bin"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -206,9 +210,11 @@ func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.
 	}, nil
 }
 
-// realWorkers is the herdr runtime and the headless picker.
+// realWorkers is the herdr runtime behind the opencode sandbox runtime, and the headless picker.
 func realWorkers(cfg config.Config, clk clock.Clock, log *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
-	return herdr.New(exec.Runner{}, clk, log, herdr.DefaultConfig()),
+	oc := opencode.DefaultConfig()
+	oc.ShimDir = filepath.Join(filepath.Dir(cfg.Store), OCShimDir)
+	return opencode.New(herdr.New(exec.Runner{}, clk, log, herdr.DefaultConfig()), exec.Runner{}, oc),
 		pick.New(headless.New(exec.Runner{}, clk, log), pick.Config{Model: cfg.Picker.Model})
 }
 

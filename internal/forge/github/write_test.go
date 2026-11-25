@@ -251,3 +251,32 @@ func TestSquashMergeRetries(t *testing.T) {
 		}
 	})
 }
+
+func TestPostComment(t *testing.T) {
+	argv := []string{"gh", "pr", "comment", "42", flagRepo, repo, "--body-file", "-"}
+	t.Run("OC-4_posts_the_body_on_stdin_and_returns_the_comment_url", func(t *testing.T) {
+		c, r := newClient(t)
+		url := "https://github.com/acme/widget/pull/42#issuecomment-9"
+		r.Expect(argv, testutil.Reply{Stdout: url + "\n"})
+		got, err := c.PostComment(context.Background(), repo, number, "review")
+		if err != nil || got != url {
+			t.Fatalf("PostComment = %q, %v", got, err)
+		}
+		if body := string(r.Calls()[0].Stdin); body != "review" {
+			t.Errorf("stdin = %q, want the body", body)
+		}
+	})
+	t.Run("OC-4_an_answer_without_a_comment_url_is_unreadable", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(argv, testutil.Reply{Stdout: "ok\n"})
+		if _, err := c.PostComment(context.Background(), repo, number, "review"); !errors.Is(err, forge.ErrUnreadable) {
+			t.Errorf("err = %v, want ErrUnreadable", err)
+		}
+	})
+	t.Run("OC-4_an_empty_body_is_rejected_before_gh", func(t *testing.T) {
+		c, _ := newClient(t)
+		if _, err := c.PostComment(context.Background(), repo, number, " "); !errors.Is(err, forge.ErrInvalidRequest) {
+			t.Errorf("err = %v, want ErrInvalidRequest", err)
+		}
+	})
+}

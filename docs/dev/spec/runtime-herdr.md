@@ -12,7 +12,8 @@ adapter. Every herdr call goes through `runtime.Runner`, every wait through the 
 | `Observe(ctx, RunHandle) (<-chan RunEvent, error)` | polls herdr and the pane and streams `RunEvent`s (see Observe) |
 | `Stop(ctx, RunHandle) error` | closes the run's pane, never its tab (FP-7, MG-7) |
 
-`RunSpec` carries the task and run IDs (for logs), the project label, host, worktree, agent name, short title, model, prompt and MCP config path.
+`RunSpec` carries the task and run IDs (for logs), the project label, host, worktree, agent name, short title, model, prompt and MCP config path, plus the worker kind (`claude` or
+`opencode`; empty is claude), the base branch and a directory to put first on the pane's PATH.
 The session name is `<project> · <short title> · <agent>` (SP-1); the title is left out when empty. Agent names
 are slot names without a lane (C-SLOTS). `RunHandle` names host, agent, workspace, tab and pane, plus the task and run IDs and the project for logs.
 
@@ -31,7 +32,9 @@ A run on another host prefixes every command with `herdr --machine <host>`. Ever
 | find workspace | `workspace list` | `.result.workspaces[] \| {label, workspace_id}` |
 | create workspace | `workspace create --cwd <worktree> --label <project> --no-focus` | `.result.workspace.workspace_id` |
 | new tab | `tab create --workspace <ws> --cwd <worktree> --label <agent> --no-focus` | `.result.tab.tab_id`, `.result.root_pane.pane_id` |
+| PATH | `pane run <pane> 'set -gx PATH <dir> $PATH'`, only with a PATH directory | exit code |
 | start | `agent start <agent> --pane <pane> --timeout <ms> --kind claude -- --permission-mode auto --strict-mcp-config --mcp-config <file> [--model <m>] --name <session>` | exit code |
+| start (opencode) | `agent start <agent> --pane <pane> --timeout <ms> --kind opencode -- <project>` | exit code |
 | status | `agent get <agent>` | `.result.agent.agent_status`, `.result.agent.pane_id` |
 | listed? | `agent list` | `.result.agents[].name` |
 | pane text | `pane read <pane> --lines <n>` | plain text |
@@ -46,7 +49,7 @@ has no readable status, is `ErrStatusUnknown` (SP-11): never a verdict, and neve
 ## Start (SP-1 to SP-6)
 
 1. Reuse the workspace labelled with the project, else create it. Open a new tab labelled with the agent.
-2. Wait `ShellPause` (5 s) for the pane's shell.
+2. Wait `ShellPause` (5 s) for the pane's shell, then put the PATH directory first when the spec has one.
 3. `agent start`. On failure, ask for the agent's status:
    - listed in this pane: started, go on (SP-3);
    - listed in another pane: `ErrAgentTaken`, no prompt (SP-3);
@@ -56,7 +59,7 @@ has no readable status, is `ErrStatusUnknown` (SP-11): never a verdict, and neve
 4. `agent prompt`; a refusal is `ErrPromptRefused` with herdr's reason and the pane (SP-5). A tab or workspace
    answer without its ids is `ErrOddAnswer`, before any start (SP-5).
 5. Up to `WorkChecks` times, every `WorkCheckInterval`: `working` or `blocked` ends the start. Otherwise read 6
-   pane lines; an empty claude input box (`❯` alone or with its `Try "` hint) gets the prompt again, any other
+   pane lines; an empty input box (claude: `❯` alone or with its `Try "` hint; opencode: `┃  Ask anything`) gets the prompt again, any other
    box gets Enter (SP-6). After the last check it is `ErrNotWorking` with the status.
 
 A failed pane read, resend or Enter is an error, not a skipped step.
@@ -128,6 +131,22 @@ Every event carries herdr's `Status` and the clock time `At`. The channel also c
 
 They are not in the YAML config yet; the daemon wiring adds them when it starts workers.
 
+## Opencode workers (SP-9)
+
+`internal/runtime/opencode` wraps the herdr adapter. A claude spec passes through; any kind but claude and
+opencode is `ErrInvalidSpec`. For an opencode spec, before any herdr call:
+
+1. `sudo -n -u aiagent git -C /srv/aiagent/<project> status --porcelain`; any line is `opencode.ErrDirtyClone`
+   (`<clone> is not clean`, the first 5 lines, and the hint to move the leftovers out, never delete them).
+2. `git -C <worktree> fetch -q origin <base>`, then `git bundle create -q - refs/remotes/origin/<base>`.
+3. The bundle goes on stdin to `sudo -n -u aiagent sh -c <SyncScript> sh <clone> <base>`, which writes it beside
+   the clone and fetches it into `refs/remotes/origin/<base>`: the sandbox has no network.
+4. The shim `<state dir>/oc-bin/opencode` (`exec /usr/local/bin/oc "$@"`) is written atomically, mode 0755.
+5. herdr starts `--kind opencode` with the shim directory on PATH; the oc prompt follows as for claude.
+
+A sudo password prompt is an error that names the missing NOPASSWD sudoers line. `fanind` always wraps the herdr
+runtime this way; the scheduler only sends opencode specs for GitHub PR tasks (see [`sched.md`](sched.md)).
+
 ## Not yet
 
-Remote Control names and opencode workers (SP-9) come with later work packages.
+Remote Control names come with a later work package.

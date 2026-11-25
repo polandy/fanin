@@ -74,6 +74,9 @@ type harness struct {
 	merger Merger
 	baseCI BaseCI
 	preGo  PreGoCheck
+	// ocPush and ocReview deliver and review opencode branches.
+	ocPush   OCDelivery
+	ocReview OCReviewer
 	// hookRun, when set, runs the post-merge hook through a real hook.Hook on the current store.
 	hookRun  runtime.Runner
 	stateDir string
@@ -117,7 +120,7 @@ func (h *harness) start() {
 	}
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
 		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Hook: post, BaseCI: h.baseCI, PreGo: h.preGo,
-		StateDir: h.stateDir, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
+		StateDir: h.stateDir, OCDeliver: h.ocPush, OCReview: h.ocReview, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)
 			select {
 			case h.waiting <- struct{}{}:

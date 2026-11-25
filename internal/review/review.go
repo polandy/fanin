@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/polandy/fanin/internal/forge"
-	"github.com/polandy/fanin/internal/gate"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/runtime/headless"
@@ -131,7 +130,7 @@ func (r *Reviewer) Review(ctx context.Context, req Request) (Result, error) {
 	if err := r.validate(req); err != nil {
 		return Result{}, err
 	}
-	pr, err := r.head(ctx, req)
+	pr, err := readHead(ctx, r.forge, req.Repo, req.Number)
 	if err != nil {
 		return Result{}, err
 	}
@@ -145,7 +144,7 @@ func (r *Reviewer) Review(ctx context.Context, req Request) (Result, error) {
 	}
 	res, err := r.run(ctx, req, pr, wt, before)
 	if err == nil {
-		err = r.post(ctx, req, pr, res)
+		err = postStatus(ctx, r.forge, req.Repo, pr, res)
 	}
 	err = errors.Join(err, r.removeWorktree(ctx, req.Dir, wt), r.recordUsage(ctx, req, res.Usage))
 	if err != nil {
@@ -166,22 +165,27 @@ func (r *Reviewer) validate(req Request) error {
 	return nil
 }
 
-// head reads the PR and refuses a head fanin cannot pass to git safely.
-func (r *Reviewer) head(ctx context.Context, req Request) (forge.PR, error) {
-	pr, err := r.forge.PR(ctx, req.Repo, req.Number)
+// prReader reads a PR.
+type prReader interface {
+	PR(ctx context.Context, repo string, number int) (forge.PR, error)
+}
+
+// readHead reads the PR and refuses a head fanin cannot pass to git safely.
+func readHead(ctx context.Context, f prReader, repo string, number int) (forge.PR, error) {
+	pr, err := f.PR(ctx, repo, number)
 	if err != nil {
-		return forge.PR{}, fmt.Errorf("review: read %s#%d: %w", req.Repo, req.Number, err)
+		return forge.PR{}, fmt.Errorf("review: read %s#%d: %w", repo, number, err)
 	}
 	switch {
 	case pr.State != forge.StateOpen:
-		return forge.PR{}, fmt.Errorf("%w: %s#%d is %s; only an open PR is reviewed", forge.ErrNotOpen, req.Repo,
-			req.Number, pr.State)
+		return forge.PR{}, fmt.Errorf("%w: %s#%d is %s; only an open PR is reviewed", forge.ErrNotOpen, repo,
+			number, pr.State)
 	case !shaPattern.MatchString(pr.HeadSHA):
 		return forge.PR{}, fmt.Errorf("%w: %s#%d head SHA %q is no hex SHA; re-read the PR", ErrUnreadable,
-			req.Repo, req.Number, pr.HeadSHA)
+			repo, number, pr.HeadSHA)
 	case pr.HeadBranch == "" || strings.HasPrefix(pr.HeadBranch, "-"):
-		return forge.PR{}, fmt.Errorf("%w: %s#%d head branch %q; re-read the PR", ErrUnreadable, req.Repo,
-			req.Number, pr.HeadBranch)
+		return forge.PR{}, fmt.Errorf("%w: %s#%d head branch %q; re-read the PR", ErrUnreadable, repo,
+			number, pr.HeadBranch)
 	}
 	return pr, nil
 }
@@ -264,18 +268,6 @@ func runError(req Request, err error) error {
 			"review skill or give it a NOPASSWD sudoers line: %w", ErrSudoPassword, req.Repo, req.Number, err)
 	}
 	return fmt.Errorf("review of %s#%d: %w", req.Repo, req.Number, err)
-}
-
-func (r *Reviewer) post(ctx context.Context, req Request, pr forge.PR, res Result) error {
-	st := forge.Status{Repo: req.Repo, SHA: pr.HeadSHA, Context: gate.ReviewContext, State: forge.StatusFailure,
-		Description: DescriptionNotReady, TargetURL: res.CommentURL}
-	if res.Verdict == Ready {
-		st.State, st.Description = forge.StatusSuccess, DescriptionReady
-	}
-	if err := r.forge.PostStatus(ctx, st); err != nil {
-		return fmt.Errorf("review: post %s on %s@%s: %w", gate.ReviewContext, req.Repo, pr.HeadSHA, err)
-	}
-	return nil
 }
 
 // recordUsage appends the review's tokens as an event; it carries counts only, never the review's text.

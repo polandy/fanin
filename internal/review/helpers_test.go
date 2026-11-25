@@ -37,6 +37,7 @@ const (
 
 const (
 	gitBin        = "git"
+	flagModel     = "--model"
 	reviewSkill   = "/pr-review"
 	reviewTimeout = 1800 * time.Second
 )
@@ -46,7 +47,7 @@ var (
 	fetchArgv  = []string{gitBin, "-C", repoDir, "fetch", "-q", "origin", headBranch}
 	addArgv    = []string{gitBin, "-C", repoDir, "worktree", "add", "-q", "--detach", worktree, headSHA}
 	removeArgv = []string{gitBin, "-C", repoDir, "worktree", "remove", "--force", worktree}
-	claudeArgv = []string{"claude", "-p", "--output-format", "json", "--model", reviewModel, "--allowedTools",
+	claudeArgv = []string{"claude", "-p", "--output-format", "json", flagModel, reviewModel, "--allowedTools",
 		strings.Join(review.AllowedTools, ",")}
 	start = time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
 )

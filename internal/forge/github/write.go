@@ -11,7 +11,10 @@ import (
 	"github.com/polandy/fanin/internal/forge"
 )
 
-const pullPathMarker = "/pull/"
+const (
+	pullPathMarker = "/pull/"
+	commentMarker  = "#issuecomment-"
+)
 
 // Open opens a pull request; the body goes through stdin, so its length and quoting never matter.
 func (c *Client) Open(ctx context.Context, req forge.OpenRequest) (int, error) {
@@ -31,6 +34,24 @@ func (c *Client) Open(ctx context.Context, req forge.OpenRequest) (int, error) {
 		return 0, fmt.Errorf("%w: gh pr create %s answered %q, want a PR URL", forge.ErrUnreadable, req.Repo, url)
 	}
 	return n, nil
+}
+
+// PostComment posts body as a comment on PR number and returns the comment's URL.
+func (c *Client) PostComment(ctx context.Context, repo string, number int, body string) (string, error) {
+	if repo == "" || number <= 0 || strings.TrimSpace(body) == "" {
+		return "", fmt.Errorf("%w: comment on repo %q PR %d with a %d-byte body; set all three", forge.ErrInvalidRequest,
+			repo, number, len(body))
+	}
+	out, err := c.gh(ctx, []byte(body), "pr", "comment", strconv.Itoa(number), "--repo", repo, "--body-file", "-")
+	if err != nil {
+		return "", err
+	}
+	url := strings.TrimSpace(string(out))
+	if !strings.Contains(url, pullPathMarker) || !strings.Contains(url, commentMarker) {
+		return "", fmt.Errorf("%w: gh pr comment %s#%d answered %q, want a comment URL", forge.ErrUnreadable, repo,
+			number, url)
+	}
+	return url, nil
 }
 
 // EnableAutoMerge sets auto-merge with the squash message; GitHub merges once branch protection is green.
