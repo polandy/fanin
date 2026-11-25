@@ -113,8 +113,8 @@ func applyTask(ctx context.Context, tx *store.Tx, log *slog.Logger, label string
 	}
 	steps, ok := route(have.State, t.State, model.AllTaskStates)
 	if !ok {
-		log.Warn("shadow: store task is ahead of the state file; skipped", "project", label, "task_id", t.ID,
-			"store", have.State, "file", t.State)
+		log.WarnContext(ctx, "shadow: store task is ahead of the state file; skipped", "project", label,
+			"task_id", t.ID, "run_id", RunID(t.ID), "store", have.State, "file", t.State)
 		return nil
 	}
 	for _, s := range steps {
@@ -143,7 +143,7 @@ func applyRun(ctx context.Context, tx *store.Tx, log *slog.Logger, label string,
 	}
 	steps, ok := route(run.State, want, model.AllRunStates)
 	if !ok {
-		log.Warn("shadow: store run is ahead of the state file; skipped", "project", label, "task_id", t.ID,
+		log.WarnContext(ctx, "shadow: store run is ahead of the state file; skipped", "project", label, "task_id", t.ID,
 			"run_id", id, "store", run.State, "file", want)
 		return nil
 	}
