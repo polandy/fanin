@@ -49,6 +49,8 @@ var (
 	ErrUnknownWebhook = errors.New("intake: unknown webhook")
 	// ErrBusy is a release queue that is full; the sender retries.
 	ErrBusy = errors.New("intake: release queue full")
+	// ErrNoSecret is a webhook whose secret variable is unset; fanind does not start.
+	ErrNoSecret = errors.New("intake: webhook secret unset")
 )
 
 // Releaser starts the deploy of a release in the background.
@@ -79,8 +81,8 @@ func NewWebhooks(cfg config.Config, getenv func(string) string, e Enqueuer, r Re
 		h := w.hooks[name]
 		secret := getenv(h.SecretEnv)
 		if secret == "" {
-			return nil, fmt.Errorf("intake: webhook %s: %s is unset; export the HMAC secret the sender signs with",
-				name, h.SecretEnv)
+			return nil, fmt.Errorf("%w: webhook %s: %s is unset; export the HMAC secret the sender signs with",
+				ErrNoSecret, name, h.SecretEnv)
 		}
 		if h.Kind == config.WebhookRelease && r == nil {
 			return nil, fmt.Errorf("intake: webhook %s: no release queue; add the release section to triggers.yaml",

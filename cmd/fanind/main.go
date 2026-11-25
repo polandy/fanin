@@ -148,12 +148,18 @@ func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []str
 		}
 		defer stop()
 	}
+	in := intake.New(cfg, st)
+	hooks, stopIntake, err := startIntake(ctx, cfg, st, in, log, d)
+	if err != nil {
+		return err
+	}
+	defer stopIntake()
 	svc := owner.New(st, owner.NoDeliverer{}, log)
 	svc.SetNotifier(notifier)
 	reg := api.NewRegistry()
 	api.RegisterBuiltins(reg)
 	h, err := api.New(api.Config{Source: st, OwnerToken: token, Clock: d.clock, Logger: log, Registry: reg,
-		Projects: cfg.ProjectNames(), Owner: svc, Intake: intake.New(cfg, st), Reports: report.New(st, log)})
+		Projects: cfg.ProjectNames(), Owner: svc, Intake: in, Webhooks: hooks, Reports: report.New(st, log)})
 	if err != nil {
 		return fmt.Errorf("fanind: %w", err)
 	}
