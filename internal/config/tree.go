@@ -48,6 +48,8 @@ const (
 type doc struct {
 	path string
 	m    map[string]any
+	// lines maps the JSON pointer of each key to its line in the file.
+	lines map[string]int
 }
 
 // tree is the parsed config directory.
@@ -154,7 +156,11 @@ func readDoc(path, loc string, hook func(map[string]any) error) (doc, error) {
 	if err := validateDoc(loc, m); err != nil {
 		return doc{}, fmt.Errorf("%w: %s: %w", ErrInvalid, path, err)
 	}
-	return doc{path: path, m: m}, nil
+	var n yaml.Node
+	if err := yaml.Unmarshal(raw, &n); err != nil {
+		return doc{}, fmt.Errorf("%w: %s: %w", ErrInvalid, path, err)
+	}
+	return doc{path: path, m: m, lines: keyLines(&n)}, nil
 }
 
 // decodeStrict decodes the mapping m into out with unknown keys rejected.
@@ -200,7 +206,7 @@ func (t tree) build() (Config, error) {
 	if err := decodeStrict(t.path(fileFanin), t.root[fileFanin].m, &f); err != nil {
 		return Config{}, err
 	}
-	cfg := Config{Dir: t.dir, Listen: f.Listen, Store: f.Store, Log: f.Log, OwnerTokenEnv: f.OwnerTokenEnv,
+	cfg := Config{Dir: t.dir, lines: t.keyLines(), Listen: f.Listen, Store: f.Store, Log: f.Log, OwnerTokenEnv: f.OwnerTokenEnv,
 		Hosts: map[string]Host{}, Forges: map[string]Forge{}, WorkerKinds: map[string]WorkerKind{}}
 	if !filepath.IsAbs(cfg.Store) {
 		cfg.Store = filepath.Join(t.dir, cfg.Store)

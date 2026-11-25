@@ -1,0 +1,112 @@
+{
+  "daemon": {
+    "listen": "127.0.0.1:7420",
+    "log": {
+      "format": "json",
+      "level": "info"
+    },
+    "owner_token": {
+      "env": "FANIN_OWNER_TOKEN",
+      "set": false
+    },
+    "store": "<config>/fanin.db"
+  },
+  "forge": {
+    "kind": "github",
+    "name": "github",
+    "token": {
+      "env": "GH_TOKEN",
+      "set": false
+    }
+  },
+  "host": {
+    "local": true,
+    "name": "local"
+  },
+  "origins": {
+    "/daemon/listen": "fanin.yaml:2",
+    "/daemon/log/format": "fanin.yaml:5",
+    "/daemon/log/level": "fanin.yaml:6",
+    "/daemon/owner_token/env": "fanin.yaml:7",
+    "/daemon/owner_token/set": "environment",
+    "/daemon/store": "fanin.yaml:3",
+    "/forge/kind": "forges.yaml:4",
+    "/forge/name": "projects/alpha.yaml:3",
+    "/forge/token/env": "forges.yaml:5",
+    "/forge/token/set": "environment",
+    "/host/local": "built-in",
+    "/host/name": "built-in",
+    "/project": "projects/alpha.yaml",
+    "/settings/base": "projects/alpha.yaml:4",
+    "/settings/budgets/fix_rounds_per_run": "projects/alpha.yaml:9",
+    "/settings/budgets/max_runs_per_task": "fanin.yaml:11",
+    "/settings/budgets/max_tokens_per_run": "default",
+    "/settings/budgets/rollover_pct": "default",
+    "/settings/fallback": "projects/alpha.yaml:5",
+    "/settings/forge": "projects/alpha.yaml:3",
+    "/settings/gate/gitea/max_polls": "default",
+    "/settings/gate/gitea/noci_after_polls": "default",
+    "/settings/gate/gitea/poll_interval": "default",
+    "/settings/gate/github/max_waits": "default",
+    "/settings/gate/github/max_watch_failures": "default",
+    "/settings/gate/github/settle": "default",
+    "/settings/gate/github/watch_timeout": "default",
+    "/settings/host": "projects/alpha.yaml:2",
+    "/settings/max_parallel": "projects/alpha.yaml:7",
+    "/settings/model": "projects/alpha.yaml:6",
+    "/settings/oc_merge": "default",
+    "/settings/path": "projects/alpha.yaml:1",
+    "/settings/post_merge_hook": "projects/alpha.yaml:10",
+    "/settings/review_skill": "fanin.yaml:9",
+    "/settings/stall_after": "default",
+    "/settings/worker_kind": "default",
+    "/settings/worker_timeout": "default",
+    "/worker_kind/default_model": "worker-kinds.yaml:5",
+    "/worker_kind/models": "worker-kinds.yaml:4",
+    "/worker_kind/runtime": "worker-kinds.yaml:3"
+  },
+  "project": "alpha",
+  "settings": {
+    "base": "main",
+    "budgets": {
+      "fix_rounds_per_run": 2,
+      "max_runs_per_task": 3,
+      "max_tokens_per_run": 3000000,
+      "rollover_pct": 75
+    },
+    "fallback": "opencode",
+    "forge": "github",
+    "gate": {
+      "gitea": {
+        "max_polls": 40,
+        "noci_after_polls": 5,
+        "poll_interval": "1m0s"
+      },
+      "github": {
+        "max_waits": 12,
+        "max_watch_failures": 6,
+        "settle": "20s",
+        "watch_timeout": "30m0s"
+      }
+    },
+    "host": "local",
+    "max_parallel": 2,
+    "model": "sonnet",
+    "oc_merge": "auto",
+    "path": "/path/to/repo",
+    "post_merge_hook": "/path/to/repo/scripts/deploy.sh",
+    "review_skill": "/pr-review",
+    "stall_after": "15m0s",
+    "worker_kind": "claude",
+    "worker_timeout": "45m0s"
+  },
+  "worker_kind": {
+    "default_model": "sonnet",
+    "models": [
+      "haiku",
+      "sonnet",
+      "opus"
+    ],
+    "runtime": "herdr"
+  }
+}
