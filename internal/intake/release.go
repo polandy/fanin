@@ -37,6 +37,9 @@ var ErrRelease = errors.New("intake: release not deployable")
 
 var versionPattern = regexp.MustCompile(`^v?[0-9A-Za-z][0-9A-Za-z._+-]*$`)
 
+// repoPattern is a GitHub "owner/name"; neither part may start with a dash, so it is never read as a flag.
+var repoPattern = regexp.MustCompile(`^[0-9A-Za-z_][0-9A-Za-z_.-]*/[0-9A-Za-z_.][0-9A-Za-z_.-]*$`)
+
 // ReleaseEvent is a published release of a GitHub project.
 type ReleaseEvent struct {
 	// Project is the fanin project of the released repo.
@@ -114,6 +117,9 @@ func (d *Deployer) Deploy(ctx context.Context, ev ReleaseEvent) (DeployResult, e
 	p, target, rel, err := d.projects(ev)
 	if err != nil {
 		return DeployResult{}, err
+	}
+	if !repoPattern.MatchString(ev.Repo) {
+		return DeployResult{}, releasef("repository %q; a release names its GitHub repository as owner/name", ev.Repo)
 	}
 	if !versionPattern.MatchString(ev.Version) {
 		return DeployResult{}, releasef("version %q of %s; a release tag is letters, digits and . _ + -", ev.Version,
