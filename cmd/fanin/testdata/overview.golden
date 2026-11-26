@@ -10,6 +10,8 @@ alpha
   waiting for owner (2):
     a8 pick a model [needs_owner, question q1]
     a9 paused for a while [paused]
+  ready for go (1):
+    #17 a12 ship the report: GREEN ship the report; changes code
   holds (2):
     ci hold h1: main is red (fix a10); lift with: fanin hold lift h1
     merge hold h2: hook failed; lift with: fanin hold lift h2
@@ -21,6 +23,8 @@ gamma
   next (0):
     -
   waiting for owner (0):
+    -
+  ready for go (0):
     -
   holds (0):
     -

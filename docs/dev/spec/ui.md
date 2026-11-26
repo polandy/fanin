@@ -32,6 +32,7 @@ One `wire.BoardProject` per project in `snapshot.projects`:
 | `done` | Done | `count` of tasks done in the project's current batch and the newest four (`newest`, newest first). The batch starts when the project's oldest open task was created: a task counts when it was last updated at or after that time. A project without an open task has an empty batch. |
 | `next` | Next | queued tasks, oldest first; `blocked` is set when a dependency is still open. Decision tasks are listed under `decisions`. |
 | `waiting` | Waiting on you | tasks in `needs_owner` or `paused`; `question_id` names the open question |
+| `ready` | Ready for go | gating tasks whose latest `gate_verdict` starts with `ready #<n>: `; `pr` is `<n>` and `verdict` the rest of the line. A ready verdict without a PR number fails the snapshot (500) |
 | `holds` | CI and merge holds | the project's active holds, each with a Lift button (`POST /api/v1/holds/{id}/lift`) and its fix task |
 | `decisions` | Decisions | open tasks of shape `decision` that are not already waiting |
 
@@ -60,6 +61,6 @@ on every event. The browser reconnects by itself and resumes with `Last-Event-ID
 ## Tests
 
 `internal/api/board_test.go`: one golden file per board section from one fixture (`testdata/board.*.golden.json`,
-`go test ./internal/api -update`), the hosts view with an unreachable host and a failing fleet.
+`go test ./internal/api -update`, `ready` included), the hosts view with an unreachable host and a failing fleet.
 `web_routes_test.go`: the files are served, the tree has no `.go` file, and the request `app.js` sends for an answer
 logs the same event as the CLI client.

@@ -23,7 +23,7 @@ const (
 	// GatingDetail leads the detail of an analysis whose PR is being gated.
 	GatingDetail = "gating "
 	// ReadyDetail leads the gate verdict of an analysis PR that waits for the owner's go.
-	ReadyDetail = "ready "
+	ReadyDetail = model.ReadyVerdictPrefix
 	// GateErrorDetail leads the detail of an analysis PR whose gate could not be read.
 	GateErrorDetail = "ERROR "
 	// GateCodeNote ends the verdict of a green PR that changes more than docs.

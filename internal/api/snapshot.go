@@ -98,7 +98,10 @@ func buildSnapshot(s *Server, r *http.Request) (wire.Snapshot, error) {
 		projects[ev.Project] = true
 	}
 	snap.Projects = projectOrder(s.Projects(), projects)
-	snap.Board = buildBoard(snap, done)
+	snap.Board, err = buildBoard(ctx, src, snap, done)
+	if err != nil {
+		return wire.Snapshot{}, err
+	}
 	if s.cfg.Fleet != nil {
 		hosts, err := s.cfg.Fleet.Hosts(ctx)
 		if err != nil {

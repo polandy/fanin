@@ -160,6 +160,12 @@ function taskList(tasks, extra) {
     taskLink(t.id, t.title || t.id), el('span', { class: 'muted' }, t.state), extra ? extra(t) : null)));
 }
 
+function readyList(ready) {
+  if (ready.length === 0) return el('p', { class: 'muted' }, 'none');
+  return el('ul', { class: 'plain' }, ready.map((r) => el('li', { class: 'row' },
+    el('strong', {}, '#' + r.pr), taskLink(r.id, r.title || r.id), el('span', { class: 'muted' }, r.verdict))));
+}
+
 function renderBoard() {
   return snap.board.map((b) => {
     const holds = b.holds.length === 0 ? el('p', { class: 'muted' }, 'none') : el('ul', { class: 'plain' },
@@ -170,6 +176,7 @@ function renderBoard() {
       el('h3', {}, 'Done (' + b.done.count + ')'), taskList(b.done.newest),
       el('h3', {}, 'Next'), taskList(b.next, (t) => (t.blocked ? el('span', { class: 'muted' }, 'blocked') : null)),
       el('h3', {}, 'Waiting on you'), taskList(b.waiting),
+      el('h3', {}, 'Ready for go (' + b.ready.length + ')'), readyList(b.ready),
       el('h3', {}, 'CI and merge holds'), holds,
       el('h3', {}, 'Decisions'), taskList(b.decisions));
   });
