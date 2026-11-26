@@ -20,7 +20,7 @@ type fakeCleaner struct {
 	mu   sync.Mutex
 	prs  []string
 	stop *fakeRuntime
-	// pane is the stopped-agent count seen at the first cleanup.
+	// paneAtCleanup is the stopped-agent count seen at the first cleanup.
 	paneAtCleanup int
 	err           error
 }
