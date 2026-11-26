@@ -266,7 +266,7 @@ func (s *Scheduler) redPR(ctx context.Context, p config.Project, run model.Run, 
 	}
 	paused := PausedDetail + run.Worker.Agent + ": " + why
 	switch res.Cause {
-	case gate.CauseReview:
+	case gate.CauseReview, gate.CauseNoReview:
 		if cur.Budget.ReviewNudges >= ReviewNudges {
 			return s.toOwner(ctx, p, run, model.TaskPaused, fmt.Sprintf("%s; review nudges spent: %d of %d", paused,
 				cur.Budget.ReviewNudges, ReviewNudges))

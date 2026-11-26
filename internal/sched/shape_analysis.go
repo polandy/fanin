@@ -197,7 +197,7 @@ func (s *Scheduler) gateRead(ctx context.Context, p config.Project, run model.Ru
 			again := s.busy[run.TaskID] == turnAgain
 			delete(s.busy, run.TaskID)
 			if err == nil {
-				err = s.gated(ctx, p, run, task, ref, step, files, filesErr)
+				err = s.gated(ctx, p, run, task, pr, step, files, filesErr)
 			}
 			if err == nil && again && !step.Final {
 				err = s.gateTurn(ctx, p, run, pr)
@@ -210,16 +210,19 @@ func (s *Scheduler) gateRead(ctx context.Context, p config.Project, run model.Ru
 	return nil
 }
 
-// gated applies one gate step: a PR task goes on in gatedPR; a green analysis PR waits for the owner's go, any
-// other final answer goes to the owner.
-func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, task model.Task, ref string,
+// gated applies one gate step: a head without a review gets fanin's review, a PR task goes on in gatedPR, a green
+// analysis PR waits for the owner's go, any other final answer goes to the owner.
+func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, task model.Task, pr int,
 	step gate.Step, files []string, filesErr error) error {
 	if !step.Final {
 		s.gates[run.TaskID] = step.State
 		return nil
 	}
 	delete(s.gates, run.TaskID)
+	ref := "#" + strconv.Itoa(pr)
 	switch {
+	case step.Err == nil && s.reviewable(run.TaskID, step.Result):
+		return s.review(ctx, p, run, pr)
 	case step.Err != nil:
 		return s.askOwner(ctx, p, run, GateErrorDetail+ref+": "+step.Err.Error())
 	case task.Shape == model.ShapePR:

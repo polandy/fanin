@@ -2,7 +2,8 @@
 
 `internal/review` runs a project's review skill headless on a PR head and posts its verdict as the commit status
 `fanin/review` (`gate.ReviewContext`) on that head (concept D5). Branch protection requires the status like CI;
-the gate reads it ([`gate.md`](gate.md)). An unreadable review is an error, never a verdict.
+the gate reads it ([`gate.md`](gate.md)). An unreadable review is an error, never a verdict. The scheduler
+starts the run once CI is green on a head without the status ([`sched.md`](sched.md), Review run).
 
 ## Settings
 

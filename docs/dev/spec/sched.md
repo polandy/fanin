@@ -169,6 +169,7 @@ an analysis. A final answer decides:
 | opencode `GREEN` | auto with `(opencode, auto)`; with `oc_merge: manual` ready with `oc_merge manual, …` |
 | RED, CI | `nudge-fix`; the fix round counts against `fix_rounds_per_run` |
 | RED, conflict | one `nudge-conflict` per task, from the same fix budget; a second conflict pauses the task |
+| RED, no review | fanin's review of the head (see Review run); without `Deps.Reviewer`, as RED, review |
 | RED, review | `nudge-review`, up to 3 per run (`review_nudges`, not the fix budget); the next pauses the task |
 | RED, closed or timed out | blocked to the owner |
 
@@ -180,6 +181,21 @@ spent: 3 of 3` or `…; still conflicting after 1 nudge; merge origin/<base> by 
 
 A ready PR waits gating for the owner's go. A red re-gate under the merge (see Merge) takes the same nudges; the
 go stands, so a ready PR after the fix merges without a new go; a conflict there is CF-3.
+
+## Review run (OC-3, concept D5)
+
+A GitHub head with green CI and no `fanin/review` status is RED with cause `no_review` and the head
+(`gate.Result.Head`). For a PR or an analysis task the scheduler then starts `Deps.Reviewer` (fanind:
+`review.Reviewer` with the project's `review_skill`, `review_model` and `review_timeout`, see
+[`review.md`](review.md)) in the background:
+
+- One run per task at a time; a gate read while it runs starts none. The run takes no worker slot.
+- Before the run starts, a `gate_retry` due after 60 s is armed, so a run cut short by a restart starts again.
+- A posted verdict arms a `gate_retry` due at once: the gate reads the PR again and sees the new status.
+- A failed run posts nothing, logs `sched: fanin review failed, the next gate tick runs it again` with the error and
+  arms a `gate_retry` due after 60 s; that read starts the review again. The task stays gating, nobody is nudged.
+- A new push is a new head without a status, so the next read starts a new run. A head fanin already reviewed
+  that still reads `no_review` goes on as RED, review.
 
 ## Opencode delivery (OC-1, OC-2, OC-6, CF-4)
 
@@ -281,6 +297,7 @@ A stop by ctx is never a task failure:
 - The MCP config path of a remote worker and a forge seam for the picker request.
 - `fanind` passes no `Deps.OCDeliver` or `Deps.OCReview` yet (no forge is wired), so a `committed` asks the owner.
 - A delivery cut short by a stop is not resumed on restart; push and review the branch by hand.
+- A review run cut short by a stop is not resumed; the `gate_retry` armed before it starts it again.
 - Wiring `resultwatch` to `report.Service`.
 - Nothing fills `context_pct` or the token counts yet; those budget checks act once the adapters write them
   through `SetRunBudget`.

@@ -93,6 +93,9 @@ type Deps struct {
 	// OCDeliver and OCReview push and review a COMMITTED opencode branch; nil asks the owner (SCENARIOS OC-1, OC-6).
 	OCDeliver OCDelivery
 	OCReview  OCReviewer
+	// Reviewer reviews a PR head with green CI and no fanin/review status; nil leaves it to the worker's nudge
+	// (SCENARIOS OC-3, concept D5).
+	Reviewer PRReviewer
 }
 
 // Scheduler is the reactor of store events, runtime events and due timers. Only Run's goroutine touches it.
@@ -116,7 +119,10 @@ type Scheduler struct {
 	goAgain map[model.TaskID]bool
 	// checking marks a task whose pre-go check runs: no merge starts before it ends.
 	checking map[model.TaskID]bool
-	done     chan func(context.Context)
+	// reviewing marks a review run in flight, reviewed the head each task's last review posted on.
+	reviewing map[model.TaskID]bool
+	reviewed  map[model.TaskID]string
+	done      chan func(context.Context)
 	// applied counts the runtime events and stream ends the loop handled.
 	applied atomic.Int64
 }
@@ -132,7 +138,7 @@ func New(d Deps) (*Scheduler, error) {
 		stopped: map[string]bool{}, done: make(chan func(context.Context)),
 		gates: map[model.TaskID]gate.State{}, busy: map[model.TaskID]turnState{}, merging: map[model.TaskID]bool{},
 		held: map[model.TaskID]mergeJob{}, goAgain: map[model.TaskID]bool{},
-		checking: map[model.TaskID]bool{}}
+		checking: map[model.TaskID]bool{}, reviewing: map[model.TaskID]bool{}, reviewed: map[model.TaskID]string{}}
 	if err := checkMergeDeps(d); err != nil {
 		return nil, err
 	}
