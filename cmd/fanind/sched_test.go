@@ -379,7 +379,7 @@ func TestDaemonForges(t *testing.T) {
 			t.Fatal(err)
 		}
 		d := deps{getenv: func(string) string { return "" }, clock: clock.NewManual(t0),
-			forgeRunner: testutil.NewRecordingRunner(t),
+			runner: testutil.NewRecordingRunner(t),
 			workers: func(config.Config, *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
 				return idleWorkers{}, idleWorkers{}
 			}}
