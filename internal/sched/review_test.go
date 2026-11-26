@@ -24,7 +24,7 @@ const (
 var errReview = errors.New("review comment unreadable")
 
 // fakeReviewer records the head of each review and answers from errs in turn; a review that succeeds makes the
-// forge answer its entry of posts, as the posted status would. With hold set, each review waits for a receive.
+// forge answer its entry of posts, as the posted status would. With hold set, the first review waits for it to close.
 type fakeReviewer struct {
 	mu    sync.Mutex
 	f     *fakeForge
@@ -43,8 +43,12 @@ func (r *fakeReviewer) Review(ctx context.Context, _ config.Project, _ model.Run
 	i := len(r.heads)
 	r.heads = append(r.heads, head.HeadSHA)
 	r.mu.Unlock()
-	if r.hold != nil {
-		<-r.hold
+	if r.hold != nil && i == 0 {
+		select {
+		case <-r.hold:
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
 	}
 	if i < len(r.errs) && r.errs[i] != nil {
 		return "", r.errs[i]
@@ -175,5 +179,21 @@ func TestFaninReview(t *testing.T) {
 		}
 		close(rv.hold)
 		r.until(r.taskIn("a1", model.TaskDone))
+	})
+
+	t.Run("OC-3_a_review_cut_short_by_a_restart_runs_again_after_the_tick", func(t *testing.T) {
+		r, rv := reviewRig(t, mergeConfig(), noReviewPR(headFirst), forge.PR{}, greenAt(headFirst))
+		rv.hold = make(chan struct{})
+		defer close(rv.hold)
+		r.start()
+		run := r.startPR("a1", "")
+		r.report(run, donePR)
+		r.until(func() bool { return len(rv.reviewed()) == 1 })
+		r.restart()
+		r.advance(gate.RetryInterval)
+		r.until(r.taskIn("a1", model.TaskDone))
+		if diff := cmp.Diff([]string{headFirst, headFirst}, rv.reviewed()); diff != "" {
+			t.Errorf("reviewed heads (-want +got):\n%s", diff)
+		}
 	})
 }
