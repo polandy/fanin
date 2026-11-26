@@ -112,5 +112,9 @@ func (f *forges) repo(ctx context.Context, p config.Project) (string, error) {
 		return "", fmt.Errorf("read the origin of %s at %s: %w; set origin to the forge URL of the repo", p.Name,
 			p.Path, err)
 	}
-	return doctor.ParseRepo(strings.TrimSpace(string(res.Stdout)))
+	repo, err := doctor.ParseRepo(strings.TrimSpace(string(res.Stdout)))
+	if err != nil {
+		return "", fmt.Errorf("origin of %s at %s: %w", p.Name, p.Path, err)
+	}
+	return repo, nil
 }
