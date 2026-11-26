@@ -286,8 +286,7 @@ A stop by ctx is never a task failure:
   through `SetRunBudget`.
 - A pending pause does not stop a handover; the fresh run continues the task.
 - The gate state of a gating task is held in memory; after a restart only an armed gate timer reads it again.
-- `fanind` wires no `Deps.Merger`, `Deps.Hook` or `Deps.StateDir` yet, so a go merges nothing there and its
-  `Deps.BaseCI` is not read yet.
+- The squash body that `fanind`'s merger sends has no trailers yet.
 - The CI hold rule is a first simple one: any failed or cancelled check on the base branch, read before each merge.
 - The merging, held and standing-go state is held in memory; after a restart a held merge needs a new go.
 - A store error inside a merge is logged as a failed step and the merge is not retried; the owner gives the go again.

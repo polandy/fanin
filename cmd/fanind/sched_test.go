@@ -199,10 +199,13 @@ const (
 	ghViewFields = "number,title,url,state,mergeable,headRefName,headRefOid,baseRefName,statusCheckRollup"
 	ghDoneAt     = "2026-11-25T09:05:00Z"
 	ghReviewAt   = "2026-11-25T09:06:00Z"
+	gitBin       = "git"
+	baseBranch   = "main"
+	notARepo     = "fatal: not a git repository"
 )
 
 var (
-	originArgv = []string{"git", "-C", "/path/to/" + projectBeta, "remote", "get-url", "origin"}
+	originArgv = []string{gitBin, "-C", "/path/to/" + projectBeta, "remote", "get-url", "origin"}
 	viewArgv   = []string{"gh", "pr", "view", "7", "--repo", ghRepo, "--json", ghViewFields}
 	baseArgv   = []string{"gh", "api", "graphql", "-f", "query=" + github.BranchChecksQuery, "-f", "owner=acme",
 		"-f", "name=beta", "-f", "ref=refs/heads/main"}
@@ -262,7 +265,7 @@ func TestDaemonForges(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := gate.Target{Kind: forge.KindGitHub, Repo: ghRepo, Number: ghPRNumber, Base: "main"}
+			want := gate.Target{Kind: forge.KindGitHub, Repo: ghRepo, Number: ghPRNumber, Base: baseBranch}
 			if diff := cmp.Diff(want, target); diff != "" {
 				t.Errorf("target (-want +got):\n%s", diff)
 			}
@@ -294,11 +297,11 @@ func TestDaemonForges(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		r.Expect(originArgv, testutil.Reply{ExitCode: 128, Stderr: "fatal: not a git repository"})
+		r.Expect(originArgv, testutil.Reply{ExitCode: 128, Stderr: notARepo})
 		if _, target, err := f.For(t.Context(), betaOf(t, cfg), ghPRNumber); err == nil {
 			t.Errorf("For = %+v, nil; want an error", target)
 		}
-		r.Expect(originArgv, testutil.Reply{ExitCode: 128, Stderr: "fatal: not a git repository"})
+		r.Expect(originArgv, testutil.Reply{ExitCode: 128, Stderr: notARepo})
 		if checks, err := f.BaseChecks(t.Context(), betaOf(t, cfg)); err == nil {
 			t.Errorf("BaseChecks = %+v, nil; want an error", checks)
 		}
@@ -379,7 +382,7 @@ func TestDaemonForges(t *testing.T) {
 			t.Fatal(err)
 		}
 		d := deps{getenv: func(string) string { return "" }, clock: clock.NewManual(t0),
-			forgeRunner: testutil.NewRecordingRunner(t),
+			runner: testutil.NewRecordingRunner(t),
 			workers: func(config.Config, *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
 				return idleWorkers{}, idleWorkers{}
 			}}
