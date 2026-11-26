@@ -11,13 +11,20 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/polandy/fanin/internal/api/client"
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
+	"github.com/polandy/fanin/internal/forge"
+	"github.com/polandy/fanin/internal/forge/github"
+	"github.com/polandy/fanin/internal/gate"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/pick"
 	"github.com/polandy/fanin/internal/runtime"
+	"github.com/polandy/fanin/internal/runtime/testutil"
 	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/sched"
 	"github.com/polandy/fanin/internal/store"
@@ -184,4 +191,207 @@ func seedLiveRun(t *testing.T, path string) {
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+const (
+	ghPRNumber   = 7
+	ghRepo       = "acme/beta"
+	ghViewFields = "number,title,url,state,mergeable,headRefName,headRefOid,baseRefName,statusCheckRollup"
+	ghDoneAt     = "2026-11-25T09:05:00Z"
+	ghReviewAt   = "2026-11-25T09:06:00Z"
+)
+
+var (
+	originArgv = []string{"git", "-C", "/path/to/" + projectBeta, "remote", "get-url", "origin"}
+	viewArgv   = []string{"gh", "pr", "view", "7", "--repo", ghRepo, "--json", ghViewFields}
+	baseArgv   = []string{"gh", "api", "graphql", "-f", "query=" + github.BranchChecksQuery, "-f", "owner=acme",
+		"-f", "name=beta", "-f", "ref=refs/heads/main"}
+	origin = testutil.Reply{Stdout: "git@github.com:" + ghRepo + ".git\n"}
+)
+
+// ghView is the gh pr view answer for PR 7 of beta whose ci check ended with conclusion and whose review passed.
+func ghView(conclusion string) string {
+	return `{"number":7,"title":"feat: x","url":"https://github.com/acme/beta/pull/7","state":"OPEN",` +
+		`"mergeable":"MERGEABLE","headRefName":"feat/x","headRefOid":"abc123","baseRefName":"main",` +
+		`"statusCheckRollup":[{"__typename":"CheckRun","name":"ci","status":"COMPLETED","conclusion":"` + conclusion +
+		`","startedAt":"` + ghDoneAt + `","completedAt":"` + ghDoneAt + `"},{"__typename":"StatusContext",` +
+		`"context":"` + gate.ReviewContext + `","state":"SUCCESS","createdAt":"` + ghReviewAt + `"}]}`
+}
+
+// forgeSeam loads the fanin config of dir and builds its forges over a recording runner.
+func forgeSeam(t *testing.T, dir string, env map[string]string) (*forges, config.Config, *testutil.RecordingRunner,
+	error) {
+	t.Helper()
+	cfg, err := config.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := testutil.NewRecordingRunner(t)
+	t.Cleanup(r.Done)
+	f, err := newForges(cfg, r, func(k string) string { return env[k] }, clock.NewManual(t0),
+		slog.New(slog.DiscardHandler))
+	return f, cfg, r, err
+}
+
+func betaOf(t *testing.T, cfg config.Config) config.Project {
+	t.Helper()
+	p, ok := cfg.Project(projectBeta)
+	if !ok {
+		t.Fatalf("project %s missing", projectBeta)
+	}
+	return p
+}
+
+func TestDaemonForges(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		conclusion string
+		want       gate.Verdict
+	}{
+		{"GH-1_a_green_PR_of_a_fanin_project_reads_green", "SUCCESS", gate.Green},
+		{"GH-4_a_failed_check_reads_red", "FAILURE", gate.Red},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f, cfg, r, err := forgeSeam(t, faninConfig(t), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r.Expect(originArgv, origin)
+			r.Expect(viewArgv, testutil.Reply{Stdout: ghView(tc.conclusion)})
+			reader, target, err := f.For(t.Context(), betaOf(t, cfg), ghPRNumber)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := gate.Target{Kind: forge.KindGitHub, Repo: ghRepo, Number: ghPRNumber, Base: "main"}
+			if diff := cmp.Diff(want, target); diff != "" {
+				t.Errorf("target (-want +got):\n%s", diff)
+			}
+			res, err := gate.Read(t.Context(), reader, target)
+			if err != nil || res.Verdict != tc.want {
+				t.Errorf("gate = %+v, %v; want %s", res, err, tc.want)
+			}
+		})
+	}
+
+	t.Run("GH-5_an_unreadable_PR_is_an_error_never_a_verdict", func(t *testing.T) {
+		f, cfg, r, err := forgeSeam(t, faninConfig(t), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Expect(originArgv, origin)
+		r.Expect(viewArgv, testutil.Reply{ExitCode: 1, Stderr: "HTTP 502"})
+		reader, target, err := f.For(t.Context(), betaOf(t, cfg), ghPRNumber)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := gate.Read(t.Context(), reader, target); !errors.Is(err, gate.ErrUnreadable) {
+			t.Errorf("gate = %+v, %v; want ErrUnreadable", res, err)
+		}
+	})
+
+	t.Run("GH-5_an_unreadable_origin_is_an_error_never_a_target", func(t *testing.T) {
+		f, cfg, r, err := forgeSeam(t, faninConfig(t), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Expect(originArgv, testutil.Reply{ExitCode: 128, Stderr: "fatal: not a git repository"})
+		if _, target, err := f.For(t.Context(), betaOf(t, cfg), ghPRNumber); err == nil {
+			t.Errorf("For = %+v, nil; want an error", target)
+		}
+		r.Expect(originArgv, testutil.Reply{ExitCode: 128, Stderr: "fatal: not a git repository"})
+		if checks, err := f.BaseChecks(t.Context(), betaOf(t, cfg)); err == nil {
+			t.Errorf("BaseChecks = %+v, nil; want an error", checks)
+		}
+	})
+
+	t.Run("GH-5_a_project_without_loop_fanin_has_no_forge", func(t *testing.T) {
+		f, cfg, _, err := forgeSeam(t, faninConfig(t), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		alpha, _ := cfg.Project(project)
+		if _, _, err := f.For(t.Context(), alpha, ghPRNumber); !errors.Is(err, forge.ErrUnknownProject) {
+			t.Errorf("For(alpha) = %v, want ErrUnknownProject", err)
+		}
+	})
+
+	t.Run("MG-8_base_checks_read_the_head_of_the_base_branch", func(t *testing.T) {
+		f, cfg, r, err := forgeSeam(t, faninConfig(t), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Expect(originArgv, origin)
+		r.Expect(baseArgv, testutil.Reply{Stdout: `{"data":{"repository":{"ref":{"target":{"statusCheckRollup":` +
+			`{"contexts":{"pageInfo":{"hasNextPage":false},"nodes":[{"__typename":"CheckRun","name":"ci",` +
+			`"status":"COMPLETED","conclusion":"FAILURE","startedAt":"` + ghDoneAt + `","completedAt":"` + ghDoneAt +
+			`"}]}}}}}}}`})
+		got, err := f.BaseChecks(t.Context(), betaOf(t, cfg))
+		at := time.Date(2026, 11, 25, 9, 5, 0, 0, time.UTC)
+		if diff := cmp.Diff([]forge.Check{{Name: "ci", State: forge.CheckFailure, UpdatedAt: at}}, got); err != nil ||
+			diff != "" {
+			t.Errorf("BaseChecks err %v (-want +got):\n%s", err, diff)
+		}
+	})
+
+	t.Run("MG-8_unreadable_base_checks_are_an_error", func(t *testing.T) {
+		f, cfg, r, err := forgeSeam(t, faninConfig(t), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Expect(originArgv, origin)
+		r.Expect(baseArgv, testutil.Reply{Stdout: `{"data":`})
+		if _, err := f.BaseChecks(t.Context(), betaOf(t, cfg)); !errors.Is(err, forge.ErrUnreadable) {
+			t.Errorf("BaseChecks err = %v, want ErrUnreadable", err)
+		}
+	})
+
+	t.Run("a_gitea_forge_without_its_token_is_an_error", func(t *testing.T) {
+		dir := faninConfig(t)
+		forges := "forges:\n  github:\n    kind: github\n    token_env: GH_TOKEN\n" +
+			"  forgejo:\n    kind: gitea\n    url: https://git.example.com\n    token_env: TEST_GITEA_TOKEN\n"
+		if err := os.WriteFile(filepath.Join(dir, "forges.yaml"), []byte(forges), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		file := filepath.Join(dir, "projects", projectBeta+".yaml")
+		body, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = []byte(strings.Replace(string(body), "forge: github", "forge: forgejo", 1))
+		if err := os.WriteFile(file, body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, _, err := forgeSeam(t, dir, nil); !errors.Is(err, forge.ErrNoSecret) {
+			t.Errorf("newForges = %v, want ErrNoSecret", err)
+		}
+		f, cfg, _, err := forgeSeam(t, dir, map[string]string{"TEST_GITEA_TOKEN": "x"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, kind, err := f.res.For(betaOf(t, cfg).Name); err != nil || kind != forge.KindGitea {
+			t.Errorf("forge of beta = %s, %v; want %s", kind, err, forge.KindGitea)
+		}
+	})
+
+	t.Run("GH-1_startSched_passes_the_forges_as_gates_and_base_CI", func(t *testing.T) {
+		cfg, err := config.Load(faninConfig(t))
+		if err != nil {
+			t.Fatal(err)
+		}
+		d := deps{getenv: func(string) string { return "" }, clock: clock.NewManual(t0),
+			forgeRunner: testutil.NewRecordingRunner(t),
+			workers: func(config.Config, *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
+				return idleWorkers{}, idleWorkers{}
+			}}
+		sd, err := schedDeps(cfg, nil, nil, slog.New(slog.DiscardHandler), d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := sd.Gates.(*forges); !ok {
+			t.Errorf("Gates = %T, want *forges", sd.Gates)
+		}
+		if _, ok := sd.BaseCI.(*forges); !ok {
+			t.Errorf("BaseCI = %T, want *forges", sd.BaseCI)
+		}
+	})
 }
