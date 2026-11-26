@@ -24,7 +24,7 @@ its description carries the review's reasons. Every other check is CI. The first
 | A check pending | PENDING `checks running` (review findings wait until CI settles) |
 | No CI check | PENDING `no checks` |
 | Mergeable not `MERGEABLE` | PENDING `mergeable UNKNOWN` |
-| No review on the head | RED `no review for head <sha>` |
+| No review on the head | RED `no review for head <sha>`, cause `no_review`, `Result.Head` the head |
 | Review pending or skipped | RED `review has no verdict` |
 | Review failed | RED `review: not ready: <description>` |
 | Otherwise | GREEN `<title>` |
@@ -45,8 +45,8 @@ An unreadable PR is an error. Unreadable statuses (`forge.ErrChecksUnreadable`) 
 ## Causes
 
 Every RED carries its cause (`gate.Cause`): `closed` (not open, or another base), `conflict`, `ci` (failed
-checks; on Gitea any other RED), `review` (no review, none with a verdict, or a failed one) or `timeout` (a wait
-or poll limit). A conflict wins over failed checks. The scheduler picks the nudge by it.
+checks; on Gitea any other RED), `no_review` (a GitHub head without any review, every other check green), `review`
+(none with a verdict, or a failed one) or `timeout` (a wait or poll limit). A conflict wins over failed checks. The scheduler picks the nudge by it.
 
 ## Docs-only (SCENARIOS GH-12)
 

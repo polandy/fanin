@@ -42,6 +42,10 @@ func GitHub(pr forge.PR) Result {
 		return pending(WaitNoChecks)
 	case pr.Mergeable != forge.MergeableYes:
 		return pending(WaitMergeable)
+	case review == nil:
+		res := red(CauseNoReview, verdict)
+		res.Head = pr.HeadSHA
+		return res
 	case verdict != "":
 		return red(CauseReview, verdict)
 	}

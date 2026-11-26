@@ -119,7 +119,10 @@ type Scheduler struct {
 	goAgain map[model.TaskID]bool
 	// checking marks a task whose pre-go check runs: no merge starts before it ends.
 	checking map[model.TaskID]bool
-	done     chan func(context.Context)
+	// reviewing marks a review run in flight, reviewed the head each task's last review posted on.
+	reviewing map[model.TaskID]bool
+	reviewed  map[model.TaskID]string
+	done      chan func(context.Context)
 	// applied counts the runtime events and stream ends the loop handled.
 	applied atomic.Int64
 }
@@ -135,7 +138,7 @@ func New(d Deps) (*Scheduler, error) {
 		stopped: map[string]bool{}, done: make(chan func(context.Context)),
 		gates: map[model.TaskID]gate.State{}, busy: map[model.TaskID]turnState{}, merging: map[model.TaskID]bool{},
 		held: map[model.TaskID]mergeJob{}, goAgain: map[model.TaskID]bool{},
-		checking: map[model.TaskID]bool{}}
+		checking: map[model.TaskID]bool{}, reviewing: map[model.TaskID]bool{}, reviewed: map[model.TaskID]string{}}
 	if err := checkMergeDeps(d); err != nil {
 		return nil, err
 	}

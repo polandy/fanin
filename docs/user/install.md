@@ -101,7 +101,8 @@ add `ci` and `fanin/review`; also require the branch to be up to date and block 
 Gitea or Forgejo: Settings → Branches → Add rule for `main` → Enable status check → add `ci` and `fanin/review`
 as patterns; disable force push.
 
-`ci` is your CI job; `fanin/review` is the status the review step reports. `fanin doctor` reads the classic rule
+`ci` is your CI job; `fanin/review` is the status fanin's review run posts once `ci` is green on the PR head
+(`review_skill`, `review_model` and `review_timeout` in the project file). `fanin doctor` reads the classic rule
 only, so a ruleset shows as a `FAIL` row. A check that never reports keeps the PR blocked (Gitea projects end in
 `NOCI` after `gate.gitea.noci_after_polls` polls without a status).
 

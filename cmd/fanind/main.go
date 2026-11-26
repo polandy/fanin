@@ -222,7 +222,7 @@ func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.
 }
 
 // schedDeps are the scheduler's collaborators; the forges of the loop: fanin projects read the PR gates and the
-// base CI.
+// base CI, and fanin's review posts fanin/review on a PR head with green CI.
 func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log *slog.Logger,
 	d deps) (sched.Deps, error) {
 	workers := d.workers
@@ -247,7 +247,8 @@ func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log
 	return sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
 		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier, Gates: fg, BaseCI: fg,
 		Merger: fg, Cleaner: cleanup.New(runner, fg), Hook: hook.New(st, runner), PreGo: hook.NewPreGo(runner), StateDir: state,
-		Files: sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
+		Reviewer: newReviews(fg, runner, d.clock, log, st),
+		Files:    sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
 }
 
 // realWorkers is the herdr runtime behind the opencode sandbox runtime, and the headless picker.
