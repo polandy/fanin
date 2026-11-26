@@ -19,7 +19,10 @@ the user-facing reference in [`docs/user/configuration.md`](../../user/configura
    refusing to start, and keeps importing it until the stop ([shadow](shadow.md)).
 3. When a project has `loop: fanin`, runs the [scheduler](sched.md) with the herdr runtime and the headless
    picker. A `loop: fanin` project on a remote host refuses to start. The per-run files go to `runs/` next to
-   the store. The shadow import skips these projects. A scheduler that stops on an error (an unreadable
+   the store. The shadow import skips these projects. The forges these projects name read their PR gates and
+   base CI (`Deps.Gates`, `Deps.BaseCI`): GitHub through `gh`, Gitea and Forgejo over their API with the token of
+   `token_env`, which must be set or fanind refuses to start. The repo (`owner/name`) is read from the `origin`
+   remote of the project's checkout on every read, and an unreadable origin is an error, never a verdict. A scheduler that stops on an error (an unreadable
    store while it resumes) stops fanind with `fanind: scheduler stopped` and exit 1.
 4. Serves the API (`api.New`) with the configured project order.
 5. The root context comes from `signal.NotifyContext` (SIGINT, SIGTERM). On stop it cancels every open request,

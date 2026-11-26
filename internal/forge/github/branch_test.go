@@ -59,9 +59,9 @@ func TestBranchChecks(t *testing.T) {
 		}
 	})
 	for name, out := range map[string]string{
-		"MG-8_broken_json_is_unreadable":    `{"data":`,
-		"MG-8_no_repository_is_unreadable":  `{"data":{}}`,
-		"MG-8_unknown_check_is_unreadable":  marshal(t, branchDoc(false, map[string]any{keyType: "Other"})),
+		"MG-8_broken_json_is_unreadable":      `{"data":`,
+		"MG-8_no_repository_is_unreadable":    `{"data":{}}`,
+		"MG-8_unknown_check_is_unreadable":    marshal(t, branchDoc(false, map[string]any{keyType: "Other"})),
 		"MG-8_more_than_a_page_is_unreadable": marshal(t, branchDoc(true, checkRun("ci", completed, success, doneAt, doneAt))),
 	} {
 		t.Run(name, func(t *testing.T) {

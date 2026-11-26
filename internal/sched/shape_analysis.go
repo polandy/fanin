@@ -48,7 +48,7 @@ const (
 
 // PRGates opens the gate of one PR of a project.
 type PRGates interface {
-	For(p config.Project, pr int) (gate.Reader, gate.Target, error)
+	For(ctx context.Context, p config.Project, pr int) (gate.Reader, gate.Target, error)
 }
 
 // gateTimer reports whether kind is a timer the gate arms.
@@ -174,7 +174,7 @@ func (s *Scheduler) gateRead(ctx context.Context, p config.Project, run model.Ru
 	if s.d.Gates == nil {
 		return s.verdict(ctx, p, run, ReadyDetail+ref+": "+GateUnreadNote)
 	}
-	r, target, err := s.d.Gates.For(p, pr)
+	r, target, err := s.d.Gates.For(ctx, p, pr)
 	if err != nil {
 		return s.askOwner(ctx, p, run, GateErrorDetail+ref+": "+err.Error())
 	}

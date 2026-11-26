@@ -83,7 +83,7 @@ func (s *Scheduler) checkHead(ctx context.Context, p config.Project, run model.R
 		return s.startGate(ctx, p, run, pr, nil)
 	}
 	ref := "#" + strconv.Itoa(pr)
-	r, target, err := s.d.Gates.For(p, pr)
+	r, target, err := s.d.Gates.For(ctx, p, pr)
 	if err != nil {
 		return s.askOwner(ctx, p, run, GateErrorDetail+ref+": "+err.Error())
 	}

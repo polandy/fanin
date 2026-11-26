@@ -206,3 +206,12 @@ func prPath(repo string, number int) (string, error) {
 	}
 	return base + "/pulls/" + strconv.Itoa(number), nil
 }
+
+// BranchChecks reads the latest commit status per context on the head of branch (see SCENARIOS MG-8).
+func (c *Client) BranchChecks(ctx context.Context, repo, branch string) ([]forge.Check, error) {
+	if branch == "" {
+		return nil, fmt.Errorf("%w: checks of %s without a branch; set base in the project file", forge.ErrInvalidRequest,
+			repo)
+	}
+	return c.statuses(ctx, repo, branch)
+}
