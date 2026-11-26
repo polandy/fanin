@@ -65,6 +65,8 @@ const (
 	CauseCI Cause = "ci"
 	// CauseReview is a review red with every other check green.
 	CauseReview Cause = "review"
+	// CauseNoReview is a head without any review, with every other check green; fanin's own review run answers it.
+	CauseNoReview Cause = "no_review"
 	// CauseTimeout is a PR whose checks stayed pending past the wait limits.
 	CauseTimeout Cause = "timeout"
 )
@@ -82,6 +84,8 @@ type Result struct {
 	// Cause is set for RED only.
 	Cause   Cause
 	Reasons []string
+	// Head is the PR head a CauseNoReview RED is for.
+	Head string
 }
 
 // String renders r as the loop shows it: "GREEN <title>", "PENDING: checks running", "RED: a; b".

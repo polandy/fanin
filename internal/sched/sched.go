@@ -93,6 +93,9 @@ type Deps struct {
 	// OCDeliver and OCReview push and review a COMMITTED opencode branch; nil asks the owner (SCENARIOS OC-1, OC-6).
 	OCDeliver OCDelivery
 	OCReview  OCReviewer
+	// Reviewer reviews a PR head with green CI and no fanin/review status; nil leaves it to the worker's nudge
+	// (SCENARIOS OC-3, concept D5).
+	Reviewer PRReviewer
 }
 
 // Scheduler is the reactor of store events, runtime events and due timers. Only Run's goroutine touches it.

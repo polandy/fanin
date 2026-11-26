@@ -89,6 +89,13 @@ func (f *fakeForge) Files(context.Context, string, int) ([]string, error) {
 	return f.files, f.filesErr
 }
 
+// answer replaces the queue with prs, as a post on the forge would.
+func (f *fakeForge) answer(prs ...forge.PR) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.prs, f.errs, f.reads = prs, nil, 0
+}
+
 func (f *fakeForge) prReads() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
