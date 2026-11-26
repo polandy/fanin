@@ -81,6 +81,8 @@ type Deps struct {
 	Waiting func()
 	// Merger merges a gating task's PR on the owner's go; nil merges nothing.
 	Merger Merger
+	// Cleaner removes a merged PR's branches and worktree; nil leaves them (SCENARIOS MG-7).
+	Cleaner Cleaner
 	// Hook runs the post-merge hook in StateDir; both are needed with a Merger.
 	Hook     PostMerge
 	StateDir string

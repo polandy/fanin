@@ -55,9 +55,9 @@ func TestCleanup(t *testing.T) {
 	ok := testutil.Reply{}
 
 	tests := []struct {
-		name    string
-		forge   fakeForge
-		script  []struct {
+		name   string
+		forge  fakeForge
+		script []struct {
 			argv  []string
 			reply testutil.Reply
 		}
@@ -149,4 +149,3 @@ func TestCleanup(t *testing.T) {
 		})
 	}
 }
-

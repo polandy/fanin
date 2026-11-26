@@ -61,20 +61,20 @@ func testConfig() config.Config {
 
 // harness runs one scheduler on a real store with the manual clock; until steps it to a condition.
 type harness struct {
-	t      *testing.T
-	cfg    config.Config
-	path   string
-	st     *store.Store
-	clk    *clock.Manual
-	rt     *fakeRuntime
-	pk     *fakePicker
-	up     *fakeUnpushed
-	nt     *fakeNotifier
-	gates  PRGates
-	merger Merger
+	t       *testing.T
+	cfg     config.Config
+	path    string
+	st      *store.Store
+	clk     *clock.Manual
+	rt      *fakeRuntime
+	pk      *fakePicker
+	up      *fakeUnpushed
+	nt      *fakeNotifier
+	gates   PRGates
+	merger  Merger
 	cleaner Cleaner
-	baseCI BaseCI
-	preGo  PreGoCheck
+	baseCI  BaseCI
+	preGo   PreGoCheck
 	// ocPush and ocReview deliver and review opencode branches.
 	ocPush   OCDelivery
 	ocReview OCReviewer

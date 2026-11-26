@@ -31,6 +31,8 @@ const (
 	CIHeldDetail = "paused: CI held, no new worker"
 	// CIFixTitle leads the title of the owner task a red base branch creates.
 	CIFixTitle = "fix red CI on "
+	// CleanupFailed is logged when the cleanup after a merge left something behind.
+	CleanupFailed = "sched: cleanup after the merge left something behind; remove it by hand"
 	// liftNote leads the part of a merged detail that names a lifted CI hold and its nudges.
 	liftNote = "; ci hold "
 )
@@ -41,6 +43,11 @@ var ErrMergeDeps = errors.New("sched: merge deps incomplete")
 // Merger squash-merges one green PR of a project.
 type Merger interface {
 	Merge(ctx context.Context, p config.Project, pr int) error
+}
+
+// Cleaner removes the branches and worktree of a merged PR; *cleanup.Cleaner is the real one.
+type Cleaner interface {
+	Cleanup(ctx context.Context, p config.Project, pr int) error
 }
 
 // PostMerge runs a project's post-merge hook under its hold; *hook.Hook is the real one.
@@ -354,7 +361,8 @@ func (s *Scheduler) regateRed(ctx context.Context, j mergeJob, res gate.Result) 
 	return s.nudgeWith(ctx, j.p, j.run, prompt.NudgeRegate, j.ref()+" "+res.String(), nil)
 }
 
-// mergeDone ends the merged run and task with detail and closes the pane.
+// mergeDone ends the merged run and task with detail, closes the pane and cleans up after the merge (SCENARIOS
+// MG-7); neither step can undo the record.
 func (s *Scheduler) mergeDone(ctx context.Context, j mergeJob, detail string) error {
 	err := s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
 		if err := tx.SetRunState(ctx, j.run.ID, model.RunSucceeded, detail); err != nil {
@@ -371,9 +379,19 @@ func (s *Scheduler) mergeDone(ctx context.Context, j mergeJob, detail string) er
 	h := handle(j.p.Name, j.run)
 	safego.Go(ctx, log, func(ctx context.Context) {
 		err := s.d.Runtime.Stop(ctx, h)
+		var cleanErr error
+		if s.d.Cleaner != nil {
+			cleanErr = s.d.Cleaner.Cleanup(ctx, j.p, j.pr)
+		}
 		s.post(ctx, func(ctx context.Context) {
-			if err != nil && ctx.Err() == nil {
+			if ctx.Err() != nil {
+				return
+			}
+			if err != nil {
 				log.ErrorContext(ctx, closeByHand, "agent", h.Agent, "pane", h.Pane, "err", err)
+			}
+			if cleanErr != nil {
+				log.WarnContext(ctx, CleanupFailed, "pr", j.ref(), "err", cleanErr)
 			}
 		})
 	})

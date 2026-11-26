@@ -291,6 +291,10 @@ A stop by ctx is never a task failure:
 - The merging, held and standing-go state is held in memory; after a restart a held merge needs a new go.
 - A store error inside a merge is logged as a failed step and the merge is not retried; the owner gives the go again.
 - AP-32b: the forge's auto-merge and the wait for `MERGED`, the go as the commit status `fanin/owner-go`, the
-  squash title with the PR number (MG-6), the branch, worktree and pane cleanup (MG-7), remote git through the
-  host runner (FP-4). Until then a green PR merges through `Deps.Merger`, and without one it stays gating.
+  squash title with the PR number (MG-6), remote git through the host runner (FP-4). Until then a green PR merges through `Deps.Merger`, and without one it stays gating.
+- After a merge the pane closes, then `Deps.Cleaner` (`internal/cleanup`) deletes the PR's head branch on the forge,
+  removes the worktree that has it checked out, prunes, deletes the local branch and prunes the remote (MG-7). A
+  branch, worktree or pane that is already gone counts as done; any other failed step is logged as `CleanupFailed`
+  and never changes the merge record. A dirty worktree stays, with its local branch. The fast-forward of a clean
+  checkout on the base is not done yet.
 - A stop between the end of an analysis and its pane close leaves the pane open.
