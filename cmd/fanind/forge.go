@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/polandy/fanin/internal/cleanup"
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/doctor"
@@ -33,6 +34,7 @@ var (
 	_ sched.PRGates = (*forges)(nil)
 	_ sched.BaseCI  = (*forges)(nil)
 	_ sched.Merger  = (*forges)(nil)
+	_ cleanup.Forge = (*forges)(nil)
 )
 
 // newForges builds a client for each forge a loop: fanin project names; a Gitea forge without its token is an
@@ -129,6 +131,36 @@ func (f *forges) Merge(ctx context.Context, p config.Project, pr int) error {
 		return err
 	}
 	return client.SquashMerge(ctx, req)
+}
+
+// HeadBranch reads the head branch of PR pr of p; a merged PR keeps it.
+func (f *forges) HeadBranch(ctx context.Context, p config.Project, pr int) (string, error) {
+	client, _, err := f.res.For(p.Name)
+	if err != nil {
+		return "", err
+	}
+	repo, err := f.repo(ctx, p)
+	if err != nil {
+		return "", err
+	}
+	view, err := client.PR(ctx, repo, pr)
+	if err != nil {
+		return "", fmt.Errorf("read %s#%d for its head branch: %w", repo, pr, err)
+	}
+	return view.HeadBranch, nil
+}
+
+// DeleteBranch deletes branch on p's forge; one already gone is forge.ErrNotFound.
+func (f *forges) DeleteBranch(ctx context.Context, p config.Project, branch string) error {
+	client, _, err := f.res.For(p.Name)
+	if err != nil {
+		return err
+	}
+	repo, err := f.repo(ctx, p)
+	if err != nil {
+		return err
+	}
+	return client.DeleteBranch(ctx, repo, branch)
 }
 
 // repo reads owner/name from the origin remote of p's checkout.

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/polandy/fanin/internal/cleanup"
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/hook"
@@ -179,6 +180,9 @@ func TestDaemonMergeDeps(t *testing.T) {
 		sd, cfg, _, _ := mergeDeps(t)
 		if _, ok := sd.Merger.(*forges); !ok {
 			t.Errorf("Merger = %T, want *forges", sd.Merger)
+		}
+		if _, ok := sd.Cleaner.(*cleanup.Cleaner); !ok {
+			t.Errorf("Cleaner = %T, want *cleanup.Cleaner (MG-7)", sd.Cleaner)
 		}
 		if _, ok := sd.Hook.(*hook.Hook); !ok {
 			t.Errorf("Hook = %T, want *hook.Hook", sd.Hook)

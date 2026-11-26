@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/polandy/fanin/internal/api"
+	"github.com/polandy/fanin/internal/cleanup"
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/hook"
@@ -245,7 +246,7 @@ func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log
 	rt, pk := workers(cfg, log)
 	return sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
 		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier, Gates: fg, BaseCI: fg,
-		Merger: fg, Hook: hook.New(st, runner), PreGo: hook.NewPreGo(runner), StateDir: state,
+		Merger: fg, Cleaner: cleanup.New(runner, fg), Hook: hook.New(st, runner), PreGo: hook.NewPreGo(runner), StateDir: state,
 		Files: sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
 }
 
