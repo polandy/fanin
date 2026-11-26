@@ -67,6 +67,8 @@ type deps struct {
 	probe shadow.Probe
 	// workers replaces the scheduler's worker runtime and picker when set.
 	workers func(config.Config, *slog.Logger) (runtime.WorkerRuntime, sched.Picker)
+	// forgeRunner replaces the runner of gh and git for the forges when set.
+	forgeRunner runtime.Runner
 }
 
 // RunsDir is the directory next to the store that holds the per-run files (MCP config).
@@ -139,7 +141,7 @@ func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []str
 	}
 	stopSched, err := startSched(ctx, cancel, cfg, st, notifier, log, d)
 	if err != nil {
-		return fmt.Errorf("fanind: %w; fix loop in the project files of %s", err, *cfgPath)
+		return fmt.Errorf("fanind: %w; fix the project files or forges.yaml of %s", err, *cfgPath)
 	}
 	defer stopSched()
 	if *shadowDir != "" {
@@ -190,16 +192,11 @@ func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.
 	if len(fanin(cfg)) == 0 {
 		return func() {}, nil
 	}
-	workers := d.workers
-	if workers == nil {
-		workers = func(cfg config.Config, log *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
-			return realWorkers(cfg, d.clock, log)
-		}
+	sd, err := schedDeps(cfg, st, notifier, log, d)
+	if err != nil {
+		return nil, err
 	}
-	rt, pk := workers(cfg, log)
-	s, err := sched.New(sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
-		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier,
-		Files: sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}})
+	s, err := sched.New(sd)
 	if err != nil {
 		return nil, err
 	}
@@ -216,6 +213,30 @@ func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.
 		stop()
 		<-done
 	}, nil
+}
+
+// schedDeps are the scheduler's collaborators; the forges of the loop: fanin projects read the PR gates and the
+// base CI.
+func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log *slog.Logger,
+	d deps) (sched.Deps, error) {
+	workers := d.workers
+	if workers == nil {
+		workers = func(cfg config.Config, log *slog.Logger) (runtime.WorkerRuntime, sched.Picker) {
+			return realWorkers(cfg, d.clock, log)
+		}
+	}
+	runner := d.forgeRunner
+	if runner == nil {
+		runner = exec.Runner{}
+	}
+	fg, err := newForges(cfg, runner, d.getenv, d.clock, log)
+	if err != nil {
+		return sched.Deps{}, err
+	}
+	rt, pk := workers(cfg, log)
+	return sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
+		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier, Gates: fg, BaseCI: fg,
+		Files: sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
 }
 
 // realWorkers is the herdr runtime behind the opencode sandbox runtime, and the headless picker.

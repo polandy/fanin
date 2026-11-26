@@ -198,3 +198,9 @@ type Workflows interface {
 	// WatchRun waits for the run to end; a run that did not succeed is ErrRunFailed.
 	WatchRun(ctx context.Context, repo string, id int64) error
 }
+
+// BranchChecks reads the checks on the head of a branch, such as the base branch before a merge (see SCENARIOS
+// MG-8).
+type BranchChecks interface {
+	BranchChecks(ctx context.Context, repo, branch string) ([]Check, error)
+}

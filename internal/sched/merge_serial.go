@@ -227,7 +227,7 @@ func (s *Scheduler) regate(ctx context.Context, j mergeJob) (mergeEnd, bool) {
 	if s.d.Gates == nil {
 		return mergeEnd{owner: MergeErrorDetail + j.ref() + ": " + GateUnreadNote}, true
 	}
-	r, target, err := s.d.Gates.For(j.p, j.pr)
+	r, target, err := s.d.Gates.For(ctx, j.p, j.pr)
 	if err == nil {
 		var res gate.Result
 		if res, err = gate.Read(ctx, r, target); err == nil {

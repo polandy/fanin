@@ -21,6 +21,7 @@ with `net/http` (see Gitea below).
 | `PostStatus(st)` | `gh api --method POST repos/R/statuses/SHA -f state= -f context= -f description= [-f target_url=]` |
 | `SquashMerge(req)` | view, then `gh pr merge n --repo R --squash --subject S --body B --match-head-commit SHA` |
 | `DeleteBranch(repo, b)` | `gh api --method DELETE repos/R/git/refs/heads/b` |
+| `BranchChecks(repo, b)` | `gh api graphql` with the `statusCheckRollup` of `refs/heads/b` (at most 100 checks, more is unreadable; a missing branch is `ErrNotFound`); Gitea reads `commits/b/status`. Optional interface `forge.BranchChecks`, for the CI hold (MG-8) |
 
 Checks are normalised to `pending`, `success`, `failure`, `cancelled` and `skipped`. A check run that is not
 `COMPLETED` is pending; `NEUTRAL` counts as success; `TIMED_OUT`, `ACTION_REQUIRED`, `STARTUP_FAILURE` and

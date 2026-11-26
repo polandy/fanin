@@ -58,6 +58,10 @@ forges:
     token_env: GITEA_TOKEN
 ```
 
+For a project with `loop: fanin`, fanind reads its PRs and the checks of its base branch through this forge. A
+GitHub forge goes through `gh`, which owns its login. A Gitea or Forgejo forge needs its `token_env` set, or fanind
+refuses to start. The repo is the `origin` remote of the project's checkout, so point `origin` at the forge.
+
 ## worker-kinds.yaml
 
 ```yaml

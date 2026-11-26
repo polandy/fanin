@@ -102,7 +102,7 @@ type fakeGates struct {
 	err   error
 }
 
-func (f *fakeGates) For(_ config.Project, pr int) (gate.Reader, gate.Target, error) {
+func (f *fakeGates) For(_ context.Context, _ config.Project, pr int) (gate.Reader, gate.Target, error) {
 	if f.err != nil {
 		return nil, gate.Target{}, f.err
 	}
