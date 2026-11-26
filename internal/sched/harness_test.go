@@ -72,6 +72,7 @@ type harness struct {
 	nt     *fakeNotifier
 	gates  PRGates
 	merger Merger
+	cleaner Cleaner
 	baseCI BaseCI
 	preGo  PreGoCheck
 	// ocPush and ocReview deliver and review opencode branches.
@@ -119,7 +120,7 @@ func (h *harness) start() {
 		post = hook.New(h.st, h.hookRun)
 	}
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
-		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Hook: post, BaseCI: h.baseCI, PreGo: h.preGo,
+		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Cleaner: h.cleaner, Hook: post, BaseCI: h.baseCI, PreGo: h.preGo,
 		StateDir: h.stateDir, OCDeliver: h.ocPush, OCReview: h.ocReview, Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)
 			select {
