@@ -12,7 +12,6 @@ import (
 
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
-	"github.com/polandy/fanin/internal/forge"
 	"github.com/polandy/fanin/internal/hook"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/runtime"
@@ -21,6 +20,8 @@ import (
 	"github.com/polandy/fanin/internal/sched"
 	"github.com/polandy/fanin/internal/store"
 )
+
+const deployCmd = "./deploy"
 
 var mergeArgv = []string{"gh", "pr", "merge", "7", "--repo", ghRepo, "--squash", "--subject", "feat: x (#7)",
 	"--body", "", "--match-head-commit", "abc123"}
@@ -137,7 +138,7 @@ func TestDaemonMerger(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		r.Expect(originArgv, testutil.Reply{ExitCode: 128, Stderr: "fatal: not a git repository"})
+		r.Expect(originArgv, testutil.Reply{ExitCode: 128, Stderr: notARepo})
 		if err := f.Merge(t.Context(), betaOf(t, cfg), ghPRNumber); err == nil {
 			t.Error("Merge = nil, want an error")
 		}
@@ -193,9 +194,9 @@ func TestDaemonMergeDeps(t *testing.T) {
 
 	t.Run("MG-1_the_hook_runs_in_the_state_dir_and_lifts_its_hold", func(t *testing.T) {
 		sd, _, st, r := mergeDeps(t)
-		r.Expect([]string{hook.Shell, hook.ShellFlag, "./deploy"}, testutil.Reply{})
+		r.Expect([]string{hook.Shell, hook.ShellFlag, deployCmd}, testutil.Reply{})
 		err := sd.Hook.Run(t.Context(), hook.Request{Project: projectBeta, Task: "b1", PR: ghPRNumber,
-			Command: "./deploy", Dir: sd.StateDir})
+			Command: deployCmd, Dir: sd.StateDir})
 		if err != nil {
 			t.Fatalf("Hook.Run = %v, want nil", err)
 		}
@@ -209,10 +210,10 @@ func TestDaemonMergeDeps(t *testing.T) {
 
 	t.Run("MG-4_a_failed_hook_holds_every_merge_of_the_project", func(t *testing.T) {
 		sd, _, st, r := mergeDeps(t)
-		r.Expect([]string{hook.Shell, hook.ShellFlag, "./deploy"}, testutil.Reply{ExitCode: 1,
+		r.Expect([]string{hook.Shell, hook.ShellFlag, deployCmd}, testutil.Reply{ExitCode: 1,
 			Stdout: "switching\nactivation failed\n"})
 		err := sd.Hook.Run(t.Context(), hook.Request{Project: projectBeta, Task: "b1", PR: ghPRNumber,
-			Command: "./deploy", Dir: sd.StateDir})
+			Command: deployCmd, Dir: sd.StateDir})
 		var failed *hook.FailedError
 		if !errors.As(err, &failed) || failed.LastLine != "activation failed" {
 			t.Fatalf("Hook.Run = %v, want a FailedError naming the last line", err)
@@ -227,13 +228,13 @@ func TestDaemonMergeDeps(t *testing.T) {
 		sd, cfg, _, r := mergeDeps(t)
 		p := betaOf(t, cfg)
 		tree := filepath.Join(sd.StateDir, hook.PreGoDir, projectBeta+"-7")
-		r.Expect([]string{"git", "-C", p.Path, "fetch", "--quiet", "origin", "main", "feat/x"}, testutil.Reply{})
-		r.Expect([]string{"git", "-C", p.Path, "worktree", "add", "--force", "--detach", tree, "FETCH_HEAD"},
+		r.Expect([]string{gitBin, "-C", p.Path, "fetch", "--quiet", "origin", baseBranch, "feat/x"}, testutil.Reply{})
+		r.Expect([]string{gitBin, "-C", p.Path, "worktree", "add", "--force", "--detach", tree, "FETCH_HEAD"},
 			testutil.Reply{})
 		r.Expect([]string{hook.Shell, hook.ShellFlag, "./check"}, testutil.Reply{ExitCode: 1, Stdout: "would: restart"})
-		r.Expect([]string{"git", "-C", p.Path, "worktree", "remove", "--force", tree}, testutil.Reply{})
+		r.Expect([]string{gitBin, "-C", p.Path, "worktree", "remove", "--force", tree}, testutil.Reply{})
 		_, err := sd.PreGo.Run(t.Context(), hook.PreGoRequest{Project: projectBeta, PR: ghPRNumber, Path: p.Path,
-			Base: "main", Branch: "feat/x", Command: "./check", Dir: sd.StateDir})
+			Base: baseBranch, Branch: "feat/x", Command: "./check", Dir: sd.StateDir})
 		if !errors.Is(err, hook.ErrPreGoFailed) {
 			t.Errorf("PreGo.Run = %v, want ErrPreGoFailed", err)
 		}

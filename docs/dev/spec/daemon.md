@@ -22,8 +22,13 @@ the user-facing reference in [`docs/user/configuration.md`](../../user/configura
    the store. The shadow import skips these projects. The forges these projects name read their PR gates and
    base CI (`Deps.Gates`, `Deps.BaseCI`): GitHub through `gh`, Gitea and Forgejo over their API with the token of
    `token_env`, which must be set or fanind refuses to start. The repo (`owner/name`) is read from the `origin`
-   remote of the project's checkout on every read, and an unreadable origin is an error, never a verdict. A scheduler that stops on an error (an unreadable
-   store while it resumes) stops fanind with `fanind: scheduler stopped` and exit 1.
+   remote of the project's checkout on every read, and an unreadable origin is an error, never a verdict. The same
+   forges merge on the owner's go (`Deps.Merger`): the PR is read, a merged one is success, else it is
+   squash-merged with the subject `<title> (#n)` and the forge's MG-6 retries. The post-merge hook
+   (`hook.New`) and the pre-go check (`hook.NewPreGo`) run through the same runner, in `state/` next to the
+   store (`Deps.StateDir`), which fanind creates at start; one it cannot create refuses the start. A scheduler
+   that stops on an error (an unreadable store while it resumes) stops fanind with `fanind: scheduler stopped`
+   and exit 1.
 4. Serves the API (`api.New`) with the configured project order.
 5. The root context comes from `signal.NotifyContext` (SIGINT, SIGTERM). On stop it cancels every open request,
    so event streams end, then waits up to `ShutdownGrace` (10 s, on the injected clock) for them, stops the

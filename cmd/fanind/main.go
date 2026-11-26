@@ -20,6 +20,7 @@ import (
 	"github.com/polandy/fanin/internal/api"
 	"github.com/polandy/fanin/internal/clock"
 	"github.com/polandy/fanin/internal/config"
+	"github.com/polandy/fanin/internal/hook"
 	"github.com/polandy/fanin/internal/intake"
 	"github.com/polandy/fanin/internal/metrics"
 	"github.com/polandy/fanin/internal/notify"
@@ -67,12 +68,16 @@ type deps struct {
 	probe shadow.Probe
 	// workers replaces the scheduler's worker runtime and picker when set.
 	workers func(config.Config, *slog.Logger) (runtime.WorkerRuntime, sched.Picker)
-	// forgeRunner replaces the runner of gh and git for the forges when set.
-	forgeRunner runtime.Runner
+	// runner replaces the runner of gh and git for the forges, and of the hooks, when set.
+	runner runtime.Runner
 }
 
 // RunsDir is the directory next to the store that holds the per-run files (MCP config).
 const RunsDir = "runs"
+
+// StateDir is the directory next to the store where the post-merge hooks run and the pre-go checks keep their
+// worktrees.
+const StateDir = "state"
 
 // OCShimDir is the directory next to the store that holds the opencode launcher shim.
 const OCShimDir = "oc-bin"
@@ -225,7 +230,7 @@ func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log
 			return realWorkers(cfg, d.clock, log)
 		}
 	}
-	runner := d.forgeRunner
+	runner := d.runner
 	if runner == nil {
 		runner = exec.Runner{}
 	}
@@ -233,9 +238,14 @@ func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log
 	if err != nil {
 		return sched.Deps{}, err
 	}
+	state := filepath.Join(filepath.Dir(cfg.Store), StateDir)
+	if err := os.MkdirAll(state, 0o700); err != nil {
+		return sched.Deps{}, fmt.Errorf("make the state directory %s: %w; make it writable or move the store", state, err)
+	}
 	rt, pk := workers(cfg, log)
 	return sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
 		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier, Gates: fg, BaseCI: fg,
+		Merger: fg, Hook: hook.New(st, runner), PreGo: hook.NewPreGo(runner), StateDir: state,
 		Files: sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
 }
 

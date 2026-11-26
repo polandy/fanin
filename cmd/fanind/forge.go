@@ -32,6 +32,7 @@ type forges struct {
 var (
 	_ sched.PRGates = (*forges)(nil)
 	_ sched.BaseCI  = (*forges)(nil)
+	_ sched.Merger  = (*forges)(nil)
 )
 
 // newForges builds a client for each forge a loop: fanin project names; a Gitea forge without its token is an
@@ -103,6 +104,31 @@ func (f *forges) BaseChecks(ctx context.Context, p config.Project) ([]forge.Chec
 		return nil, err
 	}
 	return bc.BranchChecks(ctx, repo, p.Base)
+}
+
+// Merge squash-merges PR pr of p with the subject "<title> (#n)"; a PR already merged is success, and the forge
+// retries a network failure only after checking for MERGED (SCENARIOS MG-6).
+func (f *forges) Merge(ctx context.Context, p config.Project, pr int) error {
+	client, _, err := f.res.For(p.Name)
+	if err != nil {
+		return err
+	}
+	repo, err := f.repo(ctx, p)
+	if err != nil {
+		return err
+	}
+	view, err := client.PR(ctx, repo, pr)
+	if err != nil {
+		return fmt.Errorf("read %s#%d before its merge: %w", repo, pr, err)
+	}
+	if view.State == forge.StateMerged {
+		return nil
+	}
+	req, err := forge.NewSquash(view, nil)
+	if err != nil {
+		return err
+	}
+	return client.SquashMerge(ctx, req)
 }
 
 // repo reads owner/name from the origin remote of p's checkout.

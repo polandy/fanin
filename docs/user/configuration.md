@@ -61,6 +61,9 @@ forges:
 For a project with `loop: fanin`, fanind reads its PRs and the checks of its base branch through this forge. A
 GitHub forge goes through `gh`, which owns its login. A Gitea or Forgejo forge needs its `token_env` set, or fanind
 refuses to start. The repo is the `origin` remote of the project's checkout, so point `origin` at the forge.
+On the owner's go, fanind squash-merges the PR through the same forge with the subject `<title> (#n)`. The
+`post_merge_hook` runs with `sh -c` in `state/` next to the store, and `pre_go_check` keeps its throwaway
+worktrees under `state/prego/`.
 
 ## worker-kinds.yaml
 
