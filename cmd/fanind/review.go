@@ -36,7 +36,7 @@ func newReviews(f *forges, runner runtime.Runner, clk clock.Clock, log *slog.Log
 func (r *reviews) Review(ctx context.Context, p config.Project, run model.Run, pr int) (string, error) {
 	client, kind, err := r.forges.res.For(p.Name)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("fanind: forge of project %s for the review of PR #%d: %w", p.Name, pr, err)
 	}
 	f, ok := client.(review.Forge)
 	if kind != forge.KindGitHub || !ok {
@@ -45,13 +45,13 @@ func (r *reviews) Review(ctx context.Context, p config.Project, run model.Run, p
 	}
 	repo, err := r.forges.repo(ctx, p)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("fanind: repo of project %s for the review of PR #%d: %w", p.Name, pr, err)
 	}
 	cfg := review.Config{Skill: p.ReviewSkill, Model: p.ReviewModel, Timeout: p.ReviewTimeout.Std()}
 	res, err := review.New(r.rt, r.runner, f, r.events, cfg).Review(ctx, review.Request{Project: p.Name,
 		TaskID: run.TaskID, RunID: run.ID, Repo: repo, Number: pr, Dir: p.Path})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("fanind: review PR #%d of project %s: %w", pr, p.Name, err)
 	}
 	return res.HeadSHA, nil
 }

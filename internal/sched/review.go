@@ -33,6 +33,10 @@ func (s *Scheduler) review(ctx context.Context, p config.Project, run model.Run,
 	if s.reviewing[run.TaskID] {
 		return nil
 	}
+	// A re-gate armed up front starts the review again after a restart; one that fires mid-run starts nothing.
+	if err := s.armRegate(ctx, p, run.TaskID, s.d.Clock.Now().Add(gate.RetryInterval)); err != nil {
+		return err
+	}
 	s.reviewing[run.TaskID] = true
 	log := s.logFor(p.Name, run.TaskID, run.ID)
 	log.InfoContext(ctx, "sched: fanin review started", "pr", pr)

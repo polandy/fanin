@@ -190,6 +190,7 @@ A GitHub head with green CI and no `fanin/review` status is RED with cause `no_r
 [`review.md`](review.md)) in the background:
 
 - One run per task at a time; a gate read while it runs starts none. The run takes no worker slot.
+- Before the run starts, a `gate_retry` due after 60 s is armed, so a run cut short by a restart starts again.
 - A posted verdict arms a `gate_retry` due at once: the gate reads the PR again and sees the new status.
 - A failed run posts nothing, logs `sched: fanin review failed, the next gate tick runs it again` with the error and
   arms a `gate_retry` due after 60 s; that read starts the review again. The task stays gating, nobody is nudged.
@@ -296,7 +297,7 @@ A stop by ctx is never a task failure:
 - The MCP config path of a remote worker and a forge seam for the picker request.
 - `fanind` passes no `Deps.OCDeliver` or `Deps.OCReview` yet (no forge is wired), so a `committed` asks the owner.
 - A delivery cut short by a stop is not resumed on restart; push and review the branch by hand.
-- A review run cut short by a stop is not resumed; the next gate read of the task starts it again.
+- A review run cut short by a stop is not resumed; the `gate_retry` armed before it starts it again.
 - Wiring `resultwatch` to `report.Service`.
 - Nothing fills `context_pct` or the token counts yet; those budget checks act once the adapters write them
   through `SetRunBudget`.
