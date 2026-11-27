@@ -3,6 +3,7 @@ package sched
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -14,6 +15,9 @@ import (
 	"github.com/polandy/fanin/internal/forge"
 	"github.com/polandy/fanin/internal/gate"
 	"github.com/polandy/fanin/internal/model"
+	"github.com/polandy/fanin/internal/notify"
+	"github.com/polandy/fanin/internal/review"
+	"github.com/polandy/fanin/internal/runtime/headless"
 )
 
 const (
@@ -24,7 +28,8 @@ const (
 var errReview = errors.New("review comment unreadable")
 
 // fakeReviewer records the head of each review and answers from errs in turn; a review that succeeds makes the
-// forge answer its entry of posts, as the posted status would. With hold set, the first review waits for it to close.
+// forge answer its entry of posts, as the posted status would. With hold set, the first review signals held and
+// waits for hold to close.
 type fakeReviewer struct {
 	mu    sync.Mutex
 	f     *fakeForge
@@ -32,6 +37,7 @@ type fakeReviewer struct {
 	errs  []error
 	posts []forge.PR
 	hold  chan struct{}
+	held  chan struct{}
 }
 
 func (r *fakeReviewer) Review(ctx context.Context, _ config.Project, _ model.Run, pr int) (string, error) {
@@ -44,6 +50,7 @@ func (r *fakeReviewer) Review(ctx context.Context, _ config.Project, _ model.Run
 	r.heads = append(r.heads, head.HeadSHA)
 	r.mu.Unlock()
 	if r.hold != nil && i == 0 {
+		r.held <- struct{}{}
 		select {
 		case <-r.hold:
 		case <-ctx.Done():
@@ -143,8 +150,11 @@ func TestFaninReview(t *testing.T) {
 		r.start()
 		run := r.startPR("a1", "")
 		r.report(run, donePR)
-		r.until(func() bool { _, ok := r.timers("a1")[gate.TimerRetry]; return ok })
-		r.quiet()
+		failures := r.failures()
+		r.until(func() bool { return failures() == 1 })
+		if _, ok := r.timers("a1")[gate.TimerRetry]; !ok {
+			t.Errorf("timers = %v, want a %s", r.timers("a1"), gate.TimerRetry)
+		}
 		if got := rv.reviewed(); len(got) != 1 {
 			t.Errorf("reviewed heads = %v, want one before the tick", got)
 		}
@@ -168,11 +178,11 @@ func TestFaninReview(t *testing.T) {
 		cfg := mergeConfig()
 		cfg.Projects[0].MaxParallel = 2
 		r, rv := reviewRig(t, cfg, noReviewPR(headFirst), greenAt(headFirst))
-		rv.hold = make(chan struct{})
+		rv.hold, rv.held = make(chan struct{}), make(chan struct{}, 1)
 		r.start()
 		run := r.startPR("a1", "")
 		r.report(run, donePR)
-		r.until(func() bool { return len(rv.reviewed()) == 1 })
+		r.await(rv.held)
 		second := r.startPR("a2", "")
 		if second.Slot != 2 {
 			t.Errorf("slot of a2 = %d, want 2 while a1 is reviewed", second.Slot)
@@ -183,16 +193,94 @@ func TestFaninReview(t *testing.T) {
 
 	t.Run("OC-3_a_review_cut_short_by_a_restart_runs_again_after_the_tick", func(t *testing.T) {
 		r, rv := reviewRig(t, mergeConfig(), noReviewPR(headFirst), forge.PR{}, greenAt(headFirst))
-		rv.hold = make(chan struct{})
+		rv.hold, rv.held = make(chan struct{}), make(chan struct{}, 1)
 		defer close(rv.hold)
 		r.start()
 		run := r.startPR("a1", "")
 		r.report(run, donePR)
-		r.until(func() bool { return len(rv.reviewed()) == 1 })
+		r.await(rv.held)
 		r.restart()
 		r.advance(gate.RetryInterval)
 		r.until(r.taskIn("a1", model.TaskDone))
 		if diff := cmp.Diff([]string{headFirst, headFirst}, rv.reviewed()); diff != "" {
+			t.Errorf("reviewed heads (-want +got):\n%s", diff)
+		}
+	})
+}
+
+// failures counts the failed review runs the scheduler logged.
+func (r *mergeRig) failures() func() int {
+	return func() int { return strings.Count(r.logs.String(), ReviewFailed) }
+}
+
+// see SCENARIOS OC-3
+func TestFaninReviewCap(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{"no_comment", review.ErrNoComment},
+		{"unreadable_verdict", review.ErrUnreadable},
+		{"timeout", headless.ErrTimeout},
+	} {
+		t.Run("OC-3_a_review_that_fails_on_one_head_goes_to_the_owner_after_the_cap_"+tc.name, func(t *testing.T) {
+			r, rv := reviewRig(t, mergeConfig(), noReviewPR(headFirst))
+			for range ReviewAttempts {
+				rv.errs = append(rv.errs, tc.err)
+			}
+			r.start()
+			run := r.startPR("a1", "")
+			r.report(run, donePR)
+			failures := r.failures()
+			for i := 1; i < ReviewAttempts; i++ {
+				r.until(func() bool { return failures() == i })
+				if got := r.task("a1").State; got != model.TaskGating {
+					t.Fatalf("task state after %d failures = %s, want %s", i, got, model.TaskGating)
+				}
+				r.advance(gate.RetryInterval)
+			}
+			r.until(r.taskIn("a1", model.TaskNeedsOwner))
+			detail := r.lastDetail("a1")
+			want := fmt.Sprintf("head %s failed %d of %d times", headFirst, ReviewAttempts, ReviewAttempts)
+			if !strings.Contains(detail, want) || !strings.Contains(detail, tc.err.Error()) {
+				t.Errorf("task detail = %q, want %q and %q", detail, want, tc.err)
+			}
+			if logs := r.logs.String(); !strings.Contains(logs, ReviewCapped) {
+				t.Errorf("log lacks %q:\n%s", ReviewCapped, logs)
+			}
+			r.until(func() bool {
+				return slices.ContainsFunc(r.nt.sent(), func(n notify.Note) bool {
+					return n.Text == detail
+				})
+			})
+			r.advance(gate.RetryInterval)
+			if got := len(rv.reviewed()); got != ReviewAttempts {
+				t.Errorf("review runs = %d, want %d and none after the hand-over", got, ReviewAttempts)
+			}
+			if got := r.task("a1").State; got != model.TaskNeedsOwner {
+				t.Errorf("task state = %s, want %s", got, model.TaskNeedsOwner)
+			}
+		})
+	}
+
+	t.Run("OC-3_a_new_head_starts_the_count_again", func(t *testing.T) {
+		r, rv := reviewRig(t, mergeConfig(), noReviewPR(headFirst), forge.PR{}, forge.PR{}, forge.PR{}, forge.PR{},
+			greenAt(headPushed))
+		rv.errs = []error{errReview, errReview, errReview, errReview}
+		r.start()
+		run := r.startPR("a1", "")
+		r.report(run, donePR)
+		failures := r.failures()
+		for i := 1; i <= 4; i++ {
+			r.until(func() bool { return failures() == i })
+			if i == ReviewAttempts-1 {
+				r.f.answer(noReviewPR(headPushed))
+			}
+			r.advance(gate.RetryInterval)
+		}
+		r.until(r.taskIn("a1", model.TaskDone))
+		want := []string{headFirst, headFirst, headPushed, headPushed, headPushed}
+		if diff := cmp.Diff(want, rv.reviewed()); diff != "" {
 			t.Errorf("reviewed heads (-want +got):\n%s", diff)
 		}
 	})

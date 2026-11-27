@@ -677,7 +677,8 @@ These scenarios cover sandboxed opencode workers and the PR review.
   - The comment must exist, and is printed cut to 1500 chars.
   - The worktree is removed either way.
   - fanind starts it once CI is green on a head without `fanin/review`: one run per head, outside the worker
-    slots; a failed run posts nothing and runs again on the next gate tick.
+    slots; a failed run posts nothing and runs again on the next gate tick. The third failed run on one head
+    goes to the owner instead.
 - Source: `review.sh`. Test: `review.sh#1-#4`. Mark: PARITY (ADDENDUM: a headless run with usage accounting).
 
 **OC-4**

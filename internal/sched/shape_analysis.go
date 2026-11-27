@@ -225,7 +225,7 @@ func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, 
 	ref := "#" + strconv.Itoa(pr)
 	switch {
 	case step.Err == nil && s.reviewable(run.TaskID, step.Result):
-		return s.review(ctx, p, run, pr)
+		return s.review(ctx, p, run, pr, step.Result.Head)
 	case step.Err != nil:
 		return s.askOwner(ctx, p, run, GateErrorDetail+ref+": "+step.Err.Error())
 	case task.Shape == model.ShapePR:
