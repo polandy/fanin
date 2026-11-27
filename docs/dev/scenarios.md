@@ -692,6 +692,7 @@ These scenarios cover sandboxed opencode workers and the PR review.
 - Claude review:
   - Headless `/pr-review` in a detached worktree of the PR branch.
   - Read-only tools plus `gh pr comment`, 1800 s timeout.
+  - The prompt tells the skill to skip its fix step, `make ci` and its CI and branch freshness sections.
   - The comment must exist, and is printed cut to 1500 chars.
   - The worktree is removed either way.
   - fanind starts it once CI is green on a head without `fanin/review`: one run per head, outside the worker
