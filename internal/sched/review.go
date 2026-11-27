@@ -15,6 +15,8 @@ import (
 const (
 	// ReviewFailed is logged when fanin's review of a PR head fails; the next gate tick runs it again.
 	ReviewFailed = "sched: fanin review failed, the next gate tick runs it again"
+	// ReviewCapped is logged when the ReviewAttempts-th review run on one head fails; the owner gets the task.
+	ReviewCapped = "sched: fanin review failed on every attempt, the owner gets the task"
 	// ReviewAttempts caps the failed review runs on one head; the last one hands the task to the owner.
 	ReviewAttempts = 3
 )
@@ -78,16 +80,18 @@ func (s *Scheduler) review(ctx context.Context, p config.Project, run model.Run,
 // ReviewAttempts-th failure on one head moves the task to the owner instead.
 func (s *Scheduler) reviewFailed(ctx context.Context, p config.Project, run model.Run, pr int, head string,
 	cause error) error {
-	s.logFor(p.Name, run.TaskID, run.ID).ErrorContext(ctx, ReviewFailed, "pr", pr, "head", head, "err", cause)
+	log := s.logFor(p.Name, run.TaskID, run.ID)
 	f := s.reviewFails[run.TaskID]
 	if f.head != head {
 		f = reviewFails{head: head}
 	}
 	f.n++
 	if f.n < ReviewAttempts {
+		log.ErrorContext(ctx, ReviewFailed, "pr", pr, "head", head, "attempt", f.n, "err", cause)
 		s.reviewFails[run.TaskID] = f
 		return s.armRegate(ctx, p, run.TaskID, s.d.Clock.Now().Add(gate.RetryInterval))
 	}
+	log.ErrorContext(ctx, ReviewCapped, "pr", pr, "head", head, "attempt", f.n, "err", cause)
 	delete(s.reviewFails, run.TaskID)
 	return s.askOwner(ctx, p, run, fmt.Sprintf("%s#%d: fanin review of head %s failed %d of %d times; review it "+
 		"by hand or post %s on the head: %v", GateErrorDetail, pr, head, f.n, ReviewAttempts, gate.ReviewContext,
