@@ -290,3 +290,74 @@ func TestKindsMatchModel(t *testing.T) {
 		t.Errorf("faninmcp.TextCap = %d, want model.FieldCap %d", faninmcp.TextCap, model.FieldCap)
 	}
 }
+
+func (e *env) budget(t *testing.T, id model.RunID) model.Budget {
+	t.Helper()
+	r, err := e.st.Run(context.Background(), id)
+	if err != nil {
+		t.Fatalf("Run(%s): %v", id, err)
+	}
+	return r.Budget
+}
+
+func TestUsage(t *testing.T) {
+	ctx := context.Background()
+	first := model.Usage{InputTokens: 1000, OutputTokens: 100, ContextPct: 5}
+	t.Run("AW-14_each_new_response_adds_and_appends_token_usage", func(t *testing.T) {
+		e := newEnv(t)
+		for _, u := range []model.Usage{first, first, {InputTokens: 3000, OutputTokens: 200, ContextPct: 15}} {
+			if err := e.svc.Usage(ctx, "r2", curToken, u); err != nil {
+				t.Fatalf("Usage(%+v): %v", u, err)
+			}
+		}
+		want := model.Budget{InputTokens: 4000, OutputTokens: 300, TotalTokens: 4300, ContextPct: 15,
+			SeenInput: 3000, SeenOutput: 200}
+		if d := cmp.Diff(want, e.budget(t, "r2")); d != "" {
+			t.Errorf("budget (-want +got):\n%s", d)
+		}
+		got := e.events(t, model.EventTokenUsage)
+		if len(got) != 2 || got[1].Detail != "4300 tokens" || got[1].RunID != "r2" {
+			t.Errorf("token_usage events = %v, want two of r2, the last 4300 tokens; a repeat appends none", got)
+		}
+	})
+	t.Run("AW-14_usage_keeps_the_ladder_counts", func(t *testing.T) {
+		e := newEnv(t)
+		if err := e.st.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
+			return tx.SetRunCounts(ctx, "r2", model.Budget{FixRounds: 2, Stalls: 1})
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := e.svc.Usage(ctx, "r2", curToken, first); err != nil {
+			t.Fatal(err)
+		}
+		if b := e.budget(t, "r2"); b.FixRounds != 2 || b.Stalls != 1 || b.TotalTokens != 1100 {
+			t.Errorf("budget = %+v, want fix rounds 2, stalls 1 and 1100 tokens", b)
+		}
+	})
+	cases := []struct {
+		name  string
+		run   model.RunID
+		token string
+		u     model.Usage
+		want  error
+	}{
+		{"AW-14_older_run_is_refused", "r1", oldToken, first, ErrStaleRun},
+		{"AW-14_wrong_token_is_refused", "r2", oldToken, first, ErrToken},
+		{"AW-14_share_over_100_is_refused", "r2", curToken, model.Usage{ContextPct: 101}, model.ErrInvalidUsage},
+		{"unknown_run", "nope", curToken, first, store.ErrNotFound},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t)
+			if err := e.svc.Usage(ctx, tc.run, tc.token, tc.u); !errors.Is(err, tc.want) {
+				t.Fatalf("Usage = %v, want %v", err, tc.want)
+			}
+			if got := e.events(t, model.EventTokenUsage); len(got) != 0 {
+				t.Errorf("token_usage events = %v, want none", got)
+			}
+			if b := e.budget(t, "r2"); b != (model.Budget{}) {
+				t.Errorf("budget of r2 = %+v, want it untouched", b)
+			}
+		})
+	}
+}

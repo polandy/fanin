@@ -221,3 +221,42 @@ func TestReportRouteStoreFailure(t *testing.T) {
 	wantWorkerError(t, c.Report(context.Background(), faninmcp.Report{Kind: faninmcp.KindNothing, Text: "x"}),
 		http.StatusInternalServerError, wire.CodeInternal)
 }
+
+func TestUsageRoute(t *testing.T) {
+	ctx := context.Background()
+	usage := faninmcp.Usage{InputTokens: 1000, OutputTokens: 100, ContextPct: 80}
+	t.Run("AW-14_current_run_sends_its_usage", func(t *testing.T) {
+		e := newReportEnv(t, true)
+		if err := e.client(t, "r2", runToken).Usage(ctx, usage); err != nil {
+			t.Fatalf("Usage: %v", err)
+		}
+		run, err := e.st.Run(ctx, "r2")
+		if err != nil || run.Budget.TotalTokens != 1100 || run.Budget.ContextPct != 80 {
+			t.Errorf("budget = %+v, %v; want 1100 tokens at 80%%", run.Budget, err)
+		}
+	})
+	cases := []struct {
+		name   string
+		run    string
+		token  string
+		usage  faninmcp.Usage
+		status int
+		code   string
+	}{
+		{"AW-14_token_of_an_older_run_is_refused", "r2", oldRunToken, usage, http.StatusUnauthorized,
+			wire.CodeUnauthorized},
+		{"AW-14_older_run_is_refused", "r1", oldRunToken, usage, http.StatusConflict, wire.CodeConflict},
+		{"AW-14_share_over_100_is_refused", "r2", runToken, faninmcp.Usage{ContextPct: 101},
+			http.StatusBadRequest, wire.CodeBadRequest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newReportEnv(t, true)
+			wantWorkerError(t, e.client(t, tc.run, tc.token).Usage(ctx, tc.usage), tc.status, tc.code)
+			run, err := e.st.Run(ctx, "r2")
+			if err != nil || run.Budget != (model.Budget{}) {
+				t.Errorf("budget = %+v, %v; want it untouched", run.Budget, err)
+			}
+		})
+	}
+}

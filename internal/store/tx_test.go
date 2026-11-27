@@ -133,7 +133,8 @@ func TestRunLifecycle(t *testing.T) {
 	createTasks(t, s, "t1")
 	run := model.Run{ID: "r1", TaskID: "t1", Number: 1, Slot: 2, Branch: "feat/x", Token: "secret"}
 	mustTx(t, s, func(ctx context.Context, tx *Tx) error { return tx.CreateRun(ctx, run) })
-	budget := model.Budget{FixRounds: 1, ReviewNudges: 2, Stalls: 3, InputTokens: 4, OutputTokens: 5, TotalTokens: 9}
+	budget := model.Budget{FixRounds: 1, ReviewNudges: 2, Stalls: 3, InputTokens: 4, OutputTokens: 5, TotalTokens: 9,
+		ContextPct: 40, SeenInput: 2, SeenOutput: 3}
 	result := model.Result{Kind: model.ResultDonePR, PR: 7, Text: "  done\n now "}
 	clk.Advance(time.Hour)
 	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
@@ -178,7 +179,7 @@ func TestRunLadderColumns(t *testing.T) {
 	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
 		return tx.CreateRun(ctx, model.Run{ID: "r1", TaskID: "t1", Number: 1, Hint: "fix the parser"})
 	})
-	budget := model.Budget{Stalls: 1, ContextPct: 80, FooterWaits: 3, ContinueNudges: 1, SecureNudges: 1}
+	budget := model.Budget{Stalls: 1, FooterWaits: 3, ContinueNudges: 1, SecureNudges: 1}
 	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
 		if err := tx.SetRunCounts(ctx, "r1", budget); err != nil {
 			return err
@@ -200,6 +201,32 @@ func TestRunLadderColumns(t *testing.T) {
 	wantTypes := []model.EventType{model.EventTaskCreated, model.EventRunStarted}
 	if d := cmp.Diff(wantTypes, eventTypes(t, s, "t1")); d != "" {
 		t.Errorf("events (-want +got):\n%s; the scheduler's counts append none", d)
+	}
+}
+
+// AW-14: the scheduler's counts, written from a budget read earlier, never undo the usage the worker sent since.
+func TestSetRunCountsKeepsUsage(t *testing.T) {
+	s, _ := newStore(t)
+	ctx := context.Background()
+	createTasks(t, s, "t1")
+	usage := model.Budget{InputTokens: 4, OutputTokens: 5, TotalTokens: 9, ContextPct: 40, SeenInput: 2, SeenOutput: 3}
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		if err := tx.CreateRun(ctx, model.Run{ID: "r1", TaskID: "t1", Number: 1}); err != nil {
+			return err
+		}
+		if err := tx.SetRunBudget(ctx, "r1", usage); err != nil {
+			return err
+		}
+		return tx.SetRunCounts(ctx, "r1", model.Budget{FixRounds: 1, Stalls: 2})
+	})
+	run, err := s.Run(ctx, "r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := usage
+	want.FixRounds, want.Stalls = 1, 2
+	if d := cmp.Diff(want, run.Budget); d != "" {
+		t.Errorf("budget (-want +got):\n%s", d)
 	}
 }
 
