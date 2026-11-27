@@ -40,6 +40,9 @@ func (s *Scheduler) onStoreEvent(ctx context.Context, ev model.Event) error {
 		if err := s.reported(ctx, ev); err != nil {
 			return err
 		}
+		if err := s.resultAnswered(ctx, ev); err != nil {
+			return err
+		}
 		if err := s.finishAnalysis(ctx, p, ev); err != nil {
 			return err
 		}

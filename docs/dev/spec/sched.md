@@ -100,7 +100,8 @@ only watched, and the timeout spares it.
   gets the note `<agent> shows a dialog fanin cannot answer (dialog: …); answer it in the pane` and the task stays
   running.
 - **Pane answer (WA-3).** An `answered_in_pane` event moves a stalled run back like `working` and calls
-  `Owner.AnsweredInPane`, which closes the run's open questions.
+  `Owner.AnsweredInPane`, which closes the run's open questions. A `result_reported` does the same before the
+  result is read: the worker got past its dialog before the observer saw the answer.
 - **Retry.** A failed hand-off to the owner channel stays owed on the watch and the step fails; the next step after
   `RetryAfter` hands it over again.
 - **Delivery (OA-1 to OA-3).** `sched.OwnerDelivery` is the `owner.Deliverer`: a dialog option is pressed as its

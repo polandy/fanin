@@ -102,3 +102,15 @@ func (s *Scheduler) payOwed(ctx context.Context) error {
 	}
 	return nil
 }
+
+// resultAnswered closes the run's open questions once it reports: the worker got past its dialog, answered in the
+// pane before the observer saw it (SCENARIOS WA-3).
+func (s *Scheduler) resultAnswered(ctx context.Context, ev model.Event) error {
+	if s.d.Owner == nil {
+		return nil
+	}
+	if _, err := s.d.Owner.AnsweredInPane(ctx, ev.RunID); err != nil {
+		return fmt.Errorf("sched: close the questions of reported run %s: %w", ev.RunID, err)
+	}
+	return nil
+}
