@@ -61,6 +61,8 @@ type Vars struct {
 	Repo string
 	Base string
 	Hint string
+	// Log, when set, is appended in a code fence: the tail of a failed CI step's log.
+	Log string
 	// Handover, when set, is appended as it is: a follow-up run's handover document (Handover.Markdown).
 	Handover string
 }
@@ -105,6 +107,13 @@ func render(fsys fs.FS, name Name, v Vars) (string, error) {
 	}
 	// Placeholders are gone before the values go in, so a hint is never expanded.
 	out := strings.NewReplacer("{{REPO}}", v.Repo, "{{BASE}}", v.Base, "{{HINT}}", v.Hint).Replace(p) + "\n"
+	if v.Log != "" {
+		fence := "```"
+		for strings.Contains(v.Log, fence) {
+			fence += "`"
+		}
+		out += "\nLog of the failed step (tail):\n" + fence + "\n" + strings.TrimRight(v.Log, "\n") + "\n" + fence + "\n"
+	}
 	if v.Handover != "" {
 		out += "\n" + strings.TrimRight(v.Handover, "\n") + "\n"
 	}

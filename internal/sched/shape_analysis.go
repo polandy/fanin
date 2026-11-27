@@ -229,7 +229,7 @@ func (s *Scheduler) gated(ctx context.Context, p config.Project, run model.Run, 
 	case step.Err != nil:
 		return s.askOwner(ctx, p, run, GateErrorDetail+ref+": "+step.Err.Error())
 	case task.Shape == model.ShapePR:
-		return s.gatedPR(ctx, p, run, task, ref, step.Result)
+		return s.gatedPR(ctx, p, run, task, pr, step.Result)
 	case !step.Result.Verdict.IsGreen():
 		return s.blockAnalysis(ctx, p, run, ref+" "+step.Result.String())
 	}

@@ -31,10 +31,11 @@ type forges struct {
 }
 
 var (
-	_ sched.PRGates = (*forges)(nil)
-	_ sched.BaseCI  = (*forges)(nil)
-	_ sched.Merger  = (*forges)(nil)
-	_ cleanup.Forge = (*forges)(nil)
+	_ sched.PRGates  = (*forges)(nil)
+	_ sched.BaseCI   = (*forges)(nil)
+	_ sched.FailLogs = (*forges)(nil)
+	_ sched.Merger   = (*forges)(nil)
+	_ cleanup.Forge  = (*forges)(nil)
 )
 
 // newForges builds a client for each forge a loop: fanin project names; a Gitea forge without its token is an
@@ -106,6 +107,27 @@ func (f *forges) BaseChecks(ctx context.Context, p config.Project) ([]forge.Chec
 		return nil, err
 	}
 	return bc.BranchChecks(ctx, repo, p.Base)
+}
+
+// FailedLog reads the tail of the failed CI step's log on the head of PR pr of p (SCENARIOS GH-9).
+func (f *forges) FailedLog(ctx context.Context, p config.Project, pr int) (string, error) {
+	client, _, err := f.res.For(p.Name)
+	if err != nil {
+		return "", err
+	}
+	fl, ok := client.(forge.FailLogs)
+	if !ok {
+		return "", fmt.Errorf("%w: forge %q of %s cannot read CI logs", forge.ErrInvalidRequest, p.Forge, p.Name)
+	}
+	repo, err := f.repo(ctx, p)
+	if err != nil {
+		return "", err
+	}
+	head, err := client.PR(ctx, repo, pr)
+	if err != nil {
+		return "", err
+	}
+	return fl.FailedLog(ctx, repo, head.HeadSHA, forge.FailLogMax)
 }
 
 // Merge squash-merges PR pr of p with the subject "<title> (#n)"; a PR already merged is success, and the forge

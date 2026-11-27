@@ -65,6 +65,11 @@ type BaseCI interface {
 	BaseChecks(ctx context.Context, p config.Project) ([]forge.Check, error)
 }
 
+// FailLogs reads the tail of the failed CI step's log of PR pr of a project.
+type FailLogs interface {
+	FailedLog(ctx context.Context, p config.Project, pr int) (string, error)
+}
+
 // mergeJob is one merge attempt of a gating task after the owner's go.
 type mergeJob struct {
 	p   config.Project
@@ -306,7 +311,7 @@ func (s *Scheduler) mergeEnded(ctx context.Context, j mergeJob, end mergeEnd) {
 		err = s.heldStill(ctx, j)
 	case end.red != nil && j.shape == model.ShapePR:
 		s.goAgain[j.run.TaskID] = true
-		err = s.redPR(ctx, j.p, j.run, j.ref(), *end.red)
+		err = s.redPR(ctx, j.p, j.run, j.pr, *end.red)
 	case end.red != nil:
 		err = s.regateRed(ctx, j, *end.red)
 	case end.pending:
@@ -338,7 +343,7 @@ func (s *Scheduler) regateRed(ctx context.Context, j mergeJob, res gate.Result) 
 	}
 	s.goAgain[j.run.TaskID] = true
 	j.run.State = model.RunWorking
-	return s.nudgeWith(ctx, j.p, j.run, prompt.NudgeRegate, j.ref()+" "+res.String(), nil)
+	return s.nudgeWith(ctx, j.p, j.run, prompt.NudgeRegate, j.ref()+" "+res.String(), "", nil)
 }
 
 // mergeDone ends the merged run and task with detail, closes the pane and cleans up after the merge (SCENARIOS

@@ -204,3 +204,13 @@ type Workflows interface {
 type BranchChecks interface {
 	BranchChecks(ctx context.Context, repo, branch string) ([]Check, error)
 }
+
+// FailLogMax is the most bytes of a failed step's log a fix nudge carries.
+const FailLogMax = 4096
+
+// FailLogs reads the log of the failed CI steps of a commit.
+type FailLogs interface {
+	// FailedLog returns at most max bytes from the end of the failed steps' log of the newest failed run on sha,
+	// redacted; ErrNotFound when no run on sha failed.
+	FailedLog(ctx context.Context, repo, sha string, max int) (string, error)
+}

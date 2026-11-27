@@ -246,7 +246,7 @@ func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log
 	}
 	rt, pk := workers(cfg, log)
 	return sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
-		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier, Gates: fg, BaseCI: fg,
+		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier, Gates: fg, BaseCI: fg, FailLog: fg,
 		Merger: fg, Cleaner: cleanup.New(runner, fg), Hook: hook.New(st, runner), PreGo: hook.NewPreGo(runner), StateDir: state,
 		Reviewer: newReviews(fg, runner, d.clock, log, st),
 		Files:    sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
