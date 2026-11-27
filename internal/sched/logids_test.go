@@ -49,7 +49,7 @@ func matchesAny(subs []string, line string) bool {
 func TestLogIDs(t *testing.T) {
 	t.Run("OB-4_idle_pick_logs_carry_the_ids", func(t *testing.T) {
 		h := newHarness(t, testConfig())
-		h.pk.res = pick.Result{Idle: true, Reason: "no open todo"}
+		h.pk.res = pick.Result{Idle: true, Reason: textNoTodo}
 		h.start()
 		h.addTask(model.Task{ID: "a1", Title: titleLoop})
 		h.until(h.taskIn("a1", model.TaskDone))
