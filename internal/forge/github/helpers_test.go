@@ -29,6 +29,7 @@ const (
 	flagLimit     = "--limit"
 	verbList      = "list"
 	verbRun       = "run"
+	verbView      = "view"
 	api           = "api"
 	reviewContext = "fanin/review"
 	keyState      = "state"
@@ -42,7 +43,7 @@ const (
 )
 
 var (
-	viewArgv = []string{"gh", "pr", "view", "42", flagRepo, repo, "--json", viewFields}
+	viewArgv = []string{"gh", "pr", verbView, "42", flagRepo, repo, "--json", viewFields}
 	start    = time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
 )
 

@@ -85,7 +85,7 @@ var _ forge.Workflows = (*github.Client)(nil)
 func TestFailedLog(t *testing.T) {
 	listArgv := []string{"gh", verbRun, verbList, flagRepo, repo, "--commit", headSHA, flagLimit, "20", flagJSON,
 		"databaseId,conclusion"}
-	viewArgv := []string{"gh", verbRun, "view", "2", flagRepo, repo, "--log-failed"}
+	viewArgv := []string{"gh", verbRun, verbView, "2", flagRepo, repo, "--log-failed"}
 	const runs = `[{"databaseId":3,"conclusion":""},{"databaseId":2,"conclusion":"failure"},{"databaseId":1,"conclusion":"success"}]`
 
 	t.Run("GH-9_the_failed_step_log_is_cut_to_its_tail_and_redacted", func(t *testing.T) {
