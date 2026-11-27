@@ -44,6 +44,19 @@ func TestWebUIIsServed(t *testing.T) {
 	}
 }
 
+// TestWebUIListensToEveryEventType keeps the board's EVENT_TYPES in step with model.AllEventTypes (SCENARIOS OA-8).
+func TestWebUIListensToEveryEventType(t *testing.T) {
+	src, err := fs.ReadFile(webFS, "web/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, typ := range model.AllEventTypes {
+		if !strings.Contains(string(src), "'"+string(typ)+"'") {
+			t.Errorf("app.js EVENT_TYPES lacks %s; the board would miss it", typ)
+		}
+	}
+}
+
 // TestWebUIHasNoGoFiles keeps internal/api/web a plain static tree: no build step, no Go package.
 func TestWebUIHasNoGoFiles(t *testing.T) {
 	err := fs.WalkDir(webFS, ".", func(path string, _ fs.DirEntry, err error) error {
