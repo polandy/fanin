@@ -80,15 +80,16 @@ A refused token or stale run is logged at Warn with `task_id`, `run_id` and `pro
 ## Usage
 
 fanind starts each Claude worker with `--settings <run directory>/settings.json`. Its `statusLine` runs
-`fanin worker-usage` with the three variables above set in the command, so the file is mode 0600 like the MCP
-config. The worker's own status line is replaced by fanin's.
+`fanin worker-usage <run directory>/mcp.json`, which reads the three variables above from the MCP config's `fanin`
+server. The token never appears on a command line, where any local user could read it from `ps`. The worker's own
+status line is replaced by fanin's.
 
 - `fanin worker-usage` reads Claude Code's status-line JSON from stdin. It takes `context_window.total_input_tokens`
   (cache reads and writes included), `total_output_tokens` and `used_percentage`, rounded. A null share is
   computed from the input tokens and `context_window_size`. Before the first response there is no context and
   nothing is sent.
 - It posts the usage to `POST /api/v1/runs/{id}/usage` with a 5 s timeout and prints `fanin <run> · context <n>%`.
-  A refused post or unreadable input exits non-zero, and Claude Code then shows no status line.
+  A refused post, an unreadable MCP config or unreadable input exits non-zero, and Claude Code then shows no status line.
 - The counts are the tokens in the context after the latest response, not a session total. `report.Service.Usage`
   adds each new response's counts to the run's `input_tokens`, `output_tokens` and `total_tokens` and stores the
   share as `context_pct` (`model.Budget.Add`). An update whose counts equal the last counted one (`seen_input`,

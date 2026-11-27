@@ -20,21 +20,24 @@ const (
 func init() {
 	register(Command{
 		Name: "worker-usage",
-		Summary: "Claude Code status line of a fanin worker: send the context usage from stdin for the run in $" +
-			faninmcp.EnvRunID,
+		Summary: "Claude Code status line of a fanin worker: send the context usage from stdin for the run whose " +
+			"mcp.json is the argument",
 		Run: runWorkerUsage,
 	})
 }
 
-func runWorkerUsage(ctx context.Context, g Globals, out cli.Output, args []string) error {
-	if len(args) != 0 {
-		return cli.Usagef("worker-usage takes no arguments; fanind sets $%s, $%s and $%s",
-			faninmcp.EnvURL, faninmcp.EnvRunID, faninmcp.EnvRunToken)
+func runWorkerUsage(ctx context.Context, _ Globals, out cli.Output, args []string) error {
+	if len(args) != 1 {
+		return cli.Usagef("worker-usage takes one argument, the run's mcp.json; fanind puts it in the status line")
 	}
-	run := g.Getenv(faninmcp.EnvRunID)
-	c, err := faninmcp.NewClient(g.DaemonURL, run, g.Getenv(faninmcp.EnvRunToken), nil)
+	env, err := faninmcp.ReadRunEnv(args[0])
 	if err != nil {
-		return cli.Usagef("worker-usage: %v", err)
+		return fmt.Errorf("worker-usage: %w", err)
+	}
+	run := env.RunID
+	c, err := faninmcp.NewClient(env.URL, run, env.Token, nil)
+	if err != nil {
+		return fmt.Errorf("worker-usage: %w", err)
 	}
 	if out.In == nil {
 		return errors.New("worker-usage: no standard input; run it as Claude Code's statusLine command")

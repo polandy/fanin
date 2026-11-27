@@ -260,7 +260,8 @@ These scenarios cover waiting for a worker's result and nudging it when it stops
   nothing. A wrong token or an older run records nothing. `max_tokens_per_run` and `rollover_pct` then hand the
   run over (C-BUDGET).
 - Source: —. Test: `internal/model/usage_test.go`, `internal/report/report_test.go`,
-  `internal/api/report_routes_test.go`, `pkg/faninmcp/statusline_test.go`, `cmd/fanin/cmd_workerusage_test.go`,
+  `internal/api/report_routes_test.go`, `pkg/faninmcp/statusline_test.go`, `pkg/faninmcp/mcpconfig_test.go`,
+  `cmd/fanin/cmd_workerusage_test.go`,
   `internal/sched/resume_test.go`, `internal/runtime/herdr/start_test.go`. Mark: CHANGES (C-BUDGET).
 
 ## 4. GitHub gate

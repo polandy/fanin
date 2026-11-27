@@ -17,7 +17,7 @@ import (
 // The run directory layout and the worker's MCP server entry.
 const (
 	MCPConfigName = "mcp.json"
-	MCPServerName = "fanin"
+	MCPServerName = faninmcp.MCPServerName
 	WorkerMCPArg  = "worker-mcp"
 	// SettingsName is the Claude settings file whose status line sends the worker's usage (SCENARIOS AW-14).
 	SettingsName   = "settings.json"
@@ -44,16 +44,6 @@ type Files struct {
 	Command string
 }
 
-type mcpServer struct {
-	Command string            `json:"command"`
-	Args    []string          `json:"args"`
-	Env     map[string]string `json:"env"`
-}
-
-type mcpConfig struct {
-	Servers map[string]mcpServer `json:"mcpServers"`
-}
-
 type statusLine struct {
 	Type    string `json:"type"`
 	Command string `json:"command"`
@@ -63,7 +53,8 @@ type claudeSettings struct {
 	StatusLine statusLine `json:"statusLine"`
 }
 
-// Prepare writes the run's MCP config and settings, readable only by their owner since they hold the run token.
+// Prepare writes the run's MCP config, readable only by its owner since it holds the run token, and the settings,
+// whose status line reads the token from that file so that no command line carries it.
 func (f Files) Prepare(_ context.Context, _ config.Project, run model.Run) (RunPaths, error) {
 	dir := filepath.Join(f.Dir, string(run.ID))
 	if err := os.MkdirAll(dir, dirPerm); err != nil {
@@ -77,14 +68,12 @@ func (f Files) Prepare(_ context.Context, _ config.Project, run model.Run) (RunP
 	env := map[string]string{faninmcp.EnvURL: f.DaemonURL, faninmcp.EnvRunID: string(run.ID),
 		faninmcp.EnvRunToken: string(run.Token)}
 	paths := RunPaths{MCPConfig: filepath.Join(dir, MCPConfigName), Settings: filepath.Join(dir, SettingsName)}
-	mcp := mcpConfig{Servers: map[string]mcpServer{MCPServerName: {Command: cmd, Args: []string{WorkerMCPArg},
+	mcp := faninmcp.MCPConfig{Servers: map[string]faninmcp.MCPServer{MCPServerName: {Command: cmd, Args: []string{WorkerMCPArg},
 		Env: env}}}
 	if err := writeJSON(paths.MCPConfig, "MCP config", run.ID, mcp); err != nil {
 		return RunPaths{}, err
 	}
-	line := fmt.Sprintf("%s=%s %s=%s %s=%s %s %s",
-		faninmcp.EnvURL, shellQuote(f.DaemonURL), faninmcp.EnvRunID, shellQuote(string(run.ID)),
-		faninmcp.EnvRunToken, shellQuote(string(run.Token)), shellQuote(cmd), WorkerUsageArg)
+	line := fmt.Sprintf("%s %s %s", shellQuote(cmd), WorkerUsageArg, shellQuote(paths.MCPConfig))
 	settings := claudeSettings{StatusLine: statusLine{Type: StatusLineType, Command: line}}
 	if err := writeJSON(paths.Settings, "settings", run.ID, settings); err != nil {
 		return RunPaths{}, err
