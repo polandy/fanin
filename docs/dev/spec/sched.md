@@ -198,7 +198,7 @@ an analysis. A final answer decides:
 | RED, CI | `nudge-fix` with the tail (≤ 4 KB, redacted) of the failed step's log from `Deps.FailLog`; the fix round counts against `fix_rounds_per_run` |
 | RED, conflict | one `nudge-conflict` per task, from the same fix budget; a second conflict pauses the task |
 | RED, no review | fanin's review of the head (see Review run); without `Deps.Reviewer`, as RED, review |
-| RED, review | `nudge-review`, up to 3 per run (`review_nudges`, not the fix budget); the next pauses the task |
+| RED, review | `nudge-review` with the newest review comment's text (≤ 1500 chars, from `Deps.ReviewText`; the gate's reasons when it is unreadable), up to 3 per run (`review_nudges`, not the fix budget); the next pauses the task |
 | RED, closed or timed out | blocked to the owner |
 
 The gate names the cause of a RED (`gate.Result.Cause`). A nudge moves the run back to `working` and the task to

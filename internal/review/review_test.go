@@ -477,3 +477,19 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+
+func TestLatestText(t *testing.T) {
+	c := func(body string) forge.Comment { return forge.Comment{Body: body} }
+	t.Run("GH-10_the_newest_review_comment_wins_cut_to_the_limit", func(t *testing.T) {
+		long := "## PR quality review\n" + strings.Repeat("word ", review.TextLimit) + "\n\nMerge readiness: Not ready"
+		got, err := review.LatestText([]forge.Comment{c(readyBody), c("thanks"), c(long), c("lgtm")})
+		if err != nil || len([]rune(got)) != review.TextLimit || !strings.HasPrefix(got, "## PR quality review") {
+			t.Errorf("LatestText = %d runes, %v; want %d runes of the long review", len(got), err, review.TextLimit)
+		}
+	})
+	t.Run("GH-10_no_review_comment_is_unreadable", func(t *testing.T) {
+		if _, err := review.LatestText([]forge.Comment{c("thanks"), c("")}); !errors.Is(err, review.ErrUnreadable) {
+			t.Errorf("err = %v, want review.ErrUnreadable", err)
+		}
+	})
+}

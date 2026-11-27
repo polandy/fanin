@@ -1,6 +1,6 @@
 [
   {
-    "description": "Tell fanin the run is still working, with a short note. Call it at least every few minutes during long work; a run without a heartbeat counts as stalled.",
+    "description": "Tell fanin the run is still working, with a short note. Call it only while you wait on a long background job (a build, a CI run, a review); a run with no heartbeat or result counts as stalled. Do not call it while you are working in the foreground.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {

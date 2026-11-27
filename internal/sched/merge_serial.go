@@ -70,6 +70,11 @@ type FailLogs interface {
 	FailedLog(ctx context.Context, p config.Project, pr int) (string, error)
 }
 
+// ReviewTexts reads the text of the latest review comment of PR pr of a project, cut to review.TextLimit.
+type ReviewTexts interface {
+	ReviewText(ctx context.Context, p config.Project, pr int) (string, error)
+}
+
 // mergeJob is one merge attempt of a gating task after the owner's go.
 type mergeJob struct {
 	p   config.Project

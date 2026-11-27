@@ -7,9 +7,9 @@ You are a worker started by an orchestrator. Repository: {{REPO}}. It configures
 
 {{INCLUDE:hard-limits-hosts}}
 
-Question and project hint from the orchestrator: {{HINT}}
-
 {{INCLUDE:owner-input}}
+
+Question and project hint from the orchestrator: {{HINT}}
 
 {{INCLUDE:status-line}}
 `PUSHED <branch>`, or `BLOCKED: <reason>`.

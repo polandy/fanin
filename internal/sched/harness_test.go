@@ -62,21 +62,22 @@ func testConfig() config.Config {
 
 // harness runs one scheduler on a real store with the manual clock; until steps it to a condition.
 type harness struct {
-	t       *testing.T
-	cfg     config.Config
-	path    string
-	st      *store.Store
-	clk     *clock.Manual
-	rt      *fakeRuntime
-	pk      *fakePicker
-	up      *fakeUnpushed
-	nt      *fakeNotifier
-	gates   PRGates
-	merger  Merger
-	cleaner Cleaner
-	baseCI  BaseCI
-	failLog FailLogs
-	preGo   PreGoCheck
+	t          *testing.T
+	cfg        config.Config
+	path       string
+	st         *store.Store
+	clk        *clock.Manual
+	rt         *fakeRuntime
+	pk         *fakePicker
+	up         *fakeUnpushed
+	nt         *fakeNotifier
+	gates      PRGates
+	merger     Merger
+	cleaner    Cleaner
+	baseCI     BaseCI
+	failLog    FailLogs
+	reviewText ReviewTexts
+	preGo      PreGoCheck
 	// ocPush and ocReview deliver and review opencode branches.
 	ocPush   OCDelivery
 	ocReview OCReviewer
@@ -125,7 +126,7 @@ func (h *harness) start() {
 		post = hook.New(h.st, h.hookRun)
 	}
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
-		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Cleaner: h.cleaner, Hook: post, BaseCI: h.baseCI, FailLog: h.failLog, PreGo: h.preGo,
+		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Cleaner: h.cleaner, Hook: post, BaseCI: h.baseCI, FailLog: h.failLog, ReviewText: h.reviewText, PreGo: h.preGo,
 		StateDir: h.stateDir, OCDeliver: h.ocPush, OCReview: h.ocReview, Reviewer: h.reviewer, Owner: h.questions,
 		Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)

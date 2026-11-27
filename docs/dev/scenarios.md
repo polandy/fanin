@@ -327,7 +327,7 @@ These scenarios cover `pr-gate.sh` and the waits around it.
 
 **GH-10**
 - Given: a review-only RED.
-- Then: the review nudge, which does not use the fix budget, up to 3, then `paused`.
+- Then: the review nudge carries the review comment's text (≤ 1500 chars; the gate's reasons if it is unreadable), does not use the fix budget, up to 3, then `paused`.
 - Source: `loop.sh:237-266`. Test: `loop.sh#2,#4`. Mark: CHANGES (C-BUDGET), same as GH-9.
 
 **GH-11**
