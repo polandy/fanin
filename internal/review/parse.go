@@ -101,7 +101,6 @@ func verdictOf(lower string) Verdict {
 	return ""
 }
 
-// oneLine collapses whitespace and cuts s to limit characters.
 // LatestText returns the canonical text, cut to TextLimit, of the newest comment that parses as a review.
 func LatestText(comments []forge.Comment) (string, error) {
 	for i := len(comments) - 1; i >= 0; i-- {
@@ -113,6 +112,7 @@ func LatestText(comments []forge.Comment) (string, error) {
 		ErrUnreadable, len(comments), CommentMark)
 }
 
+// oneLine collapses whitespace and cuts s to limit characters.
 func oneLine(s string, limit int) string {
 	r := []rune(strings.Join(strings.Fields(s), " "))
 	if len(r) > limit {
