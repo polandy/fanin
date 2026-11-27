@@ -217,6 +217,71 @@ func TestGoRoute(t *testing.T) {
 	})
 }
 
+func TestCancelRoute(t *testing.T) {
+	ctx := context.Background()
+	t.Run("OA-8_cancel_ends_the_task_with_its_reason_and_drops_it_from_the_open_tasks", func(t *testing.T) {
+		e := newOwnerEnv(t)
+		ack, err := e.c.Cancel(ctx, "t1", "merged outside fanind")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ack.Status != wire.StatusOK || ack.Detail != detailCancelled {
+			t.Errorf("ack = %+v, want %s %q", ack, wire.StatusOK, detailCancelled)
+		}
+		evs := e.events(t, model.EventTaskCancelled)
+		if len(evs) != 1 || evs[0].TaskID != "t1" || evs[0].Detail != "merged outside fanind" {
+			t.Errorf("task_cancelled events %+v, want one for t1 with the reason", evs)
+		}
+		ts, err := e.c.Tasks(ctx, "")
+		if err != nil || len(ts.Tasks) != 0 {
+			t.Errorf("open tasks = %+v %v, want none", ts.Tasks, err)
+		}
+	})
+	t.Run("OA-8_cancel_of_a_done_task_is_a_conflict", func(t *testing.T) {
+		e := newOwnerEnv(t)
+		e.tx(t, func(ctx context.Context, tx *store.Tx) error {
+			if err := tx.SetTaskState(ctx, "t1", model.TaskGating, ""); err != nil {
+				return err
+			}
+			return tx.SetTaskState(ctx, "t1", model.TaskDone, "")
+		})
+		_, err := e.c.Cancel(ctx, "t1", "")
+		wantAPIError(t, err, http.StatusConflict, wire.CodeConflict)
+	})
+	t.Run("OA-8_cancel_of_an_unknown_task", func(t *testing.T) {
+		e := newOwnerEnv(t)
+		_, err := e.c.Cancel(ctx, "nope", "")
+		wantAPIError(t, err, http.StatusNotFound, wire.CodeNotFound)
+	})
+	t.Run("OA-8_cancel_needs_the_owner_token", func(t *testing.T) {
+		e := newOwnerEnv(t)
+		_, err := client.New(e.url, "", nil).Cancel(ctx, "t1", "")
+		wantAPIError(t, err, http.StatusUnauthorized, wire.CodeUnauthorized)
+		if evs := e.events(t, model.EventTaskCancelled); len(evs) != 0 {
+			t.Errorf("task_cancelled events %+v, want none", evs)
+		}
+	})
+	t.Run("OA-8_cancel_with_a_body_that_is_no_json_is_a_bad_request", func(t *testing.T) {
+		e := newOwnerEnv(t)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.url+"/api/v1/tasks/t1/cancel",
+			strings.NewReader("reason"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+ownerToken)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := resp.Body.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+	})
+}
+
 func TestHoldLiftRoute(t *testing.T) {
 	ctx := context.Background()
 	t.Run("MG-4_hold_lift_lifts_the_hold", func(t *testing.T) {
