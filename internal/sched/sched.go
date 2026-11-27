@@ -90,6 +90,8 @@ type Deps struct {
 	PreGo PreGoCheck
 	// BaseCI reads the base branch's checks before a merge; nil skips the CI hold rule (SCENARIOS MG-8).
 	BaseCI BaseCI
+	// FailLog reads the failed CI step's log for the fix nudge; nil nudges with the check names alone (SCENARIOS GH-9).
+	FailLog FailLogs
 	// OCDeliver and OCReview push and review a COMMITTED opencode branch; nil asks the owner (SCENARIOS OC-1, OC-6).
 	OCDeliver OCDelivery
 	OCReview  OCReviewer

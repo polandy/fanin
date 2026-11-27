@@ -320,7 +320,8 @@ These scenarios cover `pr-gate.sh` and the waits around it.
 
 **GH-9**
 - Given: RED from CI.
-- Then: a fix nudge with the reason, up to 2, then `paused #n: … (worker <a> still open)`.
+- Then: a fix nudge with the reason and the redacted tail (at most 4 KB) of the failed step's log, up to 2, then
+  `paused #n: … (worker <a> still open)`. A log that cannot be read is warned about; the nudge goes with the reason alone.
 - Source: `loop.sh:237-266`. Test: `loop.sh#3`. Mark: CHANGES (C-BUDGET).
   After 2 fix rounds in a run, a fresh run starts with a handover; after 3 runs, `paused`.
 

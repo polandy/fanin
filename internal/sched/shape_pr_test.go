@@ -2,8 +2,10 @@ package sched
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -298,6 +300,48 @@ func TestPRHead(t *testing.T) {
 			t.Errorf("task detail = %q, want %s#42 with the cause", got, GateErrorDetail)
 		}
 		r.noMerge()
+	})
+}
+
+// fakeFailLog answers every read with log or err and records the PR numbers it was asked for.
+type fakeFailLog struct {
+	mu   sync.Mutex
+	log  string
+	err  error
+	asks []int
+}
+
+func (f *fakeFailLog) FailedLog(_ context.Context, _ config.Project, pr int) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.asks = append(f.asks, pr)
+	return f.log, f.err
+}
+
+func TestPRRedFailLog(t *testing.T) {
+	const failed = "--- FAIL: TestX"
+	t.Run("GH-9_the_fix_nudge_carries_the_failed_step_log", func(t *testing.T) {
+		r := prRig(t, mergeConfig(), redPR())
+		r.failLog = &fakeFailLog{log: failed}
+		r.start()
+		text := r.redRound(r.startPR("a1", ""), 1)
+		if !strings.Contains(text, "#42 RED: failed: ci failure") || !strings.Contains(text, failed) {
+			t.Errorf("fix nudge = %q, want the reasons and %q", text, failed)
+		}
+	})
+
+	t.Run("GH-9_an_unreadable_log_nudges_with_the_reasons_alone", func(t *testing.T) {
+		r := prRig(t, mergeConfig(), redPR())
+		fl := &fakeFailLog{err: errors.New("gh down")}
+		r.failLog = fl
+		r.start()
+		text := r.redRound(r.startPR("a1", ""), 1)
+		if !strings.Contains(text, "#42 RED: failed: ci failure") || strings.Contains(text, "gh down") {
+			t.Errorf("fix nudge = %q, want the reasons without the read error", text)
+		}
+		if len(fl.asks) != 1 || fl.asks[0] != 42 {
+			t.Errorf("log reads = %v, want one for PR 42", fl.asks)
+		}
 	})
 }
 

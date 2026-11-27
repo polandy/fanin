@@ -114,7 +114,7 @@ func TestPRUnreadable(t *testing.T) {
 }
 
 func TestListOpen(t *testing.T) {
-	argv := []string{"gh", "pr", "list", flagRepo, repo, "--state", "open", "--limit", "1000", "--json",
+	argv := []string{"gh", "pr", "list", flagRepo, repo, "--state", "open", flagLimit, "1000", "--json",
 		"number,title,url,state,headRefName,headRefOid,baseRefName"}
 	t.Run("lists_heads_without_checks", func(t *testing.T) {
 		c, r := newClient(t)

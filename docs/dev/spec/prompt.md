@@ -19,7 +19,7 @@ Shared text lives in `templates/parts/` (`owner-input`, `no-herdr-no-ssh`, `hard
 
 The nudges (`prompt.Nudges`) are templates of their own: `nudge-stall` (no progress), `nudge-continue`
 (NUDGE_CONTINUE, a stop without a result), `nudge-secure` (NUDGE_SECURE, push the unpushed commits),
-`nudge-regate` (HINT, the re-gate before the merge was not green), `nudge-fix` (HINT, CI is red),
+`nudge-regate` (HINT, the re-gate before the merge was not green), `nudge-fix` (HINT, CI is red; `Vars.Log` appends the failed step's log tail in a code fence),
 `nudge-review` (HINT, the review is red), `nudge-conflict` (HINT and BASE, merge `origin/<base>` in, never
 rebase) and `nudge-ci-fixed` (BASE, the base branch is
 green again; merge it in).

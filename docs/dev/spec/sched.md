@@ -195,7 +195,7 @@ an analysis. A final answer decides:
 | Gitea `GREEN code` | `ready #<n>: …; changes more than docs, the owner's go merges` |
 | Gitea `NOCI` | `ready #<n>: …; no CI, the owner's go merges` |
 | opencode `GREEN` | auto with `(opencode, auto)`; with `oc_merge: manual` ready with `oc_merge manual, …` |
-| RED, CI | `nudge-fix`; the fix round counts against `fix_rounds_per_run` |
+| RED, CI | `nudge-fix` with the tail (≤ 4 KB, redacted) of the failed step's log from `Deps.FailLog`; the fix round counts against `fix_rounds_per_run` |
 | RED, conflict | one `nudge-conflict` per task, from the same fix budget; a second conflict pauses the task |
 | RED, no review | fanin's review of the head (see Review run); without `Deps.Reviewer`, as RED, review |
 | RED, review | `nudge-review`, up to 3 per run (`review_nudges`, not the fix budget); the next pauses the task |

@@ -3,6 +3,7 @@ package github_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/polandy/fanin/internal/forge"
@@ -17,9 +18,9 @@ const (
 )
 
 var (
-	runListArgv = []string{"gh", "run", "list", flagRepo, repo, "--workflow", workflow, "--commit", headSHA,
-		"--limit", "1", flagJSON, "databaseId"}
-	runWatchArgv = []string{"gh", "run", "watch", "4711", flagRepo, repo, "--exit-status"}
+	runListArgv = []string{"gh", verbRun, verbList, flagRepo, repo, "--workflow", workflow, "--commit", headSHA,
+		flagLimit, "1", flagJSON, "databaseId"}
+	runWatchArgv = []string{"gh", verbRun, "watch", "4711", flagRepo, repo, "--exit-status"}
 )
 
 func TestLatestRun(t *testing.T) {
@@ -80,3 +81,53 @@ func TestWatchRun(t *testing.T) {
 }
 
 var _ forge.Workflows = (*github.Client)(nil)
+
+func TestFailedLog(t *testing.T) {
+	listArgv := []string{"gh", verbRun, verbList, flagRepo, repo, "--commit", headSHA, flagLimit, "20", flagJSON,
+		"databaseId,conclusion"}
+	viewArgv := []string{"gh", verbRun, verbView, "2", flagRepo, repo, "--log-failed"}
+	const runs = `[{"databaseId":3,"conclusion":""},{"databaseId":2,"conclusion":"failure"},{"databaseId":1,"conclusion":"success"}]`
+
+	t.Run("GH-9_the_failed_step_log_is_cut_to_its_tail_and_redacted", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(listArgv, testutil.Reply{Stdout: runs})
+		r.Expect(viewArgv, testutil.Reply{Stdout: strings.Repeat("old line\n", 1000) + "token " + token + "\nFAIL TestX\n"})
+		got, err := c.FailedLog(context.Background(), repo, headSHA, forge.FailLogMax)
+		if err != nil {
+			t.Fatalf("FailedLog: %v", err)
+		}
+		if len(got) > forge.FailLogMax || !strings.HasSuffix(got, "FAIL TestX\n") || strings.Contains(got, token) ||
+			!strings.Contains(got, forge.Redacted) {
+			t.Errorf("FailedLog = %q (%d bytes), want the redacted tail of at most %d bytes", got, len(got), forge.FailLogMax)
+		}
+	})
+
+	t.Run("GH-9_a_short_log_comes_whole", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(listArgv, testutil.Reply{Stdout: runs})
+		r.Expect(viewArgv, testutil.Reply{Stdout: "FAIL TestX\n"})
+		if got, err := c.FailedLog(context.Background(), repo, headSHA, forge.FailLogMax); err != nil || got != "FAIL TestX\n" {
+			t.Errorf("FailedLog = %q, %v; want the whole log", got, err)
+		}
+	})
+
+	t.Run("GH-9_no_failed_run_is_not_found", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(listArgv, testutil.Reply{Stdout: `[{"databaseId":1,"conclusion":"success"}]`})
+		_, err := c.FailedLog(context.Background(), repo, headSHA, forge.FailLogMax)
+		if !errors.Is(err, forge.ErrNotFound) {
+			t.Errorf("FailedLog = %v; want ErrNotFound", err)
+		}
+	})
+
+	t.Run("GH-9_gh_failures_are_errors", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(listArgv, testutil.Reply{Stdout: runs})
+		r.Expect(viewArgv, testutil.Reply{ExitCode: 1, Stderr: netStderr})
+		if _, err := c.FailedLog(context.Background(), repo, headSHA, forge.FailLogMax); !errors.Is(err, forge.ErrNetwork) {
+			t.Errorf("FailedLog = %v; want ErrNetwork", err)
+		}
+	})
+}
+
+var _ forge.FailLogs = (*github.Client)(nil)
