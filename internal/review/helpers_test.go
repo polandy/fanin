@@ -27,6 +27,8 @@ const (
 	headBranch  = "feat/widget"
 	headSHA     = "abc123def4567890"
 	newSHA      = "fed987cba6543210"
+	parentSHA   = "0123456789abcdef"
+	baseSHA     = "9876543210fedcba"
 	reviewModel = "sonnet"
 	commentURL  = "https://github.com/acme/widget/pull/42#issuecomment-9"
 	okJSON      = `{"is_error":false,"result":"review posted","usage":` +
@@ -45,6 +47,9 @@ const (
 var (
 	worktree   = repoDir + "/.claude/worktrees/fanin-review-42"
 	fetchArgv  = []string{gitBin, "-C", repoDir, "fetch", "-q", "origin", headBranch}
+	// parentsArgv answers ownCommit for a head with own changes, which every review runs on.
+	parentsArgv = []string{gitBin, "-C", repoDir, "rev-list", "--parents", "-n", "1", headSHA}
+	ownCommit   = testutil.Reply{Stdout: headSHA + " " + parentSHA + "\n"}
 	addArgv    = []string{gitBin, "-C", repoDir, "worktree", "add", "-q", "--detach", worktree, headSHA}
 	removeArgv = []string{gitBin, "-C", repoDir, "worktree", "remove", "--force", worktree}
 	claudeArgv = []string{"claude", "-p", "--output-format", "json", flagModel, reviewModel, "--allowedTools",
@@ -68,6 +73,7 @@ type fakeForge struct {
 	commentCalls    int
 	postErr         error
 	statuses        []forge.Status
+	commitChecksErr error
 }
 
 func newForge(comments ...[]forge.Comment) *fakeForge {
@@ -125,6 +131,28 @@ func (f *fakeForge) PostStatus(_ context.Context, st forge.Status) error {
 	}
 	f.statuses = append(f.statuses, st)
 	return nil
+}
+
+// CommitChecks returns the statuses posted on sha, as the forge shows a commit that is no longer the head.
+func (f *fakeForge) CommitChecks(_ context.Context, _ string, sha string) ([]forge.Check, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.commitChecksErr != nil {
+		return nil, f.commitChecksErr
+	}
+	checks := []forge.Check{}
+	for i, st := range f.statuses {
+		if st.SHA != sha {
+			continue
+		}
+		state := forge.CheckFailure
+		if st.State == forge.StatusSuccess {
+			state = forge.CheckSuccess
+		}
+		checks = append(checks, forge.Check{Name: st.Context, State: state,
+			UpdatedAt: start.Add(time.Duration(i+1) * time.Minute), Description: st.Description})
+	}
+	return checks, nil
 }
 
 // push moves the PR head, as a worker's fix commit does.

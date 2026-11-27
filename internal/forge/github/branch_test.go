@@ -86,3 +86,65 @@ func TestBranchChecks(t *testing.T) {
 		}
 	})
 }
+
+var _ forge.CommitChecks = (*github.Client)(nil)
+
+// commitDoc is the GraphQL answer for one commit with the given rollup nodes; nil nodes is no rollup.
+func commitDoc(nodes ...any) map[string]any {
+	object := map[string]any{"statusCheckRollup": nil}
+	if nodes != nil {
+		object["statusCheckRollup"] = map[string]any{"contexts": map[string]any{
+			"pageInfo": map[string]any{"hasNextPage": false}, "nodes": nodes}}
+	}
+	return map[string]any{"data": map[string]any{"repository": map[string]any{"object": object}}}
+}
+
+func TestCommitChecks(t *testing.T) {
+	const sha = "abc123def4567890"
+	argv := []string{"gh", api, "graphql", "-f", "query=" + github.CommitChecksQuery, "-f", "owner=acme",
+		"-f", "name=widget", "-f", "oid=" + sha}
+	t.Run("OC-3_reads_the_statuses_of_one_commit", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(argv, testutil.Reply{Stdout: marshal(t, commitDoc(commitStatus("fanin/review", success, keyCreated,
+			doneAt)))})
+		got, err := c.CommitChecks(context.Background(), repo, sha)
+		want := []forge.Check{{Name: "fanin/review", State: forge.CheckSuccess,
+			UpdatedAt: time.Date(2026, 11, 25, 9, 5, 0, 0, time.UTC)}}
+		if diff := cmp.Diff(want, got); err != nil || diff != "" {
+			t.Errorf("CommitChecks err %v (-want +got):\n%s", err, diff)
+		}
+	})
+	t.Run("OC-3_no_rollup_is_no_checks", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(argv, testutil.Reply{Stdout: marshal(t, commitDoc())})
+		if got, err := c.CommitChecks(context.Background(), repo, sha); err != nil || got == nil || len(got) != 0 {
+			t.Errorf("CommitChecks = %#v, %v; want an empty list", got, err)
+		}
+	})
+	t.Run("OC-3_missing_commit_is_not_found", func(t *testing.T) {
+		c, r := newClient(t)
+		r.Expect(argv, testutil.Reply{Stdout: `{"data":{"repository":{"object":null}}}`})
+		if _, err := c.CommitChecks(context.Background(), repo, sha); !errors.Is(err, forge.ErrNotFound) {
+			t.Errorf("err = %v, want ErrNotFound", err)
+		}
+	})
+	for name, out := range map[string]string{
+		"OC-3_broken_json_is_unreadable":   `{"data":`,
+		"OC-3_no_repository_is_unreadable": `{"data":{}}`,
+		"OC-3_unknown_check_is_unreadable": marshal(t, commitDoc(map[string]any{keyType: "Other"})),
+	} {
+		t.Run(name, func(t *testing.T) {
+			c, r := newClient(t)
+			r.Expect(argv, testutil.Reply{Stdout: out})
+			if _, err := c.CommitChecks(context.Background(), repo, sha); !errors.Is(err, forge.ErrUnreadable) {
+				t.Errorf("err = %v, want ErrUnreadable", err)
+			}
+		})
+	}
+	t.Run("sha_that_is_no_hex_is_refused_before_gh", func(t *testing.T) {
+		c, _ := newClient(t)
+		if _, err := c.CommitChecks(context.Background(), repo, "-main"); !errors.Is(err, forge.ErrInvalidRequest) {
+			t.Errorf("err = %v, want ErrInvalidRequest", err)
+		}
+	})
+}

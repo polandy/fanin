@@ -18,9 +18,10 @@ import (
 	"github.com/polandy/fanin/internal/runtime/testutil"
 )
 
-// scriptOK queues a whole review: fetch, worktree, the claude replies and the removal.
+// scriptOK queues a whole review of a head with own changes: fetch, parents, worktree, the claude replies and the removal.
 func scriptOK(rr *testutil.RecordingRunner, claude ...testutil.Reply) {
 	rr.Expect(fetchArgv, testutil.Reply{})
+	rr.Expect(parentsArgv, ownCommit)
 	rr.Expect(addArgv, testutil.Reply{})
 	for _, r := range claude {
 		rr.Expect(claudeArgv, r)
@@ -111,6 +112,7 @@ func TestReview(t *testing.T) {
 	t.Run("OC-3_timeout_is_1800s_and_the_worktree_is_removed", func(t *testing.T) {
 		rr := testutil.NewRecordingRunner(t)
 		rr.Expect(fetchArgv, testutil.Reply{})
+		rr.Expect(parentsArgv, ownCommit)
 		rr.Expect(addArgv, testutil.Reply{})
 		rr.Expect(removeArgv, testutil.Reply{})
 		h := hangingClaude{RecordingRunner: rr, started: make(chan struct{})}
@@ -140,6 +142,7 @@ func TestReview(t *testing.T) {
 	t.Run("OC-3_configured_skill_model_and_timeout", func(t *testing.T) {
 		rr := testutil.NewRecordingRunner(t)
 		rr.Expect(fetchArgv, testutil.Reply{})
+		rr.Expect(parentsArgv, ownCommit)
 		rr.Expect(addArgv, testutil.Reply{})
 		rr.Expect([]string{"claude", "-p", "--output-format", "json", flagModel, "opus", "--allowedTools",
 			strings.Join(review.AllowedTools, ",")}, testutil.Reply{Stdout: okJSON})
@@ -151,7 +154,7 @@ func TestReview(t *testing.T) {
 			t.Fatalf("Review: %v", err)
 		}
 		rr.Done()
-		if p := string(rr.Calls()[2].Stdin); !strings.HasPrefix(p, "/team-review 42\n") {
+		if p := string(rr.Calls()[3].Stdin); !strings.HasPrefix(p, "/team-review 42\n") {
 			t.Errorf("prompt = %q, want the configured skill first", p)
 		}
 	})
@@ -293,6 +296,7 @@ func TestReviewUnreadableForge(t *testing.T) {
 	t.Run("OC-3_worktree_add_fails_without_a_run", func(t *testing.T) {
 		rr := testutil.NewRecordingRunner(t)
 		rr.Expect(fetchArgv, testutil.Reply{})
+		rr.Expect(parentsArgv, ownCommit)
 		rr.Expect(addArgv, testutil.Reply{ExitCode: 128, Stderr: "fatal: already exists"})
 		_, err := newSetup(rr, newForge()).reviewer().Review(context.Background(), request())
 		if err == nil || !strings.Contains(err.Error(), "worktree remove --force") {
@@ -303,6 +307,7 @@ func TestReviewUnreadableForge(t *testing.T) {
 	t.Run("OC-3_failed_removal_is_an_error", func(t *testing.T) {
 		rr := testutil.NewRecordingRunner(t)
 		rr.Expect(fetchArgv, testutil.Reply{})
+		rr.Expect(parentsArgv, ownCommit)
 		rr.Expect(addArgv, testutil.Reply{})
 		rr.Expect(claudeArgv, testutil.Reply{Stdout: okJSON})
 		rr.Expect(removeArgv, testutil.Reply{ExitCode: 1, Stderr: "locked"})
@@ -324,6 +329,7 @@ func TestReviewUnreadableForge(t *testing.T) {
 	t.Run("cancelled_review_still_removes_the_worktree", func(t *testing.T) {
 		rr := testutil.NewRecordingRunner(t)
 		rr.Expect(fetchArgv, testutil.Reply{})
+		rr.Expect(parentsArgv, ownCommit)
 		rr.Expect(addArgv, testutil.Reply{})
 		rr.Expect(removeArgv, testutil.Reply{})
 		h := hangingClaude{RecordingRunner: rr, started: make(chan struct{})}
@@ -354,7 +360,7 @@ func TestReviewRetry(t *testing.T) {
 			t.Fatalf("Review = %+v, %v; want ready on the retry", got, err)
 		}
 		rr.Done()
-		first, second := string(rr.Calls()[2].Stdin), string(rr.Calls()[3].Stdin)
+		first, second := string(rr.Calls()[3].Stdin), string(rr.Calls()[4].Stdin)
 		if strings.Contains(first, review.CorrectionNote) || !strings.Contains(second, review.CorrectionNote) {
 			t.Errorf("correction note only belongs to the retry:\nfirst %q\nsecond %q", first, second)
 		}
