@@ -144,14 +144,15 @@ func (s *Scheduler) handover(ctx context.Context, run model.Run, reason string) 
 	return h, nil
 }
 
-// launch writes the run's MCP config and starts its worker in the background; a failure fails the run (SP-8).
+// launch writes the run's files and starts its worker in the background; a failure fails the run (SP-8).
 func (s *Scheduler) launch(ctx context.Context, p config.Project, run model.Run, spec runtime.RunSpec) {
 	spec.RunID, spec.Agent = run.ID, run.Worker.Agent
-	var err error
-	if spec.MCPConfig, err = s.d.Files.Prepare(ctx, p, run); err != nil {
+	paths, err := s.d.Files.Prepare(ctx, p, run)
+	if err != nil {
 		s.spawnFailed(ctx, p, run, err)
 		return
 	}
+	spec.MCPConfig, spec.Settings = paths.MCPConfig, paths.Settings
 	log := s.logFor(p.Name, run.TaskID, run.ID)
 	log.InfoContext(ctx, "sched: spawning", "agent", spec.Agent, "slot", run.Slot, "model", spec.Model)
 	safego.Go(ctx, log, func(ctx context.Context) {

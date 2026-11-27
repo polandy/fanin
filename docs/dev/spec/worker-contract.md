@@ -11,6 +11,7 @@ Status: implemented in `pkg/faninmcp` (types, client, MCP tools), `cmd/fanin/cmd
 - A worker without MCP writes `result.json` into its run directory; `resultwatch.Watch` picks it up.
 - A report counts only with the token of the task's current run (SCENARIOS AW-1): the run with the highest
   number, in a state that is not terminal. The check and the write run in one store transaction.
+- A Claude worker's status line sends its context usage (SCENARIOS AW-14, see [Usage](#usage)).
 - `pkg/faninmcp` is the only package under `pkg/`: a worker-side tool may import it without pulling in the daemon.
 
 ## Environment
@@ -59,6 +60,7 @@ URL, `$FANIN_URL` and the `result.json` fallback.
 |---|---|---|
 | `POST /api/v1/runs/{id}/report` | a report as above | `wire.Ack` |
 | `POST /api/v1/runs/{id}/progress` | `{"text": "..."}` | `wire.Ack` |
+| `POST /api/v1/runs/{id}/usage` | `{"input_tokens": n, "output_tokens": n, "context_pct": n}` | `wire.Ack` |
 
 - Auth is the run token as `Authorization: Bearer <token>` (`api.AuthRun`), not the owner token. Webhook headers
   are a 403 and the body cap is 1 MiB, as on every command route.
@@ -69,11 +71,34 @@ URL, `$FANIN_URL` and the `result.json` fallback.
 | no or empty bearer, or a token that is not the run's (also the owner token) | 401 `unauthorized` |
 | a run that is not its task's current run, or has ended | 409 `conflict` |
 | an unknown run | 404 `not_found` |
-| a body that is not one report, an unknown kind, a missing required field, a bad `issue_url` | 400 `bad_request` |
+| a body that is not one report, an unknown kind, a missing required field, a bad `issue_url`, a negative token count or a `context_pct` outside 0 to 100 | 400 `bad_request` |
 | a body over 1 MiB | 413 `too_large` |
 | an unreadable store, or no report service configured | 500 `internal` |
 
 A refused token or stale run is logged at Warn with `task_id`, `run_id` and `project`, never with a token.
+
+## Usage
+
+fanind starts each Claude worker with `--settings <run directory>/settings.json`. Its `statusLine` runs
+`fanin worker-usage` with the three variables above set in the command, so the file is mode 0600 like the MCP
+config. The worker's own status line is replaced by fanin's.
+
+- `fanin worker-usage` reads Claude Code's status-line JSON from stdin. It takes `context_window.total_input_tokens`
+  (cache reads and writes included), `total_output_tokens` and `used_percentage`, rounded. A null share is
+  computed from the input tokens and `context_window_size`. Before the first response there is no context and
+  nothing is sent.
+- It posts the usage to `POST /api/v1/runs/{id}/usage` with a 5 s timeout and prints `fanin <run> · context <n>%`.
+  A refused post or unreadable input exits non-zero, and Claude Code then shows no status line.
+- The counts are the tokens in the context after the latest response, not a session total. `report.Service.Usage`
+  adds each new response's counts to the run's `input_tokens`, `output_tokens` and `total_tokens` and stores the
+  share as `context_pct` (`model.Budget.Add`). An update whose counts equal the last counted one (`seen_input`,
+  `seen_output`) only moves the share; it comes from a mode change or a refresh, not a new response.
+- A changed budget is written through `Tx.SetRunBudget`, which appends the `token_usage` event that checks
+  `max_tokens_per_run` and `rollover_pct` ([handover](handover.md)). An unchanged one writes nothing.
+- The total counts tokens processed, like the SPEC's accounting: each response's whole context counts again.
+  Claude Code cancels an in-flight status-line command when the next update comes, so a skipped response is not
+  counted. The total runs a little low, and the limit fires late, never early.
+- opencode workers have no status line; their budget stays at zero tokens.
 
 ## result.json
 

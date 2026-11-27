@@ -175,6 +175,13 @@ that cannot be parsed is an error, never a result.
 `FANIN_URL`, `FANIN_RUN_ID` and `FANIN_RUN_TOKEN` set, it sends the report to the daemon. An unknown kind or a missing
 field is exit 2 and writes nothing; a refused token or an unwritable directory is exit 1.
 
+`fanin worker-usage` is a Claude worker's status line. fanind starts each Claude worker with a settings file whose
+`statusLine` runs it, so a worker shows `fanin <run> · context <n>%` instead of your own status line. It sends the
+tokens and the context share of every response to the daemon, which adds them up for `budgets.max_tokens_per_run`
+and checks the share against `budgets.rollover_pct`. Each response counts its whole context again, as tokens
+processed; an update Claude Code cancels is not counted, so the total runs a little low. opencode workers report
+no usage.
+
 ## Metrics, overview and doctor
 
 - `GET /metrics` on the daemon's `listen` address serves Prometheus text: `fanin_tasks` and `fanin_runs` per

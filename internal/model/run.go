@@ -63,6 +63,9 @@ type Budget struct {
 	TotalTokens  int64
 	// ContextPct is the share of the worker's context window in use, 0 to 100.
 	ContextPct int
+	// SeenInput and SeenOutput are the context tokens of the last counted usage update; a repeat is not counted.
+	SeenInput  int64
+	SeenOutput int64
 	// FooterWaits, ContinueNudges and SecureNudges count the steps of the silent-stop ladder (SCENARIOS AW-11).
 	FooterWaits    int
 	ContinueNudges int

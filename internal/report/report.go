@@ -75,6 +75,30 @@ func (s *Service) Progress(ctx context.Context, id model.RunID, token, text stri
 	})
 }
 
+// UsageFromWire turns a status line's usage into a model.Usage.
+func UsageFromWire(u faninmcp.Usage) model.Usage {
+	return model.Usage{InputTokens: u.InputTokens, OutputTokens: u.OutputTokens, ContextPct: u.ContextPct}
+}
+
+// Usage counts u into the run's budget and appends token_usage through SetRunBudget; a repeat changes nothing
+// (SCENARIOS AW-14).
+func (s *Service) Usage(ctx context.Context, id model.RunID, token string, u model.Usage) error {
+	if err := u.Validate(); err != nil {
+		return fmt.Errorf("report: usage of run %q: %w", id, err)
+	}
+	return s.st.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
+		run, _, err := s.current(ctx, tx, id, token)
+		if err != nil {
+			return err
+		}
+		b, changed := run.Budget.Add(u)
+		if !changed {
+			return nil
+		}
+		return tx.SetRunBudget(ctx, id, b)
+	})
+}
+
 // current returns the run and its project when token is the run's and the run is its task's current one.
 func (s *Service) current(ctx context.Context, tx *store.Tx, id model.RunID, token string) (model.Run, string, error) {
 	run, err := tx.Run(ctx, id)

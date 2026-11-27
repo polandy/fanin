@@ -126,7 +126,7 @@ Settings, in a project file or under `defaults`:
 | `worker_timeout` | duration | `45m` | no heartbeat or result for this long ends the run |
 | `budgets.fix_rounds_per_run` | integer ≥ 0 | `2` | fix rounds one run may take; one more rolls over to a fresh run |
 | `budgets.rollover_pct` | 1–100 | `75` | context use that rolls over to a fresh run |
-| `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | tokens that roll over to a fresh run |
+| `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | tokens that roll over to a fresh run; each response of a Claude worker adds its whole context (see [operation](operation.md)) |
 | `budgets.max_runs_per_task` | integer ≥ 1 | `3` | runs per task; once used, a spent budget pauses the task and a second stall sets it needs-owner |
 | `merge.lock_wait` | duration | `1h` | a merge waits this long for the project lock, then goes to the owner |
 | `merge.lock_lease` | duration | `10m` | lease of the merge lock, renewed while held; a dead holder frees it after this |

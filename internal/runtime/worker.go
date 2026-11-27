@@ -56,6 +56,8 @@ type RunSpec struct {
 	Model     string
 	Prompt    string
 	MCPConfig string
+	// Settings, when set, is the Claude settings file whose status line sends the run's usage (SCENARIOS AW-14).
+	Settings string
 	// Kind is the agent program, KindClaude or KindOpencode; opencode needs no MCPConfig.
 	Kind string
 	// Base is the project's base branch; the opencode sandbox clone is synced to it.

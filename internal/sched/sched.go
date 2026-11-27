@@ -57,9 +57,9 @@ type Picker interface {
 	Pick(ctx context.Context, req pick.Request) (pick.Result, error)
 }
 
-// RunFiles writes what a run needs on disk before its start and returns the MCP config file.
+// RunFiles writes what a run needs on disk before its start and returns its MCP config and settings files.
 type RunFiles interface {
-	Prepare(ctx context.Context, p config.Project, run model.Run) (mcpConfig string, err error)
+	Prepare(ctx context.Context, p config.Project, run model.Run) (RunPaths, error)
 }
 
 // Deps are the scheduler's collaborators.

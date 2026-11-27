@@ -19,7 +19,7 @@ const (
 )
 
 func main() {
-	out := cli.Output{Out: os.Stdout, Err: os.Stderr}
+	out := cli.Output{In: os.Stdin, Out: os.Stdout, Err: os.Stderr}
 	os.Exit(run(context.Background(), defaultRegistry, os.Args[1:], os.Getenv, out))
 }
 

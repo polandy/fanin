@@ -30,7 +30,7 @@ tags C-STORE and C-LOCK.
 | Table | Key | Holds |
 |---|---|---|
 | `tasks` | `id` | `model.Task`; `after_ids` is a JSON array, `worker_kind` (0003) the owner's worker kind or empty |
-| `runs` | `id`, unique (`task_id`, `number`) | `model.Run` with its budget columns; `result` is the JSON report or empty; host, agent, workspace, tab and pane (0004, `Tx.SetRunWorker`); `context_pct`, the ladder counts `footer_waits`, `continue_nudges`, `secure_nudges`, the `hint` and the pane `tail` (0005) |
+| `runs` | `id`, unique (`task_id`, `number`) | `model.Run` with its budget columns; `result` is the JSON report or empty; host, agent, workspace, tab and pane (0004, `Tx.SetRunWorker`); `context_pct`, the ladder counts `footer_waits`, `continue_nudges`, `secure_nudges`, the `hint` and the pane `tail` (0005); `seen_input`, `seen_output`, the last counted status-line snapshot (0006) |
 | `events` | `seq` (autoincrement) | the append-only `model.Event` log; `task_id` is empty for project events |
 | `project_locks` | `project` | holder, `acquired_at`, `expires_at` |
 | `holds` | `id` | `model.Hold`; `lifted_at = 0` while active |
@@ -54,7 +54,7 @@ nil and rolls back every row and event otherwise. Each `Tx` write appends its ev
 | `SetRunState` (checked by `model.RunState.CanTransition`; a terminal state sets `ended_at`) | `run_state` |
 | `SetRunResult` (normalised and validated) | `result_reported` |
 | `SetRunBudget` | `token_usage` |
-| `SetRunCounts`, `SetRunTail`, `SetRunBranch` (the scheduler's own bookkeeping) | none |
+| `SetRunCounts` (only the ladder counts, never the tokens), `SetRunTail`, `SetRunBranch` (the scheduler's own bookkeeping) | none |
 | `SetHold` / `LiftHold` | `hold_set` / `hold_lifted` |
 | `AskQuestion` (validated) / `AnswerQuestion` | `question_asked` / `question_answered` |
 | `RequestPause` / `Resume` / `ConsumePause` | `project_paused` / `project_resumed` / `pause_consumed` |

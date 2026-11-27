@@ -33,7 +33,7 @@ A run on another host prefixes every command with `herdr --machine <host>`. Ever
 | create workspace | `workspace create --cwd <worktree> --label <project> --no-focus` | `.result.workspace.workspace_id` |
 | new tab | `tab create --workspace <ws> --cwd <worktree> --label <agent> --no-focus` | `.result.tab.tab_id`, `.result.root_pane.pane_id` |
 | PATH | `pane run <pane> 'set -gx PATH <dir> $PATH'`, only with a PATH directory | exit code |
-| start | `agent start <agent> --pane <pane> --timeout <ms> --kind claude -- --permission-mode auto --strict-mcp-config --mcp-config <file> [--model <m>] --name <session>` | exit code |
+| start | `agent start <agent> --pane <pane> --timeout <ms> --kind claude -- --permission-mode auto --strict-mcp-config --mcp-config <file> [--settings <file>] [--model <m>] --name <session>` | exit code |
 | start (opencode) | `agent start <agent> --pane <pane> --timeout <ms> --kind opencode -- <project>` | exit code |
 | status | `agent get <agent>` | `.result.agent.agent_status`, `.result.agent.pane_id` |
 | listed? | `agent list` | `.result.agents[].name` |

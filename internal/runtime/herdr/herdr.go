@@ -245,6 +245,9 @@ func (r *Runtime) startArgv(spec runtime.RunSpec, pane string) []string {
 		return append(argv, spec.Project)
 	}
 	argv = append(argv, "--permission-mode", permissionArg, "--strict-mcp-config", "--mcp-config", spec.MCPConfig)
+	if spec.Settings != "" {
+		argv = append(argv, "--settings", spec.Settings)
+	}
 	if spec.Model != "" {
 		argv = append(argv, "--model", spec.Model)
 	}

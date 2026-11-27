@@ -55,7 +55,7 @@ none of the existing ones.
 | `POST /api/v1/tasks/{id}/cancel` | optional body `wire.CancelRequest` (`reason`); `wire.Ack`; 409 `conflict` when the task is done, merged or canceled, 404 when unknown, 400 on a body that is no JSON (SCENARIOS OA-8) |
 | `POST /api/v1/holds/{id}/lift` | `wire.Ack`; 404 for no active hold |
 | `POST /api/v1/projects/{p}/pause`, `/resume` | `wire.Ack`; 404 for a project outside the config |
-| `POST /api/v1/runs/{id}/report`, `/progress` | run token; `wire.Ack`, see [worker contract](worker-contract.md) |
+| `POST /api/v1/runs/{id}/report`, `/progress`, `/usage` | run token; `wire.Ack`, see [worker contract](worker-contract.md) |
 | `POST /api/v1/webhooks/{name}` | signature, no token; `wire.WebhookResult` `{outcome, task}`: 201 `queued`, 200 `duplicate` or `ignored`, 202 `deploying`. 401 bad signature (nothing queued), 404 unknown webhook, 400 unreadable payload, 503 `busy` release queue, 413 too large |
 
 The owner routes answer 500 when the server has no `Config.Owner`, `POST /api/v1/tasks` when it has no

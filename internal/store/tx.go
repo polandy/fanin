@@ -151,12 +151,13 @@ func (t *Tx) CreateRun(ctx context.Context, run model.Run) error {
 	b, w := run.Budget, run.Worker
 	if _, err := t.tx.ExecContext(ctx, `INSERT INTO runs (id, task_id, number, slot, branch, token, fix_rounds,
 		review_nudges, stalls, input_tokens, output_tokens, total_tokens, state, result, started_at, ended_at,
-		host, agent, workspace, tab, pane, context_pct, footer_waits, continue_nudges, secure_nudges, hint, tail)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		host, agent, workspace, tab, pane, context_pct, footer_waits, continue_nudges, secure_nudges, hint, tail,
+		seen_input, seen_output)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		string(run.ID), string(run.TaskID), run.Number, run.Slot, run.Branch, string(run.Token), b.FixRounds,
 		b.ReviewNudges, b.Stalls, b.InputTokens, b.OutputTokens, b.TotalTokens, string(run.State),
 		toDB(run.StartedAt), w.Host, w.Agent, w.Workspace, w.Tab, w.Pane, b.ContextPct, b.FooterWaits,
-		b.ContinueNudges, b.SecureNudges, run.Hint, run.Tail); err != nil {
+		b.ContinueNudges, b.SecureNudges, run.Hint, run.Tail, b.SeenInput, b.SeenOutput); err != nil {
 		return fmt.Errorf("store: create run %q of task %q: %w", run.ID, run.TaskID, err)
 	}
 	_, err = t.AppendEvent(ctx, model.Event{
@@ -262,17 +263,20 @@ func (t *Tx) SetRunBudget(ctx context.Context, id model.RunID, b model.Budget) e
 	return err
 }
 
-// SetRunCounts stores the run's budget like SetRunBudget but appends no event; the scheduler counts its stalls and
-// nudges with it.
+// SetRunCounts stores the run's ladder counts (fix rounds, nudges, stalls, footer waits) and appends no event; the
+// token and context columns stay as SetRunBudget last wrote them.
 func (t *Tx) SetRunCounts(ctx context.Context, id model.RunID, b model.Budget) error {
-	return t.writeBudget(ctx, id, b)
+	return t.setRun(ctx, id, "counts", `UPDATE runs SET fix_rounds = ?, review_nudges = ?, stalls = ?,
+		footer_waits = ?, continue_nudges = ?, secure_nudges = ? WHERE id = ?`, b.FixRounds, b.ReviewNudges,
+		b.Stalls, b.FooterWaits, b.ContinueNudges, b.SecureNudges, string(id))
 }
 
 func (t *Tx) writeBudget(ctx context.Context, id model.RunID, b model.Budget) error {
 	return t.setRun(ctx, id, "budget", `UPDATE runs SET fix_rounds = ?, review_nudges = ?, stalls = ?,
 		input_tokens = ?, output_tokens = ?, total_tokens = ?, context_pct = ?, footer_waits = ?, continue_nudges = ?,
-		secure_nudges = ? WHERE id = ?`, b.FixRounds, b.ReviewNudges, b.Stalls, b.InputTokens, b.OutputTokens,
-		b.TotalTokens, b.ContextPct, b.FooterWaits, b.ContinueNudges, b.SecureNudges, string(id))
+		secure_nudges = ?, seen_input = ?, seen_output = ? WHERE id = ?`, b.FixRounds, b.ReviewNudges, b.Stalls,
+		b.InputTokens, b.OutputTokens, b.TotalTokens, b.ContextPct, b.FooterWaits, b.ContinueNudges, b.SecureNudges,
+		b.SeenInput, b.SeenOutput, string(id))
 }
 
 // SetRunTail stores the worker's pane tail at its latest stop; it appends no event (SCENARIOS AW-12).

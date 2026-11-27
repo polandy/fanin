@@ -24,6 +24,9 @@ func ReportPath(run string) string { return "/api/v1/runs/" + url.PathEscape(run
 // ProgressPath is the daemon route that takes a run's Progress.
 func ProgressPath(run string) string { return "/api/v1/runs/" + url.PathEscape(run) + "/progress" }
 
+// UsagePath is the daemon route that takes a run's Usage.
+func UsagePath(run string) string { return "/api/v1/runs/" + url.PathEscape(run) + "/usage" }
+
 // Error is a non-2xx answer of the daemon.
 type Error struct {
 	Status  int
@@ -68,6 +71,11 @@ func (c *Client) Report(ctx context.Context, r Report) error {
 // Progress sends a heartbeat.
 func (c *Client) Progress(ctx context.Context, p Progress) error {
 	return c.post(ctx, ProgressPath(c.run), p)
+}
+
+// Usage sends the worker's context usage.
+func (c *Client) Usage(ctx context.Context, u Usage) error {
+	return c.post(ctx, UsagePath(c.run), u)
 }
 
 func (c *Client) post(ctx context.Context, path string, body any) error {
