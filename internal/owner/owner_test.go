@@ -212,7 +212,7 @@ func TestAskDialog(t *testing.T) {
 	t.Run("AW-9_a_dialog_becomes_a_question_row", func(t *testing.T) {
 		e := newEnv(t)
 		id, err := e.svc.AskDialog(context.Background(), Dialog{TaskID: taskID, RunID: runID,
-			Text: "Allow git push?", Options: []string{"Yes", "No"}})
+			Text: "Allow git push?", Options: yesNo()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -258,6 +258,60 @@ func TestAskDialog(t *testing.T) {
 			t.Errorf("task state %s, want %s", got, model.TaskNeedsOwner)
 		}
 	})
+	t.Run("AW-9_the_same_dialog_again_asks_once", func(t *testing.T) {
+		e := newEnv(t)
+		fn := &fakeNotifier{}
+		e.svc.SetNotifier(fn)
+		d := Dialog{TaskID: taskID, RunID: runID, Text: "Allow git push? 1. Yes / 2. No", Options: yesNo()}
+		first, err := e.svc.AskDialog(context.Background(), d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		again, err := e.svc.AskDialog(context.Background(), d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		open, err := e.st.OpenQuestions(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if again != first || len(open) != 1 || len(fn.got) != 1 {
+			t.Errorf("second ask = %q (first %q), open %d, notes %d; want the first question, one open, one note",
+				again, first, len(open), len(fn.got))
+		}
+	})
+	t.Run("AW-9_a_changed_dialog_supersedes_the_open_one", func(t *testing.T) {
+		e := newEnv(t)
+		old, err := e.svc.AskDialog(context.Background(), Dialog{TaskID: taskID, RunID: runID, Text: "Allow push?",
+			Options: yesNo()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		cur, err := e.svc.AskDialog(context.Background(), Dialog{TaskID: taskID, RunID: runID, Text: "Allow rm?",
+			Options: yesNo()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		q, err := e.st.Question(context.Background(), old)
+		if err != nil || q.Answer != SupersededAnswer {
+			t.Errorf("old question answer %q %v, want %q", q.Answer, err, SupersededAnswer)
+		}
+		if open, err := e.st.OpenTaskQuestion(context.Background(), taskID); err != nil || open.ID != cur {
+			t.Errorf("open question %q %v, want %q", open.ID, err, cur)
+		}
+	})
+	t.Run("AW-9_OA-1_a_dialog_takes_up_to_nine_options", func(t *testing.T) {
+		e := newEnv(t)
+		opts := []string{"a", "b", "c", "d", "e"}
+		if _, err := e.svc.AskDialog(context.Background(), Dialog{TaskID: taskID, RunID: runID, Text: "Pick?",
+			Options: opts}); err != nil {
+			t.Fatalf("AskDialog with %d options: %v", len(opts), err)
+		}
+		d, err := e.svc.Answer(context.Background(), taskID, "5")
+		if err != nil || d.Mode != DeliverKey || d.Option != 5 {
+			t.Errorf("Answer 5 = %+v %v, want key 5", d, err)
+		}
+	})
 	t.Run("unknown_task", func(t *testing.T) {
 		e := newEnv(t)
 		_, err := e.svc.AskDialog(context.Background(), Dialog{TaskID: "nope", Text: "x?", Options: []string{"a", "b"}})
@@ -267,4 +321,42 @@ func TestAskDialog(t *testing.T) {
 	})
 }
 
+func TestAnsweredInPane(t *testing.T) {
+	t.Run("WA-3_an_answer_in_the_pane_closes_the_open_question", func(t *testing.T) {
+		e := newEnv(t)
+		id := e.ask(t, model.QuestionDialog, false)
+		n, err := e.svc.AnsweredInPane(context.Background(), runID)
+		if err != nil || n != 1 {
+			t.Fatalf("AnsweredInPane = %d %v, want 1 question closed", n, err)
+		}
+		q, err := e.st.Question(context.Background(), id)
+		if err != nil || q.Answer != AnsweredInPaneAnswer {
+			t.Errorf("answer %q %v, want %q", q.Answer, err, AnsweredInPaneAnswer)
+		}
+		if got := e.state(t); got != model.TaskRunning {
+			t.Errorf("task state %s, want %s", got, model.TaskRunning)
+		}
+		logged := []string{"owner answer for r1: " + AnsweredInPaneAnswer}
+		if diff := cmp.Diff(logged, e.events(t, model.EventQuestionAnswered)); diff != "" {
+			t.Errorf("answer events (-want +got):\n%s", diff)
+		}
+		if len(e.del.got) != 0 {
+			t.Errorf("deliveries %v, want none", e.del.got)
+		}
+	})
+	t.Run("WA-3_no_open_question_changes_nothing", func(t *testing.T) {
+		e := newEnv(t)
+		n, err := e.svc.AnsweredInPane(context.Background(), runID)
+		if err != nil || n != 0 {
+			t.Fatalf("AnsweredInPane = %d %v, want 0", n, err)
+		}
+		if got := e.state(t); got != model.TaskRunning {
+			t.Errorf("task state %s, want still %s", got, model.TaskRunning)
+		}
+	})
+}
+
 var cmpIgnoreQuestion = cmp.FilterPath(func(p cmp.Path) bool { return p.String() == "Question" }, cmp.Ignore())
+
+// yesNo is the option labels of a push approval dialog.
+func yesNo() []string { return []string{"Yes", "No"} }

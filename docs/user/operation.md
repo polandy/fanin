@@ -80,6 +80,10 @@ fanin task cancel t1 --reason "merged outside fanind"                # end a sta
   the next task. It merges nothing and leaves the PR as it is. A done or merged task is refused.
 - `answer` refuses free text on a numbered dialog and lists the options; nothing reaches the worker then. When
   the answer cannot be delivered, nothing is recorded and the question stays open.
+- On a `loop: fanin` project a worker's dialog (a permission prompt, a question with numbered options) becomes an
+  open question with a note to you; `fanin answer t1 2` presses key 2 in the worker's pane. A dialog fanind cannot
+  read only sends a note: answer it in the pane. An answer typed in the pane, or a result the worker reports,
+  closes the open question.
 - `task add` takes `--task` or `--analyze`, never both, plus `--model`, `--worker` and `--after <id>` (repeatable). An
   unknown model or worker, `--worker opencode` for an analysis or a Gitea project, or an unknown `--after` task is a
   usage error (exit 2) and queues nothing.

@@ -210,3 +210,34 @@ func TestAnswerQuestionEvent(t *testing.T) {
 		t.Errorf("answer events (-want +got):\n%s", d)
 	}
 }
+
+func TestOpenRunQuestions(t *testing.T) {
+	s, clk := newStore(t)
+	createTasks(t, s, "t1")
+	other := question("t1")
+	other.RunID = "r2"
+	ids := map[string]string{}
+	for _, q := range []struct {
+		name string
+		q    model.OwnerQuestion
+	}{{"first", question("t1")}, {"other", other}, {"answered", question("t1")}, {"second", question("t1")}} {
+		mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+			id, err := tx.AskQuestion(ctx, q.q)
+			ids[q.name] = id
+			return err
+		})
+		clk.Advance(time.Second)
+	}
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error { return tx.AnswerQuestion(ctx, ids["answered"], "now") })
+	var got []string
+	mustTx(t, s, func(ctx context.Context, tx *Tx) error {
+		qs, err := tx.OpenRunQuestions(ctx, "r1")
+		for _, q := range qs {
+			got = append(got, q.ID)
+		}
+		return err
+	})
+	if d := cmp.Diff([]string{ids["first"], ids["second"]}, got); d != "" {
+		t.Errorf("WA-3 open questions of r1, oldest first (-want +got):\n%s", d)
+	}
+}

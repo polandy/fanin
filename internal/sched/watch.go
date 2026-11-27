@@ -2,6 +2,7 @@ package sched
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,6 +26,8 @@ type watch struct {
 	// activity is the newest runtime sign of work; bgSince is when a bg-shell stall began.
 	activity time.Time
 	bgSince  time.Time
+	// owed is the newest dialog or pane answer not yet handed to the owner channel.
+	owed *runtime.RunEvent
 }
 
 // SpawnFailedDetail leads the detail of a run whose worker did not start.
@@ -131,7 +134,8 @@ func (s *Scheduler) watch(ctx context.Context, project string, run model.Run) {
 }
 
 // onRunEvent applies one runtime event; working moves a stalled run back, stalled marks it and climbs the stall
-// ladder, idle climbs the silent-stop ladder (AW-4, AW-5, AW-10, AW-11).
+// ladder, idle climbs the silent-stop ladder, a dialog asks the owner and a pane answer closes the question (AW-4,
+// AW-5, AW-9, AW-10, AW-11, WA-3).
 func (s *Scheduler) onRunEvent(ctx context.Context, w *watch, ev runtime.RunEvent) {
 	defer s.applied.Add(1)
 	if s.watched[w.run.ID] != w {
@@ -144,6 +148,13 @@ func (s *Scheduler) onRunEvent(ctx context.Context, w *watch, ev runtime.RunEven
 	case runtime.RunEventWorking, runtime.RunEventAnsweredInPane:
 		w.unknown, w.activity, w.bgSince = false, now, time.Time{}
 		err = s.moveRun(ctx, w.run.ID, model.RunStalled, model.RunWorking, string(ev.Type))
+		if ev.Type == runtime.RunEventAnsweredInPane {
+			w.owed = &ev
+			err = errors.Join(err, s.payOwner(ctx, w))
+		}
+	case runtime.RunEventDialog:
+		w.unknown, w.bgSince, w.owed = false, time.Time{}, &ev
+		err = s.payOwner(ctx, w)
 	case runtime.RunEventStalled:
 		w.unknown = false
 		if ev.Reason == runtime.StallBGShell {

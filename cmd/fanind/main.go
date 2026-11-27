@@ -145,7 +145,9 @@ func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []str
 	if err != nil {
 		return fmt.Errorf("fanind: %w; fix notify.kind in fanin.yaml of %s", err, *cfgPath)
 	}
-	stopSched, err := startSched(ctx, cancel, cfg, st, notifier, log, d)
+	svc := owner.New(st, owner.NoDeliverer{}, log)
+	svc.SetNotifier(notifier)
+	stopSched, err := startSched(ctx, cancel, cfg, st, notifier, svc, log, d)
 	if err != nil {
 		return fmt.Errorf("fanind: %w; fix the project files or forges.yaml of %s", err, *cfgPath)
 	}
@@ -163,8 +165,6 @@ func serveDaemon(ctx context.Context, cancel context.CancelCauseFunc, args []str
 		return err
 	}
 	defer stopIntake()
-	svc := owner.New(st, owner.NoDeliverer{}, log)
-	svc.SetNotifier(notifier)
 	reg := api.NewRegistry()
 	api.RegisterBuiltins(reg)
 	h, err := api.New(api.Config{Source: st, OwnerToken: token, Clock: d.clock, Logger: log, Registry: reg,
@@ -191,10 +191,9 @@ func fanin(cfg config.Config) map[string]bool {
 	return out
 }
 
-// startSched runs the scheduler when a project has loop: fanin; an error of the scheduler stops fanind through
-// cancel, and the returned stop waits for it.
+// startSched runs the scheduler and its owner delivery for loop: fanin projects; its error stops fanind (AW-9, OA-1).
 func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.Config, st *store.Store,
-	notifier notify.Notifier, log *slog.Logger, d deps) (func(), error) {
+	notifier notify.Notifier, svc *owner.Service, log *slog.Logger, d deps) (func(), error) {
 	if len(fanin(cfg)) == 0 {
 		return func() {}, nil
 	}
@@ -202,6 +201,8 @@ func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.
 	if err != nil {
 		return nil, err
 	}
+	svc.SetDeliverer(sched.OwnerDelivery{Store: st, Runtime: sd.Runtime})
+	sd.Owner = svc
 	s, err := sched.New(sd)
 	if err != nil {
 		return nil, err

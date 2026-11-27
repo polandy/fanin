@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 
@@ -16,7 +17,15 @@ import (
 )
 
 // MaxOptionNumber is the highest option number an answer can press (see SCENARIOS OA-1).
-const MaxOptionNumber = 9
+const MaxOptionNumber = model.MaxDialogOptions
+
+// The answers the owner channel records on questions the owner did not answer through fanin.
+const (
+	// SupersededAnswer closes a dialog question once the worker shows another dialog (see SCENARIOS AW-9).
+	SupersededAnswer = "superseded by a newer dialog"
+	// AnsweredInPaneAnswer closes a question the owner answered in the worker's pane (see SCENARIOS WA-3).
+	AnsweredInPaneAnswer = "answered in the pane"
+)
 
 // Texts the owner channel writes into questions and task_state events.
 const (
@@ -68,12 +77,12 @@ type Deliverer interface {
 	Deliver(ctx context.Context, d Delivery) error
 }
 
-// NoDeliverer refuses every delivery, so an answer fails closed until the scheduler delivers to workers.
+// NoDeliverer refuses every delivery, so an answer fails closed where no scheduler delivers to workers.
 type NoDeliverer struct{}
 
 // Deliver returns ErrNoDeliverer.
 func (NoDeliverer) Deliver(_ context.Context, d Delivery) error {
-	return fmt.Errorf("%w: answer to question %q cannot reach run %q; fanind has no worker delivery yet",
+	return fmt.Errorf("%w: answer to question %q cannot reach run %q; fanind runs no scheduler, set loop: fanin on the project",
 		ErrNoDeliverer, d.Question.ID, d.Question.RunID)
 }
 
@@ -99,6 +108,9 @@ func New(st *store.Store, d Deliverer, log *slog.Logger) *Service {
 // SetNotifier sets the push channel that gets a note per new question; call it before serving.
 func (s *Service) SetNotifier(n notify.Notifier) { s.notifier = n }
 
+// SetDeliverer sets the channel that hands answers to workers; call it before serving.
+func (s *Service) SetDeliverer(d Deliverer) { s.deliver = d }
+
 // Dialog is a dialog read from a worker's pane: its text and the options it numbers.
 type Dialog struct {
 	TaskID  model.TaskID
@@ -111,24 +123,28 @@ type Dialog struct {
 func (s *Service) Ask(ctx context.Context, q model.OwnerQuestion) (string, error) {
 	var id, project string
 	err := s.store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
-		task, err := tx.Task(ctx, q.TaskID)
-		if err != nil {
-			return err
-		}
-		project = task.Project
-		if id, err = tx.AskQuestion(ctx, q); err != nil {
-			return err
-		}
-		if task.State == model.TaskNeedsOwner {
-			return nil
-		}
-		return tx.SetTaskState(ctx, q.TaskID, model.TaskNeedsOwner, askedPrefix+q.Question)
+		var err error
+		id, project, err = ask(ctx, tx, q)
+		return err
 	})
 	if err != nil {
 		return "", fmt.Errorf("owner: ask for task %q: %w", q.TaskID, err)
 	}
 	s.notifyQuestion(ctx, project, id, q)
 	return id, nil
+}
+
+// ask stores q and moves its task to needs_owner; it returns the question's ID and the task's project.
+func ask(ctx context.Context, tx *store.Tx, q model.OwnerQuestion) (string, string, error) {
+	task, err := tx.Task(ctx, q.TaskID)
+	if err != nil {
+		return "", "", err
+	}
+	id, err := tx.AskQuestion(ctx, q)
+	if err != nil || task.State == model.TaskNeedsOwner {
+		return id, task.Project, err
+	}
+	return id, task.Project, tx.SetTaskState(ctx, q.TaskID, model.TaskNeedsOwner, askedPrefix+q.Question)
 }
 
 // notifyQuestion pushes a note about the stored question and logs the outcome as an event. A failed push
@@ -154,7 +170,7 @@ func (s *Service) notifyQuestion(ctx context.Context, project, id string, q mode
 	}
 }
 
-// AskDialog turns a worker's dialog into a dialog question; unreadable text is said so (see SCENARIOS AW-9).
+// AskDialog asks a worker's dialog once per run and supersedes the run's other open dialogs (see SCENARIOS AW-9).
 func (s *Service) AskDialog(ctx context.Context, d Dialog) (string, error) {
 	text := strings.TrimSpace(d.Text)
 	if text == "" {
@@ -164,8 +180,69 @@ func (s *Service) AskDialog(ctx context.Context, d Dialog) (string, error) {
 	for _, o := range d.Options {
 		opts = append(opts, model.Option{Label: o})
 	}
-	return s.Ask(ctx, model.OwnerQuestion{TaskID: d.TaskID, RunID: d.RunID, Kind: model.QuestionDialog,
-		Question: text, Options: opts})
+	q := model.OwnerQuestion{TaskID: d.TaskID, RunID: d.RunID, Kind: model.QuestionDialog, Question: text,
+		Options: opts}
+	var id, project string
+	asked := false
+	err := s.store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
+		var open []model.OwnerQuestion
+		if d.RunID != "" {
+			var err error
+			if open, err = tx.OpenRunQuestions(ctx, d.RunID); err != nil {
+				return err
+			}
+		}
+		for _, o := range open {
+			if o.Kind != model.QuestionDialog {
+				continue
+			}
+			if o.Question == text && slices.Equal(o.Options, opts) {
+				id = o.ID
+				return nil
+			}
+			if err := tx.AnswerQuestion(ctx, o.ID, SupersededAnswer); err != nil {
+				return err
+			}
+		}
+		var err error
+		id, project, err = ask(ctx, tx, q)
+		asked = err == nil
+		return err
+	})
+	if err != nil {
+		return "", fmt.Errorf("owner: ask the dialog of task %q: %w", d.TaskID, err)
+	}
+	if asked {
+		s.notifyQuestion(ctx, project, id, q)
+	}
+	return id, nil
+}
+
+// AnsweredInPane closes the run's open questions, answered in the pane, and returns how many (see SCENARIOS WA-3).
+func (s *Service) AnsweredInPane(ctx context.Context, run model.RunID) (int, error) {
+	s.answering.Lock()
+	defer s.answering.Unlock()
+	var n int
+	err := s.store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
+		open, err := tx.OpenRunQuestions(ctx, run)
+		if err != nil {
+			return err
+		}
+		for _, q := range open {
+			if err := tx.AnswerQuestion(ctx, q.ID, AnsweredInPaneAnswer); err != nil {
+				return err
+			}
+		}
+		n = len(open)
+		if n == 0 {
+			return nil
+		}
+		return resumeTask(ctx, tx, open[0])
+	})
+	if err != nil {
+		return 0, fmt.Errorf("owner: close the questions of run %q answered in the pane: %w", run, err)
+	}
+	return n, nil
 }
 
 // Answer validates raw against the task's open question, delivers it and only then records it. An invalid

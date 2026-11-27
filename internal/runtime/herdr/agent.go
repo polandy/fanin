@@ -79,6 +79,15 @@ func (r *Runtime) Prompt(ctx context.Context, h runtime.RunHandle, text string) 
 	return nil
 }
 
+// Press sends key to the run's agent, as fanin input like a prompt; a refusal is an error at once (SCENARIOS OA-1, OA-3).
+func (r *Runtime) Press(ctx context.Context, h runtime.RunHandle, key string) error {
+	if _, err := r.herdr(ctx, h.Host, "agent", "send-keys", h.Agent, key); err != nil {
+		return fmt.Errorf("%w: key %s to %s (pane %s) failed: %w", runtime.ErrPromptRefused, key, h.Agent, h.Pane, err)
+	}
+	r.notePrompt(h)
+	return nil
+}
+
 // enter presses Enter in the agent's input box.
 func (r *Runtime) enter(ctx context.Context, h runtime.RunHandle) error {
 	if _, err := r.herdr(ctx, h.Host, "agent", "send-keys", h.Agent, KeyEnter); err != nil {

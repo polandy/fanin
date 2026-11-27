@@ -89,6 +89,26 @@ run's start, a `progress` event, or a runtime `working` event.
 - **When a result arrives**: on `result_reported` the run moves to reported and both timers are disarmed. The
   slot stays held until the task leaves running.
 
+## Owner dialogs (AW-9, WA-3, OA-1 to OA-3)
+
+`Deps.Owner` is the owner channel (`sched.Questions`; fanind passes its `*owner.Service`). Without it a dialog is
+only watched, and the timeout spares it.
+
+- **Dialog (AW-9).** A runtime `dialog` event with options becomes `Owner.AskDialog`: an owner question of kind
+  `dialog` on the run, the task in `needs_owner`, and one note. The same dialog again (a re-read, a restart) asks
+  nothing new. A dialog without options (`unreadable`) or one the question model refuses gets no question: the owner
+  gets the note `<agent> shows a dialog fanin cannot answer (dialog: …); answer it in the pane` and the task stays
+  running.
+- **Pane answer (WA-3).** An `answered_in_pane` event moves a stalled run back like `working` and calls
+  `Owner.AnsweredInPane`, which closes the run's open questions. A `result_reported` does the same before the
+  result is read: the worker got past its dialog before the observer saw the answer.
+- **Retry.** A failed hand-off to the owner channel stays owed on the watch and the step fails; the next step after
+  `RetryAfter` hands it over again.
+- **Delivery (OA-1 to OA-3).** `sched.OwnerDelivery` is the `owner.Deliverer`: a dialog option is pressed as its
+  number with `WorkerRuntime.Press`, a free-text answer goes in with `WorkerRuntime.Prompt`. A question without a
+  run, an ended run or a run without an agent is `sched.ErrNoWorker`; a refused key or prompt is the runtime's
+  error. Either way the owner channel records nothing.
+
 ## Nudge ladder (AW-10, AW-11, AW-13)
 
 The ladder counts its steps on the run (`Budget.Stalls`, `FooterWaits`, `ContinueNudges`, `SecureNudges`, through

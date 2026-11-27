@@ -7,10 +7,11 @@ import (
 	"time"
 )
 
-// The bounds on an owner question's options.
+// The bounds on an owner question's options; a dialog's options are keys 1-9, so it may have more.
 const (
-	MinOptions = 2
-	MaxOptions = 4
+	MinOptions       = 2
+	MaxOptions       = 4
+	MaxDialogOptions = 9
 )
 
 // ErrInvalidQuestion is returned for an owner question the owner could not answer by picking an option.
@@ -61,7 +62,7 @@ type OwnerQuestion struct {
 	AnsweredAt time.Time
 }
 
-// Validate checks the kind, the question text, MinOptions..MaxOptions distinct labelled options and the recommendation.
+// Validate checks kind, text, MinOptions..MaxOptions (MaxDialogOptions for a dialog) distinct options, recommendation.
 func (q OwnerQuestion) Validate() error {
 	if _, err := ParseQuestionKind(string(q.Kind)); err != nil {
 		return fmt.Errorf("%w: %w", ErrInvalidQuestion, err)
@@ -72,8 +73,12 @@ func (q OwnerQuestion) Validate() error {
 	if strings.TrimSpace(q.Question) == "" {
 		return fmt.Errorf("%w: empty question; state what the owner decides", ErrInvalidQuestion)
 	}
-	if n := len(q.Options); n < MinOptions || n > MaxOptions {
-		return fmt.Errorf("%w: %d options; give %d to %d", ErrInvalidQuestion, n, MinOptions, MaxOptions)
+	limit := MaxOptions
+	if q.Kind == QuestionDialog {
+		limit = MaxDialogOptions
+	}
+	if n := len(q.Options); n < MinOptions || n > limit {
+		return fmt.Errorf("%w: %d options; give %d to %d", ErrInvalidQuestion, n, MinOptions, limit)
 	}
 	seen := make(map[string]bool, len(q.Options))
 	for i, o := range q.Options {

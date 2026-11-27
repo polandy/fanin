@@ -271,13 +271,19 @@ func TestObserveResume(t *testing.T) {
 }
 
 func TestObserveDialog(t *testing.T) {
-	cases := []struct{ name, text, want string }{
+	cases := []struct {
+		name, text, want string
+		opts             []string
+	}{
 		{"AW-9_approval_dialog", screen(approval, "", footer),
-			"Do you want to proceed? 1. Yes / 2. No, and tell Claude what to do differently (esc)"},
+			"Do you want to proceed? 1. Yes / 2. No, and tell Claude what to do differently (esc)",
+			[]string{"Yes", "No, and tell Claude what to do differently (esc)"}},
 		{"AW-9_ask_user_question", askOwner + "\n\nEnter to select · ↑/↓ to navigate · Esc to cancel\n",
-			"Which layout should the inbox use? 1. Cards / 2. Table / 3. Type something."},
-		{"AW-9_unreadable_without_text", screen(border, "", footer), runtime.DialogUnreadable},
-		{"AW-9_numbered_list_in_a_blocked_pane_is_no_dialog", screen(numbered, "", footer), runtime.DialogUnreadable},
+			"Which layout should the inbox use? 1. Cards / 2. Table / 3. Type something.",
+			[]string{"Cards", "Table", "Type something."}},
+		{"AW-9_unreadable_without_text", screen(border, "", footer), runtime.DialogUnreadable, nil},
+		{"AW-9_numbered_list_in_a_blocked_pane_is_no_dialog", screen(numbered, "", footer), runtime.DialogUnreadable,
+			nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -287,6 +293,9 @@ func TestObserveDialog(t *testing.T) {
 			}
 			if got := o.last().Dialog; got != c.want {
 				t.Errorf("dialog = %q, want %q", got, c.want)
+			}
+			if diff := cmp.Diff(c.opts, o.last().Options); diff != "" {
+				t.Errorf("options (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -352,6 +361,18 @@ func TestObserveAnsweredInPane(t *testing.T) {
 		o := observe(t, herdr.StatusBlocked, screen(approval, "", footer))
 		if err := o.rt.Prompt(context.Background(), want, "1"); err != nil {
 			t.Fatalf("Prompt: %v", err)
+		}
+		o.fake.set(herdr.StatusWorking, workingPane(1, 0))
+		o.tick(1)
+		if diff := cmp.Diff(types(runtime.RunEventDialog, runtime.RunEventWorking), o.types()); diff != "" {
+			t.Errorf("events (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("WA-3_OA-1_key_press_through_fanin_is_not_in_pane", func(t *testing.T) {
+		o := observe(t, herdr.StatusBlocked, screen(approval, "", footer))
+		if err := o.rt.Press(context.Background(), want, "1"); err != nil {
+			t.Fatalf("Press: %v", err)
 		}
 		o.fake.set(herdr.StatusWorking, workingPane(1, 0))
 		o.tick(1)
