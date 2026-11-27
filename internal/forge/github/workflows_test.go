@@ -18,8 +18,8 @@ const (
 )
 
 var (
-	runListArgv = []string{"gh", "run", "list", flagRepo, repo, "--workflow", workflow, "--commit", headSHA,
-		"--limit", "1", flagJSON, "databaseId"}
+	runListArgv = []string{"gh", "run", verbList, flagRepo, repo, "--workflow", workflow, "--commit", headSHA,
+		flagLimit, "1", flagJSON, "databaseId"}
 	runWatchArgv = []string{"gh", "run", "watch", "4711", flagRepo, repo, "--exit-status"}
 )
 
@@ -83,7 +83,7 @@ func TestWatchRun(t *testing.T) {
 var _ forge.Workflows = (*github.Client)(nil)
 
 func TestFailedLog(t *testing.T) {
-	listArgv := []string{"gh", "run", "list", flagRepo, repo, "--commit", headSHA, "--limit", "20", flagJSON,
+	listArgv := []string{"gh", "run", verbList, flagRepo, repo, "--commit", headSHA, flagLimit, "20", flagJSON,
 		"databaseId,conclusion"}
 	viewArgv := []string{"gh", "run", "view", "2", flagRepo, repo, "--log-failed"}
 	const runs = `[{"databaseId":3,"conclusion":""},{"databaseId":2,"conclusion":"failure"},{"databaseId":1,"conclusion":"success"}]`

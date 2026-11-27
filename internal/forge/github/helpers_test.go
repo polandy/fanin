@@ -26,6 +26,8 @@ const (
 	headBranch    = "feat/widget"
 	baseBranch    = "main"
 	flagRepo      = "--repo"
+	flagLimit     = "--limit"
+	verbList      = "list"
 	api           = "api"
 	reviewContext = "fanin/review"
 	keyState      = "state"
