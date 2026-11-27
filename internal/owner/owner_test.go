@@ -212,7 +212,7 @@ func TestAskDialog(t *testing.T) {
 	t.Run("AW-9_a_dialog_becomes_a_question_row", func(t *testing.T) {
 		e := newEnv(t)
 		id, err := e.svc.AskDialog(context.Background(), Dialog{TaskID: taskID, RunID: runID,
-			Text: "Allow git push?", Options: []string{"Yes", "No"}})
+			Text: "Allow git push?", Options: yesNo()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -262,7 +262,7 @@ func TestAskDialog(t *testing.T) {
 		e := newEnv(t)
 		fn := &fakeNotifier{}
 		e.svc.SetNotifier(fn)
-		d := Dialog{TaskID: taskID, RunID: runID, Text: "Allow git push? 1. Yes / 2. No", Options: []string{"Yes", "No"}}
+		d := Dialog{TaskID: taskID, RunID: runID, Text: "Allow git push? 1. Yes / 2. No", Options: yesNo()}
 		first, err := e.svc.AskDialog(context.Background(), d)
 		if err != nil {
 			t.Fatal(err)
@@ -283,12 +283,12 @@ func TestAskDialog(t *testing.T) {
 	t.Run("AW-9_a_changed_dialog_supersedes_the_open_one", func(t *testing.T) {
 		e := newEnv(t)
 		old, err := e.svc.AskDialog(context.Background(), Dialog{TaskID: taskID, RunID: runID, Text: "Allow push?",
-			Options: []string{"Yes", "No"}})
+			Options: yesNo()})
 		if err != nil {
 			t.Fatal(err)
 		}
 		cur, err := e.svc.AskDialog(context.Background(), Dialog{TaskID: taskID, RunID: runID, Text: "Allow rm?",
-			Options: []string{"Yes", "No"}})
+			Options: yesNo()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -357,3 +357,6 @@ func TestAnsweredInPane(t *testing.T) {
 }
 
 var cmpIgnoreQuestion = cmp.FilterPath(func(p cmp.Path) bool { return p.String() == "Question" }, cmp.Ignore())
+
+// yesNo is the option labels of a push approval dialog.
+func yesNo() []string { return []string{"Yes", "No"} }
