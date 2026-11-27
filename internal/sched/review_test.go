@@ -28,7 +28,8 @@ const (
 var errReview = errors.New("review comment unreadable")
 
 // fakeReviewer records the head of each review and answers from errs in turn; a review that succeeds makes the
-// forge answer its entry of posts, as the posted status would. With hold set, the first review waits for it to close.
+// forge answer its entry of posts, as the posted status would. With hold set, the first review signals held and
+// waits for hold to close.
 type fakeReviewer struct {
 	mu    sync.Mutex
 	f     *fakeForge
@@ -36,6 +37,7 @@ type fakeReviewer struct {
 	errs  []error
 	posts []forge.PR
 	hold  chan struct{}
+	held  chan struct{}
 }
 
 func (r *fakeReviewer) Review(ctx context.Context, _ config.Project, _ model.Run, pr int) (string, error) {
@@ -48,6 +50,7 @@ func (r *fakeReviewer) Review(ctx context.Context, _ config.Project, _ model.Run
 	r.heads = append(r.heads, head.HeadSHA)
 	r.mu.Unlock()
 	if r.hold != nil && i == 0 {
+		r.held <- struct{}{}
 		select {
 		case <-r.hold:
 		case <-ctx.Done():
@@ -147,8 +150,11 @@ func TestFaninReview(t *testing.T) {
 		r.start()
 		run := r.startPR("a1", "")
 		r.report(run, donePR)
-		r.until(func() bool { _, ok := r.timers("a1")[gate.TimerRetry]; return ok })
-		r.quiet()
+		failures := r.failures()
+		r.until(func() bool { return failures() == 1 })
+		if _, ok := r.timers("a1")[gate.TimerRetry]; !ok {
+			t.Errorf("timers = %v, want a %s", r.timers("a1"), gate.TimerRetry)
+		}
 		if got := rv.reviewed(); len(got) != 1 {
 			t.Errorf("reviewed heads = %v, want one before the tick", got)
 		}
@@ -172,11 +178,11 @@ func TestFaninReview(t *testing.T) {
 		cfg := mergeConfig()
 		cfg.Projects[0].MaxParallel = 2
 		r, rv := reviewRig(t, cfg, noReviewPR(headFirst), greenAt(headFirst))
-		rv.hold = make(chan struct{})
+		rv.hold, rv.held = make(chan struct{}), make(chan struct{}, 1)
 		r.start()
 		run := r.startPR("a1", "")
 		r.report(run, donePR)
-		r.until(func() bool { return len(rv.reviewed()) == 1 })
+		r.await(rv.held)
 		second := r.startPR("a2", "")
 		if second.Slot != 2 {
 			t.Errorf("slot of a2 = %d, want 2 while a1 is reviewed", second.Slot)
@@ -187,12 +193,12 @@ func TestFaninReview(t *testing.T) {
 
 	t.Run("OC-3_a_review_cut_short_by_a_restart_runs_again_after_the_tick", func(t *testing.T) {
 		r, rv := reviewRig(t, mergeConfig(), noReviewPR(headFirst), forge.PR{}, greenAt(headFirst))
-		rv.hold = make(chan struct{})
+		rv.hold, rv.held = make(chan struct{}), make(chan struct{}, 1)
 		defer close(rv.hold)
 		r.start()
 		run := r.startPR("a1", "")
 		r.report(run, donePR)
-		r.until(func() bool { return len(rv.reviewed()) == 1 })
+		r.await(rv.held)
 		r.restart()
 		r.advance(gate.RetryInterval)
 		r.until(r.taskIn("a1", model.TaskDone))
@@ -238,6 +244,9 @@ func TestFaninReviewCap(t *testing.T) {
 			want := fmt.Sprintf("head %s failed %d of %d times", headFirst, ReviewAttempts, ReviewAttempts)
 			if !strings.Contains(detail, want) || !strings.Contains(detail, tc.err.Error()) {
 				t.Errorf("task detail = %q, want %q and %q", detail, want, tc.err)
+			}
+			if logs := r.logs.String(); !strings.Contains(logs, ReviewCapped) {
+				t.Errorf("log lacks %q:\n%s", ReviewCapped, logs)
 			}
 			r.until(func() bool {
 				return slices.ContainsFunc(r.nt.sent(), func(n notify.Note) bool {
