@@ -35,7 +35,8 @@ type RunPaths struct {
 	Settings  string
 }
 
-// Files writes each run's MCP config and Claude settings into <Dir>/<run ID>/, the run directory that also takes result.json.
+// Files writes each run's MCP config and Claude settings into <Dir>/<run ID>/, the run directory that also takes
+// result.json.
 type Files struct {
 	Dir       string
 	DaemonURL string
@@ -81,9 +82,10 @@ func (f Files) Prepare(_ context.Context, _ config.Project, run model.Run) (RunP
 	if err := writeJSON(paths.MCPConfig, "MCP config", run.ID, mcp); err != nil {
 		return RunPaths{}, err
 	}
-	settings := claudeSettings{StatusLine: statusLine{Type: StatusLineType, Command: fmt.Sprintf("%s=%s %s=%s %s=%s %s %s",
+	line := fmt.Sprintf("%s=%s %s=%s %s=%s %s %s",
 		faninmcp.EnvURL, shellQuote(f.DaemonURL), faninmcp.EnvRunID, shellQuote(string(run.ID)),
-		faninmcp.EnvRunToken, shellQuote(string(run.Token)), shellQuote(cmd), WorkerUsageArg)}}
+		faninmcp.EnvRunToken, shellQuote(string(run.Token)), shellQuote(cmd), WorkerUsageArg)
+	settings := claudeSettings{StatusLine: statusLine{Type: StatusLineType, Command: line}}
 	if err := writeJSON(paths.Settings, "settings", run.ID, settings); err != nil {
 		return RunPaths{}, err
 	}

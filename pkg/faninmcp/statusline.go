@@ -10,7 +10,7 @@ import (
 // ErrStatusLine is a status-line input that is no JSON object of Claude Code's status shape.
 var ErrStatusLine = errors.New("faninmcp: unreadable status line input")
 
-// pctScale turns a token share into a percentage.
+// pctScale turns a token share into a percentage; a share is capped at it.
 const pctScale = 100
 
 // Usage is what a worker's status line sends: its context tokens after the latest response and the context share.
@@ -31,7 +31,7 @@ type statusInput struct {
 }
 
 // ParseStatusLine reads the JSON Claude Code gives a status-line command; without a context window yet it is the
-// zero Usage. A null share is computed from the input tokens and the window size.
+// zero Usage. A null share is computed from the input tokens and the window size; the share is kept to 0 to 100.
 func ParseStatusLine(data []byte) (Usage, error) {
 	var in statusInput
 	if err := json.Unmarshal(data, &in); err != nil {
@@ -49,5 +49,6 @@ func ParseStatusLine(data []byte) (Usage, error) {
 	case cw.ContextWindowSize > 0:
 		u.ContextPct = int(math.Round(float64(cw.TotalInputTokens) * pctScale / float64(cw.ContextWindowSize)))
 	}
+	u.ContextPct = min(max(u.ContextPct, 0), pctScale)
 	return u, nil
 }

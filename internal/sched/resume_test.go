@@ -202,7 +202,8 @@ func TestFilesPrepare(t *testing.T) {
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	wantMCP := mcpConfig{Servers: map[string]mcpServer{MCPServerName: {Command: DefaultCommand, Args: []string{WorkerMCPArg},
+	wantMCP := mcpConfig{Servers: map[string]mcpServer{MCPServerName: {Command: DefaultCommand,
+		Args: []string{WorkerMCPArg},
 		Env: map[string]string{faninmcp.EnvURL: f.DaemonURL, faninmcp.EnvRunID: "a1-run-1", faninmcp.EnvRunToken: "secret"}}}}
 	if diff := cmp.Diff(wantMCP, got); diff != "" {
 		t.Errorf("MCP config (-want +got):\n%s", diff)
