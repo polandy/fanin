@@ -17,7 +17,8 @@ document below.
 | a working run past `worker_max_wall` (WD-5) | `wall time spent: running for <d>, limit <max>` | `paused` |
 | a second stall after the stall nudge (AW-10) | `no progress for <stall_after> after the stall nudge; tail: <last words>` | `needs_owner` |
 
-The budgets are read from `token_usage` events, which `Tx.SetRunBudget` appends. All limits come from the
+The budgets are read from `token_usage` events, which `Tx.SetRunBudget` appends when a Claude worker's status line
+sends its usage ([worker contract](worker-contract.md#usage), AW-14). All limits come from the
 project's `budgets` in the config.
 
 When the task already has `max_runs_per_task` runs, no new run starts. The task moves to the fallback state with
@@ -77,9 +78,6 @@ spent worker is stopped. A failed stop is logged, and its pane stays open.
 
 - The handover template of the private ADDENDUM §2.10 is not in this repo. This format is fanin's own, and its
   sections may need to follow that template once it is published.
-- No worker reports `context_pct` or tokens yet. `SetRunBudget` is the seam; the herdr adapter or the MCP report
-  must fill it. It writes the whole budget, the ladder counts included, so its caller must read the run's budget
-  first and change only its own fields.
 - A run's branch is unknown until its first report names one. A run that stalls before that hands over without a
   branch.
 - Gate verdicts (red checks, review findings) are not listed under Last errors yet. They will be once the gate

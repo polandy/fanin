@@ -82,6 +82,22 @@ func TestStart(t *testing.T) {
 		}
 	})
 
+	t.Run("AW-14_claude_gets_the_status_line_settings", func(t *testing.T) {
+		f := newFixture(t)
+		f.setup()
+		s := spec
+		s.Settings = "/run/r1/settings.json"
+		f.runner.Expect(hd("agent", "start", agent, "--pane", pane, "--timeout", "120000", "--kind", "claude", "--",
+			"--permission-mode", "auto", "--strict-mcp-config", "--mcp-config", mcpFile,
+			"--settings", s.Settings, "--name", session), testutil.Reply{})
+		f.runner.Expect(promptArgv, testutil.Reply{})
+		f.runner.Expect(getArgv, testutil.Reply{Stdout: working})
+
+		if _, _, err := f.start(t, s); err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+	})
+
 	t.Run("SP-2_a_later_try_succeeds", func(t *testing.T) {
 		f := newFixture(t)
 		f.setup()

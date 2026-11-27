@@ -153,17 +153,43 @@ func TestRunFails(t *testing.T) {
 	})
 }
 
+func readSettings(t *testing.T, path string) claudeSettings {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != filePerm {
+		t.Errorf("settings mode = %v, want %v", info.Mode().Perm(), os.FileMode(filePerm))
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "secret") {
+		t.Errorf("AW-14: settings carry the run token, which sh would show in its argv: %s", data)
+	}
+	var s claudeSettings
+	if err := json.Unmarshal(data, &s); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
 func TestFilesPrepare(t *testing.T) {
 	dir := t.TempDir()
 	f := Files{Dir: dir, DaemonURL: "http://127.0.0.1:7"}
 	run := model.Run{ID: "a1-run-1", Token: "secret"}
-	path, err := f.Prepare(t.Context(), config.Project{}, run)
+	paths, err := f.Prepare(t.Context(), config.Project{}, run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := filepath.Join(dir, "a1-run-1", MCPConfigName); path != want {
-		t.Errorf("path = %s, want %s", path, want)
+	want := RunPaths{MCPConfig: filepath.Join(dir, "a1-run-1", MCPConfigName),
+		Settings: filepath.Join(dir, "a1-run-1", SettingsName)}
+	if diff := cmp.Diff(want, paths); diff != "" {
+		t.Errorf("paths (-want +got):\n%s", diff)
 	}
+	path := paths.MCPConfig
 	info, err := os.Stat(path)
 	if err != nil {
 		t.Fatal(err)
@@ -175,14 +201,29 @@ func TestFilesPrepare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got mcpConfig
+	var got faninmcp.MCPConfig
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	want := mcpConfig{Servers: map[string]mcpServer{MCPServerName: {Command: DefaultCommand, Args: []string{WorkerMCPArg},
-		Env: map[string]string{faninmcp.EnvURL: f.DaemonURL, faninmcp.EnvRunID: "a1-run-1", faninmcp.EnvRunToken: "secret"}}}}
-	if diff := cmp.Diff(want, got); diff != "" {
+	wantMCP := faninmcp.MCPConfig{Servers: map[string]faninmcp.MCPServer{MCPServerName: {Command: DefaultCommand,
+		Args: []string{WorkerMCPArg},
+		Env:  map[string]string{faninmcp.EnvURL: f.DaemonURL, faninmcp.EnvRunID: "a1-run-1", faninmcp.EnvRunToken: "secret"}}}}
+	if diff := cmp.Diff(wantMCP, got); diff != "" {
 		t.Errorf("MCP config (-want +got):\n%s", diff)
+	}
+	wantSettings := claudeSettings{StatusLine: statusLine{Type: StatusLineType,
+		Command: "'fanin' " + WorkerUsageArg + " '" + paths.MCPConfig + "'"}}
+	if diff := cmp.Diff(wantSettings, readSettings(t, paths.Settings)); diff != "" {
+		t.Errorf("AW-14: settings (-want +got):\n%s", diff)
+	}
+	quoted, err := Files{Dir: t.TempDir(), DaemonURL: "http://h", Command: "/opt/it's/fanin"}.Prepare(t.Context(),
+		config.Project{}, run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := readSettings(t, quoted.Settings).StatusLine.Command,
+		`'/opt/it'\''s/fanin' `+WorkerUsageArg+" '"+quoted.MCPConfig+"'"; got != want {
+		t.Errorf("AW-14: command = %s, want %s", got, want)
 	}
 
 	blocked := filepath.Join(dir, "file")

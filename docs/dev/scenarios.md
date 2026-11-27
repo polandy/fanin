@@ -253,6 +253,17 @@ These scenarios cover waiting for a worker's result and nudging it when it stops
 - Then: the loop ends `ERROR: nudge to <agent> failed` at once, and nothing is awaited after it.
 - Source: `lib.sh nudge`, `loop.sh prompt_worker`. Test: `loop.sh#30`. Mark: PARITY.
 
+**AW-14**
+- Given: a Claude worker's status line updates.
+- Then: `fanin worker-usage` posts the context tokens and the context share to `POST /api/v1/runs/{id}/usage`.
+  fanind adds each new response's tokens to the run's total and stores the share. A repeated update counts
+  nothing. A wrong token or an older run records nothing. `max_tokens_per_run` and `rollover_pct` then hand the
+  run over (C-BUDGET).
+- Source: —. Test: `internal/model/usage_test.go`, `internal/report/report_test.go`,
+  `internal/api/report_routes_test.go`, `pkg/faninmcp/statusline_test.go`, `pkg/faninmcp/mcpconfig_test.go`,
+  `cmd/fanin/cmd_workerusage_test.go`,
+  `internal/sched/resume_test.go`, `internal/runtime/herdr/start_test.go`. Mark: CHANGES (C-BUDGET).
+
 ## 4. GitHub gate
 
 These scenarios cover `pr-gate.sh` and the waits around it.

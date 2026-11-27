@@ -127,7 +127,7 @@ Settings, in a project file or under `defaults`:
 | `worker_max_wall` | duration | `90m` | a run this long past its start hands over to a fresh run, even while it works; once `budgets.max_runs_per_task` runs are used, the task pauses |
 | `budgets.fix_rounds_per_run` | integer ≥ 0 | `2` | fix rounds one run may take; one more rolls over to a fresh run |
 | `budgets.rollover_pct` | 1–100 | `75` | context use that rolls over to a fresh run |
-| `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | tokens that roll over to a fresh run |
+| `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | tokens that roll over to a fresh run; each response of a Claude worker adds its whole context (see [operation](operation.md)) |
 | `budgets.max_runs_per_task` | integer ≥ 1 | `3` | runs per task; once used, a spent budget pauses the task and a second stall sets it needs-owner |
 | `merge.lock_wait` | duration | `1h` | a merge waits this long for the project lock, then goes to the owner |
 | `merge.lock_lease` | duration | `10m` | lease of the merge lock, renewed while held; a dead holder frees it after this |

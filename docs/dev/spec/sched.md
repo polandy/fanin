@@ -117,7 +117,8 @@ only watched, and the timeout spares it.
 ## Nudge ladder (AW-10, AW-11, AW-13)
 
 The ladder counts its steps on the run (`Budget.Stalls`, `FooterWaits`, `ContinueNudges`, `SecureNudges`, through
-`Tx.SetRunCounts`), so a restart keeps them. Every nudge is an embedded template (`nudge-stall`, `nudge-continue`,
+`Tx.SetRunCounts`, which writes only those counts and leaves the token columns to the usage reports), so a
+restart keeps them. Every nudge is an embedded template (`nudge-stall`, `nudge-continue`,
 `nudge-secure`). It is recorded as `worker_nudged` with the template name, then sent with
 `WorkerRuntime.Prompt`. A nudge that cannot be delivered ends the run and the task `failed` with
 `nudge to <agent> failed: <cause>`, and nothing is awaited after it (AW-13).
@@ -143,7 +144,9 @@ The ladder counts its steps on the run (`Budget.Stalls`, `FooterWaits`, `Continu
 
 ## Budgets (C-BUDGET)
 
-Each `token_usage` event checks the run's budget against the project's `budgets`:
+Each `token_usage` event checks the run's budget against the project's `budgets`. A Claude worker's status line
+sends the tokens and the context share through `report.Service.Usage` ([worker contract](worker-contract.md#usage),
+AW-14):
 
 - `max_tokens_per_run`;
 - `rollover_pct` of the context;
@@ -341,8 +344,7 @@ A stop by ctx is never a task failure:
 - A delivery cut short by a stop is not resumed on restart; push and review the branch by hand.
 - A review run cut short by a stop is not resumed; the `gate_retry` armed before it starts it again.
 - Wiring `resultwatch` to `report.Service`.
-- Nothing fills `context_pct` or the token counts yet; those budget checks act once the adapters write them
-  through `SetRunBudget`.
+- opencode workers report no usage, so only `fix_rounds_per_run` limits their runs.
 - A pending pause does not stop a handover; the fresh run continues the task.
 - The gate state of a gating task is held in memory; after a restart only an armed gate timer reads it again.
 - The squash body that `fanind`'s merger sends has no trailers yet.

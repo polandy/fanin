@@ -34,8 +34,9 @@ func ExitCode(err error) int {
 	}
 }
 
-// Output writes to the two standard streams of a command.
+// Output holds the standard streams of a command; In is nil for a command that reads no input.
 type Output struct {
+	In  io.Reader
 	Out io.Writer
 	Err io.Writer
 }

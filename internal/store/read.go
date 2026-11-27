@@ -14,7 +14,7 @@ const taskColumns = `id, project, title, prompt, shape, state, owner_task, after
 
 const runColumns = `id, task_id, number, slot, branch, token, fix_rounds, review_nudges, stalls, input_tokens,
 	output_tokens, total_tokens, state, result, started_at, ended_at, host, agent, workspace, tab, pane, context_pct,
-	footer_waits, continue_nudges, secure_nudges, hint, tail`
+	footer_waits, continue_nudges, secure_nudges, hint, tail, seen_input, seen_output`
 
 type scanner interface{ Scan(dest ...any) error }
 
@@ -57,7 +57,7 @@ func scanRun(sc scanner) (model.Run, error) {
 	if err := sc.Scan(&id, &task, &r.Number, &r.Slot, &r.Branch, &token, &b.FixRounds, &b.ReviewNudges, &b.Stalls,
 		&b.InputTokens, &b.OutputTokens, &b.TotalTokens, &state, &res, &started, &ended, &r.Worker.Host, &r.Worker.Agent,
 		&r.Worker.Workspace, &r.Worker.Tab, &r.Worker.Pane, &b.ContextPct, &b.FooterWaits, &b.ContinueNudges,
-		&b.SecureNudges, &r.Hint, &r.Tail); err != nil {
+		&b.SecureNudges, &r.Hint, &r.Tail, &b.SeenInput, &b.SeenOutput); err != nil {
 		return model.Run{}, err
 	}
 	r.ID, r.TaskID, r.Token = model.RunID(id), model.TaskID(task), model.Token(token)

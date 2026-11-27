@@ -18,7 +18,7 @@ fanin's domain types follow OpenAI's Symphony SPEC, pinned at commit
 | `Run` | §4.1.5 Run Attempt | `Number` counts from 1 (the SPEC's `attempt` is `null` for the first run) |
 | `Run.Slot` | §8.3 concurrency slot | Anonymous slot per project and host (concept C-SLOTS) |
 | `Run.Token` | — | **fanin**: the run's report token; a `fanin_report` counts only with the current run's token. Prints and logs as `[redacted]` |
-| `Run.Budget` | §4.1.6 token counters | Input, output and total tokens as in the SPEC, plus **fanin** fix rounds, review nudges, stalls, `context_pct` and the nudge-ladder counts `footer_waits`, `continue_nudges`, `secure_nudges` (concept C-BUDGET, AW-11) |
+| `Run.Budget` | §4.1.6 token counters | Input, output and total tokens as in the SPEC, plus **fanin** fix rounds, review nudges, stalls, `context_pct` and the nudge-ladder counts `footer_waits`, `continue_nudges`, `secure_nudges` (concept C-BUDGET, AW-11), and the last counted status-line snapshot `SeenInput`, `SeenOutput`; `Budget.Add` sums a `Usage` into it (AW-14) |
 | `Result` | §10.4 `turn_completed` / `turn_input_required` | **fanin**: the structured worker report (below) |
 | `Event` | §10.4 emitted runtime events | fanin's events are durable store rows, appended in the state change's transaction (concept D3) |
 | `Verdict` | — | **fanin**: forge gates (below) |

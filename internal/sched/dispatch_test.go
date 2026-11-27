@@ -3,6 +3,7 @@ package sched
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -98,6 +99,11 @@ func TestDispatch(t *testing.T) {
 				h.addTask(task)
 				h.until(h.runIn(RunID("a1", 1), model.RunWorking))
 				spec := h.rt.starts()[0]
+				if filepath.Base(spec.Settings) != SettingsName ||
+					filepath.Dir(spec.Settings) != filepath.Dir(spec.MCPConfig) {
+					t.Errorf("AW-14: settings = %q, want %s beside the MCP config %q", spec.Settings, SettingsName,
+						spec.MCPConfig)
+				}
 				if spec.Model != tc.want {
 					t.Errorf("model = %q, want %q", spec.Model, tc.want)
 				}
@@ -287,8 +293,8 @@ type failingFiles struct{}
 
 var errDisk = errors.New("disk full")
 
-func (failingFiles) Prepare(context.Context, config.Project, model.Run) (string, error) {
-	return "", errDisk
+func (failingFiles) Prepare(context.Context, config.Project, model.Run) (RunPaths, error) {
+	return RunPaths{}, errDisk
 }
 
 var _ runtime.WorkerRuntime = (*fakeRuntime)(nil)
