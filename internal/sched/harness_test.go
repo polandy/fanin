@@ -52,12 +52,10 @@ func testConfig() config.Config {
 		Projects: []config.Project{
 			{Name: projAlpha, Path: pathAlpha, Host: config.HostLocal, Forge: "gh", Base: baseMain, WorkerKind: kindCC,
 				MaxParallel: 2, StallAfter: config.Duration(stallAfter), WorkerTimeout: config.Duration(workerTimeout),
-				WorkerMaxWall: config.Duration(workerMaxWall),
-				Loop:          config.LoopFanin, Budgets: testBudgets},
+				WorkerMaxWall: config.Duration(workerMaxWall), Loop: config.LoopFanin, Budgets: testBudgets},
 			{Name: projBash, Path: "/r/beta", Host: config.HostLocal, Forge: "gh", Base: baseMain, WorkerKind: kindCC,
 				MaxParallel: 1, StallAfter: config.Duration(stallAfter), WorkerTimeout: config.Duration(workerTimeout),
-				WorkerMaxWall: config.Duration(workerMaxWall),
-				Loop:          config.LoopBash, Budgets: testBudgets},
+				WorkerMaxWall: config.Duration(workerMaxWall), Loop: config.LoopBash, Budgets: testBudgets},
 		},
 	}
 }
