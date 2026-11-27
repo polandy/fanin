@@ -41,6 +41,7 @@ after one blank line, as it is: nothing in it is expanded.
 The bash status-line part becomes the `status-line` part: before finishing, call the MCP tool
 `fanin_report` (`faninmcp.ToolReport`) once, then end with the one-line format of the template. The instruction is the
 line right before the format line and appears once. The worker prompt asks for a review of the local diff
-(`/pr-review local diff, no PR yet`) before the first push and for `/pr-review` on the PR after it.
+(`/pr-review local diff, no PR yet`) before the first push and not for a PR-level `/pr-review`: fanind's
+`fanin/review` is the only gate review.
 
 Golden files in `internal/prompt/testdata` pin each rendered template (`go test ./internal/prompt -update`).

@@ -128,7 +128,7 @@ These scenarios cover starting a worker and handing it its prompt.
   filled in.
 - A hint is inserted literally. A missing part fails rather than leaving the include in.
 - The status-line sentence appears once, right before the format line. The worker reviews its diff before the
-  first push and the PR after it.
+  first push and runs no PR-level `/pr-review` (fanind's `fanin/review` is the gate review).
 - Source: `lib.sh render_prompt`, `prompts/`. Test: `prompts.sh#1-#4`. Mark: CHANGES (C-REPORT).
   Templates move to `internal/prompt`; the status-line part becomes "call `fanin_report`".
 
