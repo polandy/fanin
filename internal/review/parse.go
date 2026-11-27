@@ -1,8 +1,11 @@
 package review
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/polandy/fanin/internal/forge"
 )
 
 // The review comment's contract (SCENARIOS OC-5): a header line with CommentMark and a VerdictLabel verdict after it.
@@ -99,6 +102,17 @@ func verdictOf(lower string) Verdict {
 }
 
 // oneLine collapses whitespace and cuts s to limit characters.
+// LatestText returns the canonical text, cut to TextLimit, of the newest comment that parses as a review.
+func LatestText(comments []forge.Comment) (string, error) {
+	for i := len(comments) - 1; i >= 0; i-- {
+		if _, text, err := Parse(comments[i].Body); err == nil {
+			return oneLine(text, TextLimit), nil
+		}
+	}
+	return "", fmt.Errorf("%w: none of %d comments has the ## %s header and a verdict; the nudge uses the gate's reasons",
+		ErrUnreadable, len(comments), CommentMark)
+}
+
 func oneLine(s string, limit int) string {
 	r := []rune(strings.Join(strings.Fields(s), " "))
 	if len(r) > limit {

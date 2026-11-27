@@ -92,6 +92,8 @@ type Deps struct {
 	BaseCI BaseCI
 	// FailLog reads the failed CI step's log for the fix nudge; nil nudges with the check names alone (SCENARIOS GH-9).
 	FailLog FailLogs
+	// ReviewText reads the review comment for the review nudge; nil nudges with the gate's reasons (SCENARIOS GH-10).
+	ReviewText ReviewTexts
 	// OCDeliver and OCReview push and review a COMMITTED opencode branch; nil asks the owner (SCENARIOS OC-1, OC-6).
 	OCDeliver OCDelivery
 	OCReview  OCReviewer

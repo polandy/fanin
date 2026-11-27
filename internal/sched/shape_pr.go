@@ -276,7 +276,7 @@ func (s *Scheduler) redPR(ctx context.Context, p config.Project, run model.Run, 
 			return s.toOwner(ctx, p, run, model.TaskPaused, fmt.Sprintf("%s; review nudges spent: %d of %d", paused,
 				cur.Budget.ReviewNudges, ReviewNudges))
 		}
-		return s.nudgeRed(ctx, p, cur, prompt.NudgeReview, why, nil, func(b *model.Budget) { b.ReviewNudges++ })
+		return s.nudgeRed(ctx, p, cur, prompt.NudgeReview, s.reviewHint(ctx, p, run, pr, why), nil, func(b *model.Budget) { b.ReviewNudges++ })
 	case gate.CauseConflict, gate.CauseCI:
 	default:
 		return s.blockAnalysis(ctx, p, run, why)
@@ -309,18 +309,6 @@ func (s *Scheduler) redPR(ctx context.Context, p config.Project, run model.Run, 
 		logTail = func(ctx context.Context) string { return s.failLog(ctx, p, run, pr) }
 	}
 	return s.nudgeRed(ctx, p, cur, name, why, logTail, func(b *model.Budget) { b.FixRounds++ })
-}
-
-// failLog reads the failed CI step's log for the fix nudge; an unreadable log is warned about and left out, as the
-// nudge still names the failed checks.
-func (s *Scheduler) failLog(ctx context.Context, p config.Project, run model.Run, pr int) string {
-	tail, err := s.d.FailLog.FailedLog(ctx, p, pr)
-	if err != nil {
-		s.logFor(p.Name, run.TaskID, run.ID).WarnContext(ctx, "sched: failed step log unreadable; nudging without it",
-			"pr", pr, "err", err)
-		return ""
-	}
-	return tail
 }
 
 // nudgeRed sends the run back to work and nudges it with the gate's reasons.

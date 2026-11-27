@@ -164,7 +164,7 @@ for each run; without them the command refuses to start and names the missing va
 - `fanin_report` (`kind`, plus `pr`, `branch`, `issue`, `issue_url` or `text`): the run's result. `kind` is one of
   `done_pr`, `pushed`, `committed`, `issue`, `nothing`, `blocked`; texts are kept as one line of at most 400
   characters.
-- `fanin_progress` (optional `text`): the heartbeat of a long run.
+- `fanin_progress` (optional `text`): the heartbeat of a long run; workers call it only during long background waits.
 
 A report counts only with the token of the task's current run; a report from an older run is refused and logged.
 A worker without MCP writes `result.json` (the same fields plus `"token"`) into its run directory instead; a file

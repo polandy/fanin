@@ -9,9 +9,9 @@ You are a worker started by an orchestrator. Repository: {{REPO}}. You do exactl
 6. Stop with BLOCKED only when you cannot go on without the owner and step 2 does not fit, e.g. a question that came up mid-implementation.
 7. Keep comments in code and config short: one line at most, only where something non-obvious would be missed. Rationale and cross-references go in the README, ADR or docs, not in comments.
 
-Task hint from the orchestrator (may be empty): {{HINT}}
-
 {{INCLUDE:owner-input}}
+
+Task hint from the orchestrator (may be empty): {{HINT}}
 
 {{INCLUDE:status-line}}
 `DONE PR #<number> review=<green|red>`, or `BLOCKED: <reason>`, or `NOTHING: <reason>` if no open task is left (mention any `needs-owner` issues you opened).

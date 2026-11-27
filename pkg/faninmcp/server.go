@@ -41,8 +41,9 @@ func NewServer(c *Client, version string) (*mcp.Server, error) {
 	})
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: ToolProgress,
-		Description: "Tell fanin the run is still working, with a short note. Call it at least every few minutes " +
-			"during long work; a run without a heartbeat counts as stalled.",
+		Description: "Tell fanin the run is still working, with a short note. Call it only while you wait on a long " +
+			"background job (a build, a CI run, a review); a run with no heartbeat or result counts as stalled. Do not " +
+			"call it while you are working in the foreground.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in Progress) (*mcp.CallToolResult, any, error) {
 		if err := c.Progress(ctx, in); err != nil {
 			return fail(ToolProgress, c.BaseURL(), err), nil, nil

@@ -16,6 +16,7 @@ import (
 	"github.com/polandy/fanin/internal/forge/gitea"
 	"github.com/polandy/fanin/internal/forge/github"
 	"github.com/polandy/fanin/internal/gate"
+	"github.com/polandy/fanin/internal/review"
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/sched"
 )
@@ -31,11 +32,12 @@ type forges struct {
 }
 
 var (
-	_ sched.PRGates  = (*forges)(nil)
-	_ sched.BaseCI   = (*forges)(nil)
-	_ sched.FailLogs = (*forges)(nil)
-	_ sched.Merger   = (*forges)(nil)
-	_ cleanup.Forge  = (*forges)(nil)
+	_ sched.PRGates     = (*forges)(nil)
+	_ sched.BaseCI      = (*forges)(nil)
+	_ sched.FailLogs    = (*forges)(nil)
+	_ sched.Merger      = (*forges)(nil)
+	_ sched.ReviewTexts = (*forges)(nil)
+	_ cleanup.Forge     = (*forges)(nil)
 )
 
 // newForges builds a client for each forge a loop: fanin project names; a Gitea forge without its token is an
@@ -128,6 +130,27 @@ func (f *forges) FailedLog(ctx context.Context, p config.Project, pr int) (strin
 		return "", err
 	}
 	return fl.FailedLog(ctx, repo, head.HeadSHA, forge.FailLogMax)
+}
+
+// ReviewText reads the latest review comment of PR pr of p, cut to review.TextLimit (SCENARIOS GH-10).
+func (f *forges) ReviewText(ctx context.Context, p config.Project, pr int) (string, error) {
+	client, _, err := f.res.For(p.Name)
+	if err != nil {
+		return "", err
+	}
+	repo, err := f.repo(ctx, p)
+	if err != nil {
+		return "", err
+	}
+	rf, ok := client.(review.Forge)
+	if !ok {
+		return "", fmt.Errorf("%w: forge %q of %s cannot read PR comments", forge.ErrInvalidRequest, p.Forge, p.Name)
+	}
+	comments, err := rf.Comments(ctx, repo, pr)
+	if err != nil {
+		return "", err
+	}
+	return review.LatestText(comments)
 }
 
 // Merge squash-merges PR pr of p with the subject "<title> (#n)"; a PR already merged is success, and the forge

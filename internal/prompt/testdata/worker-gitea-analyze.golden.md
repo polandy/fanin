@@ -11,9 +11,9 @@ Hard limits. Breaking one can take down live hosts or leak secrets:
 - Never `ssh`/`scp` to any other host and never run `herdr`.
 - Never push to `main`, never rebase or force-push a feature branch (update it with `git merge origin/main`), never touch the main checkout or other worktrees.
 
-Question and project hint from the orchestrator: fix it
-
 Owner input (owner rule): whenever you would stop to wait for the owner (a BLOCKED question, a choice, a go), ask it with the AskUserQuestion tool in this pane, not only as text, so the owner just picks: one decision per question, each question standing on its own (project, what it is, what each option causes), 2-4 options, your recommended one first with "(Recommended)" and a one-line reason; the owner can always type free text through the tool's built-in "Other" option. Write it in the owner's language. Once answered, carry on with the answer. End with `BLOCKED: <question>` only if the owner says to stop or the tool is unavailable. A permission dialog is not such a question; leave it to the owner as it is.
+
+Question and project hint from the orchestrator: fix it
 
 Before you finish, call the MCP tool `fanin_report` once with your result: `done_pr` with `pr`, `pushed` or `committed` with `branch`, `issue` with `issue`, `nothing` or `blocked` with `text`. Then your final message must be exactly one line, nothing else:
 `PUSHED <branch>`, or `BLOCKED: <reason>`.
