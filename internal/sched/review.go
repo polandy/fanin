@@ -12,8 +12,12 @@ import (
 	"github.com/polandy/fanin/internal/store"
 )
 
-// ReviewFailed is logged when fanin's review of a PR head fails; the next gate tick runs it again.
-const ReviewFailed = "sched: fanin review failed, the next gate tick runs it again"
+const (
+	// ReviewFailed is logged when fanin's review of a PR head fails; the next gate tick runs it again.
+	ReviewFailed = "sched: fanin review failed, the next gate tick runs it again"
+	// ReviewAttempts caps the failed review runs on one head; the last one hands the task to the owner.
+	ReviewAttempts = 3
+)
 
 // PRReviewer runs the project's review skill on the head of PR pr and posts fanin/review from its verdict; it
 // returns the head it reviewed (SCENARIOS OC-3).

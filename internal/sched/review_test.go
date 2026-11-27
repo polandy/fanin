@@ -3,6 +3,7 @@ package sched
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -14,6 +15,9 @@ import (
 	"github.com/polandy/fanin/internal/forge"
 	"github.com/polandy/fanin/internal/gate"
 	"github.com/polandy/fanin/internal/model"
+	"github.com/polandy/fanin/internal/notify"
+	"github.com/polandy/fanin/internal/review"
+	"github.com/polandy/fanin/internal/runtime/headless"
 )
 
 const (
@@ -193,6 +197,81 @@ func TestFaninReview(t *testing.T) {
 		r.advance(gate.RetryInterval)
 		r.until(r.taskIn("a1", model.TaskDone))
 		if diff := cmp.Diff([]string{headFirst, headFirst}, rv.reviewed()); diff != "" {
+			t.Errorf("reviewed heads (-want +got):\n%s", diff)
+		}
+	})
+}
+
+// failures counts the failed review runs the scheduler logged.
+func (r *mergeRig) failures() func() int {
+	return func() int { return strings.Count(r.logs.String(), ReviewFailed) }
+}
+
+// see SCENARIOS OC-3
+func TestFaninReviewCap(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{"no_comment", review.ErrNoComment},
+		{"unreadable_verdict", review.ErrUnreadable},
+		{"timeout", headless.ErrTimeout},
+	} {
+		t.Run("OC-3_a_review_that_fails_on_one_head_goes_to_the_owner_after_the_cap_"+tc.name, func(t *testing.T) {
+			r, rv := reviewRig(t, mergeConfig(), noReviewPR(headFirst))
+			for range ReviewAttempts {
+				rv.errs = append(rv.errs, tc.err)
+			}
+			r.start()
+			run := r.startPR("a1", "")
+			r.report(run, donePR)
+			failures := r.failures()
+			for i := 1; i < ReviewAttempts; i++ {
+				r.until(func() bool { return failures() == i })
+				if got := r.task("a1").State; got != model.TaskGating {
+					t.Fatalf("task state after %d failures = %s, want %s", i, got, model.TaskGating)
+				}
+				r.advance(gate.RetryInterval)
+			}
+			r.until(r.taskIn("a1", model.TaskNeedsOwner))
+			detail := r.lastDetail("a1")
+			want := fmt.Sprintf("head %s failed %d of %d times", headFirst, ReviewAttempts, ReviewAttempts)
+			if !strings.Contains(detail, want) || !strings.Contains(detail, tc.err.Error()) {
+				t.Errorf("task detail = %q, want %q and %q", detail, want, tc.err)
+			}
+			r.until(func() bool {
+				return slices.ContainsFunc(r.nt.sent(), func(n notify.Note) bool {
+					return n.Text == detail
+				})
+			})
+			r.advance(gate.RetryInterval)
+			if got := len(rv.reviewed()); got != ReviewAttempts {
+				t.Errorf("review runs = %d, want %d and none after the hand-over", got, ReviewAttempts)
+			}
+			if got := r.task("a1").State; got != model.TaskNeedsOwner {
+				t.Errorf("task state = %s, want %s", got, model.TaskNeedsOwner)
+			}
+		})
+	}
+
+	t.Run("OC-3_a_new_head_starts_the_count_again", func(t *testing.T) {
+		r, rv := reviewRig(t, mergeConfig(), noReviewPR(headFirst), forge.PR{}, forge.PR{}, forge.PR{}, forge.PR{},
+			greenAt(headPushed))
+		rv.errs = []error{errReview, errReview, errReview, errReview}
+		r.start()
+		run := r.startPR("a1", "")
+		r.report(run, donePR)
+		failures := r.failures()
+		for i := 1; i <= 4; i++ {
+			r.until(func() bool { return failures() == i })
+			if i == ReviewAttempts-1 {
+				r.f.answer(noReviewPR(headPushed))
+			}
+			r.advance(gate.RetryInterval)
+		}
+		r.until(r.taskIn("a1", model.TaskDone))
+		want := []string{headFirst, headFirst, headPushed, headPushed, headPushed}
+		if diff := cmp.Diff(want, rv.reviewed()); diff != "" {
 			t.Errorf("reviewed heads (-want +got):\n%s", diff)
 		}
 	})
