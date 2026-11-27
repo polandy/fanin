@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	ocFetch = []string{gitBin, "-C", repoDir, "fetch", "-q", "origin", "main", headBranch}
+	ocFetch = []string{gitBin, "-C", repoDir, gitFetch, "-q", gitRemote, baseBranch, headBranch}
 	ocDiff  = []string{gitBin, "-C", repoDir, "diff", "origin/main..." + headSHA}
 	ocState = []string{"sudo", "-n", "-u", review.DefaultOCUser, review.DefaultOCSandbox, label, "--script"}
 	ocRun   = []string{"timeout", ocTimeout, "sudo", "-n", "-u", review.DefaultOCUser, review.DefaultOCSandbox, label,

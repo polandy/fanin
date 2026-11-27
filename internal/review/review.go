@@ -70,6 +70,7 @@ type Forge interface {
 	PR(ctx context.Context, repo string, number int) (forge.PR, error)
 	Comments(ctx context.Context, repo string, number int) ([]forge.Comment, error)
 	PostStatus(ctx context.Context, st forge.Status) error
+	CommitChecks(ctx context.Context, repo, sha string) ([]forge.Check, error)
 }
 
 // Events records what a review cost.
@@ -98,9 +99,12 @@ type Request struct {
 // Result is a posted verdict.
 type Result struct {
 	// HeadSHA is the head the review saw and the status is on.
-	HeadSHA    string
-	Verdict    Verdict
-	CommentURL string
+	HeadSHA string
+	Verdict Verdict
+	// ReviewedHead is the ready head whose review a head that only merges the base into it carries; empty after a
+	// run of its own.
+	ReviewedHead string
+	CommentURL   string
 	// Text is the canonical review on one line, cut to TextLimit characters.
 	Text  string
 	Usage headless.Usage
@@ -125,7 +129,8 @@ func Worktree(dir string, number int) string {
 	return filepath.Join(dir, worktreeDir, worktreePrefix+strconv.Itoa(number))
 }
 
-// Review reviews the PR head in a detached worktree and posts the verdict on that head; an error posts nothing.
+// Review reviews the PR head in a detached worktree and posts the verdict on that head; a head that only merges the
+// base into a ready head carries that review without a run. An error posts nothing.
 func (r *Reviewer) Review(ctx context.Context, req Request) (Result, error) {
 	if err := r.validate(req); err != nil {
 		return Result{}, err
@@ -137,6 +142,16 @@ func (r *Reviewer) Review(ctx context.Context, req Request) (Result, error) {
 	before, err := r.forge.Comments(ctx, req.Repo, req.Number)
 	if err != nil {
 		return Result{}, fmt.Errorf("review: comments of %s#%d before the run: %w", req.Repo, req.Number, err)
+	}
+	if err := r.git(ctx, req.Dir, nil, "fetch", "-q", remote, pr.HeadBranch); err != nil {
+		return Result{}, err
+	}
+	reviewed, err := r.carriedReview(ctx, req, pr)
+	if err != nil {
+		return Result{}, err
+	}
+	if reviewed != "" {
+		return r.carry(ctx, req, pr, reviewed)
 	}
 	wt := Worktree(req.Dir, req.Number)
 	if err := r.addWorktree(ctx, req.Dir, wt, pr); err != nil {
@@ -199,9 +214,6 @@ func (r *Reviewer) git(ctx context.Context, dir string, env []string, args ...st
 }
 
 func (r *Reviewer) addWorktree(ctx context.Context, dir, wt string, pr forge.PR) error {
-	if err := r.git(ctx, dir, nil, "fetch", "-q", remote, pr.HeadBranch); err != nil {
-		return err
-	}
 	if err := r.git(ctx, dir, lfsEnv, "worktree", "add", "-q", "--detach", wt, pr.HeadSHA); err != nil {
 		return fmt.Errorf("%w; a stale worktree goes with git -C %s worktree remove --force %s", err, dir, wt)
 	}

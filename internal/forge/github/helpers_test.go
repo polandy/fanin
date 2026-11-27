@@ -53,7 +53,7 @@ func prDoc() map[string]any {
 		"number": number, "title": title, "url": "https://github.com/acme/widget/pull/42",
 		keyState: "OPEN", "mergeable": "MERGEABLE", "headRefName": headBranch, "headRefOid": headSHA,
 		"baseRefName": baseBranch,
-		"statusCheckRollup": []any{
+		keyRollup: []any{
 			checkRun("ci", completed, success, "2026-11-25T09:00:00Z", doneAt),
 			checkRun("lint", "IN_PROGRESS", "", "2026-11-25T09:01:00Z", "0001-01-01T00:00:00Z"),
 			withDescription(commitStatus(reviewContext, success, keyStarted, "2026-11-25T09:06:00Z"), reviewText),

@@ -25,7 +25,8 @@ Only GitHub projects are reviewed for now: the skill posts its comment with `gh`
 1. Read the PR. It must be open (`forge.ErrNotOpen`), its head a hex SHA and its head branch a name git cannot
    read as a flag; otherwise `review.ErrUnreadable` and git never runs.
 2. Read the PR's comments as the baseline.
-3. `git -C <dir> fetch -q origin <branch>`, then
+3. `git -C <dir> fetch -q origin <branch>`, then check for a base merge (see below); a carried review ends here.
+   Otherwise
    `git -C <dir> worktree add -q --detach <dir>/.claude/worktrees/fanin-review-<n> <head sha>` with
    `GIT_LFS_SKIP_SMUDGE=1`. All git goes through `runtime.Runner`.
 4. Run `claude -p` in the worktree with the prompt `<skill> <n>` plus fanin's rules: review only, the head SHA, the
@@ -41,7 +42,24 @@ Only GitHub projects are reviewed for now: the skill posts its comment with `gh`
 
 `Result.Text` is the canonical review on one line, cut to 1500 characters. On any error nothing is posted: the
 head keeps no review and the gate stays RED `no review for head <sha>`. A push after the review moves the head,
-and the new head has no status until it is reviewed again (D5).
+and the new head has no status until it is reviewed again or carries the review of a base merge (D5).
+
+## A base merge carries the review (SCENARIOS OC-3, ADR-0002)
+
+A head that only merges the base into a ready head needs no run of its own. All checks run in `<dir>`:
+
+1. `git rev-list --parents -n 1 <head>`: exactly two parents, else a run. An answer that does not start with the
+   head is `review.ErrUnreadable`.
+2. The newest `fanin/review` on the first parent (`forge.CommitChecks`) is a success, else a run.
+3. `git fetch -q origin <base>`, then `git merge-base --is-ancestor <second parent> origin/<base>`: exit 1 is a
+   run.
+4. `git merge-tree --write-tree <first> <second>`: exit 1 (conflicts) is a run; the tree it prints must equal
+   `git rev-parse <head>^{tree}`, else the merge carries changes of its own and gets a run.
+
+Then fanin posts `fanin/review` `success` on the head with the description
+`ready: only merges the base into reviewed head <12-char sha>` and no target URL. `Result.ReviewedHead` names
+the first parent; no token usage is recorded. Any other git exit or an unreadable forge answer is an error and
+posts nothing, as for a run.
 
 ## The verdict (SCENARIOS OC-5)
 
