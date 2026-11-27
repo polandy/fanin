@@ -79,6 +79,8 @@ type harness struct {
 	ocPush   OCDelivery
 	ocReview OCReviewer
 	reviewer PRReviewer
+	// questions takes the workers' dialogs and pane answers.
+	questions Questions
 	// hookRun, when set, runs the post-merge hook through a real hook.Hook on the current store.
 	hookRun  runtime.Runner
 	stateDir string
@@ -122,7 +124,7 @@ func (h *harness) start() {
 	}
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
 		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Cleaner: h.cleaner, Hook: post, BaseCI: h.baseCI, PreGo: h.preGo,
-		StateDir: h.stateDir, OCDeliver: h.ocPush, OCReview: h.ocReview, Reviewer: h.reviewer,
+		StateDir: h.stateDir, OCDeliver: h.ocPush, OCReview: h.ocReview, Reviewer: h.reviewer, Owner: h.questions,
 		Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)
 			select {

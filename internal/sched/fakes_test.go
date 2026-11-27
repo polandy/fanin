@@ -21,8 +21,10 @@ type fakeRuntime struct {
 	// promptErrs fails the prompts of single agents.
 	promptErrs map[string]error
 	stopErr    error
-	// prompts are the texts sent per agent; stopped are the stopped agents.
+	pressErr   error
+	// prompts are the texts sent per agent, presses the keys; stopped are the stopped agents.
 	prompts map[string][]string
+	presses map[string][]string
 	stopped []string
 	// block makes Start wait for its ctx; hold, when set, makes Start wait until it is closed.
 	block bool
@@ -31,7 +33,8 @@ type fakeRuntime struct {
 }
 
 func newFakeRuntime() *fakeRuntime {
-	return &fakeRuntime{feeds: map[string]chan runtime.RunEvent{}, prompts: map[string][]string{}}
+	return &fakeRuntime{feeds: map[string]chan runtime.RunEvent{}, prompts: map[string][]string{},
+		presses: map[string][]string{}}
 }
 
 func (f *fakeRuntime) Start(ctx context.Context, spec runtime.RunSpec) (runtime.RunHandle, error) {
@@ -63,6 +66,22 @@ func (f *fakeRuntime) Prompt(_ context.Context, h runtime.RunHandle, text string
 		return err
 	}
 	return f.promptErr
+}
+
+func (f *fakeRuntime) Press(_ context.Context, h runtime.RunHandle, key string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.pressErr != nil {
+		return f.pressErr
+	}
+	f.presses[h.Agent] = append(f.presses[h.Agent], key)
+	return nil
+}
+
+func (f *fakeRuntime) pressed(agent string) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.presses[agent]...)
 }
 
 func (f *fakeRuntime) Stop(_ context.Context, h runtime.RunHandle) error {

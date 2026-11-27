@@ -41,6 +41,31 @@ func TestPrompt(t *testing.T) {
 	})
 }
 
+func TestPress(t *testing.T) {
+	t.Run("OA-1_presses_the_option_key", func(t *testing.T) {
+		f := newFixture(t)
+		f.runner.Expect(hd("agent", "send-keys", agent, "2"), testutil.Reply{})
+		if err := f.rt.Press(context.Background(), want, "2"); err != nil {
+			t.Fatalf("Press: %v", err)
+		}
+		f.runner.Done()
+	})
+
+	t.Run("OA-3_refused_key_fails_at_once", func(t *testing.T) {
+		f := newFixture(t)
+		f.runner.Expect(hd("agent", "send-keys", agent, "2"), testutil.Reply{Stderr: "agent not found", ExitCode: 1})
+		err := f.rt.Press(context.Background(), want, "2")
+		if !errors.Is(err, runtime.ErrPromptRefused) {
+			t.Fatalf("err = %v, want ErrPromptRefused", err)
+		}
+		mustContain(t, err, "key 2 to "+agent, "agent not found", pane)
+		f.runner.Done()
+		if n := len(f.runner.Calls()); n != 1 {
+			t.Errorf("herdr called %d times, want 1 (no retry)", n)
+		}
+	})
+}
+
 func TestStop(t *testing.T) {
 	t.Run("FP-7_MG-7_closes_only_the_run_pane", func(t *testing.T) {
 		f := newFixture(t)
