@@ -22,6 +22,7 @@
         "loop": {"description": "bash keeps the bash orchestrator and its shadow import; fanin lets fanind schedule the project", "enum": ["bash", "fanin"], "default": "bash"},
         "stall_after": {"description": "a run without a heartbeat for this long is stalled", "$ref": "#/$defs/duration", "default": "15m"},
         "worker_timeout": {"description": "a run without a heartbeat or result for this long is ended", "$ref": "#/$defs/duration", "default": "45m"},
+        "worker_max_wall": {"description": "a run past this since its start is handed over to a fresh run, even while it works", "$ref": "#/$defs/duration", "default": "90m"},
         "merge": {
           "type": "object",
           "additionalProperties": false,

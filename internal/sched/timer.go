@@ -27,6 +27,9 @@ const (
 // TimeoutDetail leads the detail of a run the worker_timeout timer ended (SCENARIOS WD-1).
 const TimeoutDetail = "worker timeout: no heartbeat or result for "
 
+// wallFormat is the handover reason of a run past worker_max_wall (SCENARIOS WD-5).
+const wallFormat = "wall time spent: running for %s, limit %s"
+
 // onStoreEvent applies one store event of a scheduled project.
 func (s *Scheduler) onStoreEvent(ctx context.Context, ev model.Event) error {
 	p, ok := s.project(ev.Project)
@@ -185,21 +188,40 @@ func (s *Scheduler) fire(ctx context.Context, p config.Project, t store.Timer) e
 	return s.fireTimeout(ctx, p, t, task, run, act)
 }
 
-// fireTimeout ends a run without a heartbeat or result for worker_timeout, unless it is spared (WD-1, WD-2).
+// fireTimeout ends a run without a heartbeat or result for worker_timeout, unless it is spared (WD-1, WD-2), and
+// hands a working run past worker_max_wall over (WD-5).
 func (s *Scheduler) fireTimeout(ctx context.Context, p config.Project, t store.Timer, task model.Task, run model.Run,
 	act time.Time) error {
 	limit := p.WorkerTimeout.Std()
 	now := s.d.Clock.Now()
+	wall := run.StartedAt.Add(p.WorkerMaxWall.Std())
+	walled := !wall.After(now)
 	if due := act.Add(limit); due.After(now) {
-		return s.rearm(ctx, t, due, nil)
+		if !walled {
+			return s.rearm(ctx, t, minTime(due, wall), nil)
+		}
+		reason, _, err := s.spared(ctx, p, task, run)
+		if err != nil {
+			return err
+		}
+		if reason != "" && reason != spareWorking {
+			return s.rearm(ctx, t, due, nil)
+		}
+		return s.wallOver(ctx, p, run, now)
 	}
 	log := s.logFor(p.Name, task.ID, run.ID)
 	reason, next, err := s.spared(ctx, p, task, run)
 	if err != nil {
 		return err
 	}
+	if reason == spareWorking && walled {
+		return s.wallOver(ctx, p, run, now)
+	}
 	if reason != "" {
 		log.InfoContext(ctx, "sched: worker timeout spared", "agent", run.Worker.Agent, "reason", reason)
+		if !walled {
+			next = minTime(next, wall)
+		}
 		return s.rearm(ctx, t, next, nil)
 	}
 	timers, err := s.taskTimers(ctx, task.ID)
@@ -228,6 +250,12 @@ func (s *Scheduler) fireTimeout(ctx context.Context, p config.Project, t store.T
 	log.WarnContext(ctx, "sched: worker timed out; its pane stays open", "agent", run.Worker.Agent, "after", limit)
 	s.unwatch(run.ID)
 	return nil
+}
+
+// wallOver hands run over to a fresh run because it has been running for worker_max_wall.
+func (s *Scheduler) wallOver(ctx context.Context, p config.Project, run model.Run, now time.Time) error {
+	reason := fmt.Sprintf(wallFormat, now.Sub(run.StartedAt), p.WorkerMaxWall.Std())
+	return s.handOver(ctx, p, run, reason, model.TaskPaused)
 }
 
 // spared says why the timeout leaves the run alone and when it looks again; "" ends the run. An unknown status
@@ -320,7 +348,7 @@ func (s *Scheduler) taskTimers(ctx context.Context, task model.TaskID) ([]store.
 func armTimers(ctx context.Context, tx *store.Tx, p config.Project, task model.TaskID, now time.Time,
 	kinds ...string) error {
 	for _, kind := range kinds {
-		limit := p.WorkerTimeout.Std()
+		limit := min(p.WorkerTimeout.Std(), p.WorkerMaxWall.Std())
 		switch kind {
 		case TimerStall:
 			limit = p.StallAfter.Std()

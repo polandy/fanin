@@ -65,6 +65,7 @@
     "/settings/review_timeout": "default",
     "/settings/stall_after": "default",
     "/settings/worker_kind": "default",
+    "/settings/worker_max_wall": "default",
     "/settings/worker_timeout": "default",
     "/worker_kind/default_model": "worker-kinds.yaml:5",
     "/worker_kind/models": "worker-kinds.yaml:4",
@@ -110,6 +111,7 @@
     "review_timeout": "30m0s",
     "stall_after": "15m0s",
     "worker_kind": "claude",
+    "worker_max_wall": "1h30m0s",
     "worker_timeout": "45m0s"
   },
   "worker_kind": {

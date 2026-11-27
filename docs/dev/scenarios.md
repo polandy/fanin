@@ -653,6 +653,12 @@ These scenarios cover how a hung loop is detected and killed.
 - It works when started by systemd with a bare environment.
 - Test: `watchdog.sh#7`. Mark: PARITY (fanin's unit, `deploy/systemd/fanind.service`).
 
+**WD-5**
+- Given: a run that is still working `worker_max_wall` (90 min) after its start.
+- Then: it is handed over to a fresh run with `wall time spent: …`, or its task pauses after `max_runs_per_task`
+  runs. A dialog, a held lock, an own background shell or an unknown status still spares it.
+- Source: none; the bash watchdog has no wall limit. Mark: CHANGES (C-BUDGET).
+
 ## 12. Opencode path + review
 
 These scenarios cover sandboxed opencode workers and the PR review.

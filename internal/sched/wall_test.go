@@ -174,7 +174,7 @@ func TestWorkerMaxWallFaults(t *testing.T) {
 		h.advance(50 * time.Minute)
 		h.progress(run)
 		h.advance(workerTimeout - 50*time.Minute)
-		h.sql(`DROP TABLE locks`)
+		h.sql(`DROP TABLE project_locks`)
 		h.clk.Advance(wallMax - workerTimeout)
 		h.until(h.logged(stepFailed))
 		if got := h.run(run.ID).State; got != model.RunWorking {
