@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -18,10 +20,10 @@ import (
 const statusJSON = `{"session_id":"s","context_window":{"total_input_tokens":15500,"total_output_tokens":1200,
 	"context_window_size":200000,"used_percentage":8}}`
 
-func runArgsIn(t *testing.T, env map[string]string, stdin string, args ...string) (int, string, string) {
+func runArgsIn(t *testing.T, stdin string, args ...string) (int, string, string) {
 	t.Helper()
 	var o, e bytes.Buffer
-	code := run(context.Background(), defaultRegistry, args, mapEnv(env),
+	code := run(context.Background(), defaultRegistry, args, mapEnv(map[string]string{}),
 		cli.Output{In: strings.NewReader(stdin), Out: &o, Err: &e})
 	return code, o.String(), e.String()
 }
@@ -50,14 +52,26 @@ func newUsageDaemon(t *testing.T, status int) *usageDaemon {
 	return d
 }
 
-func (d *usageDaemon) env() map[string]string {
-	return map[string]string{faninmcp.EnvURL: d.url, faninmcp.EnvRunID: "r1", faninmcp.EnvRunToken: reportToken}
+// mcpConfig writes the run's MCP config as fanind does and returns its path.
+func (d *usageDaemon) mcpConfig(t *testing.T) string {
+	t.Helper()
+	data, err := json.Marshal(faninmcp.MCPConfig{Servers: map[string]faninmcp.MCPServer{faninmcp.MCPServerName: {
+		Command: "fanin", Env: map[string]string{faninmcp.EnvURL: d.url, faninmcp.EnvRunID: "r1",
+			faninmcp.EnvRunToken: reportToken}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "mcp.json")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 // AW-14: the status line posts the context tokens and share with the run token and prints a short line.
 func TestWorkerUsagePostsTheStatus(t *testing.T) {
 	d := newUsageDaemon(t, http.StatusOK)
-	code, out, stderr := runArgsIn(t, d.env(), statusJSON, "worker-usage")
+	code, out, stderr := runArgsIn(t, statusJSON, "worker-usage", d.mcpConfig(t))
 	if code != cli.ExitOK {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
@@ -75,7 +89,7 @@ func TestWorkerUsagePostsTheStatus(t *testing.T) {
 // AW-14: before the first response there is nothing to count, and nothing is sent.
 func TestWorkerUsageEmptyStatusSendsNothing(t *testing.T) {
 	d := newUsageDaemon(t, http.StatusOK)
-	code, out, stderr := runArgsIn(t, d.env(), `{"session_id":"s"}`, "worker-usage")
+	code, out, stderr := runArgsIn(t, `{"session_id":"s"}`, "worker-usage", d.mcpConfig(t))
 	if code != cli.ExitOK || out != "fanin r1 · context 0%\n" {
 		t.Fatalf("exit %d, stdout %q, stderr %q", code, out, stderr)
 	}
@@ -84,22 +98,25 @@ func TestWorkerUsageEmptyStatusSendsNothing(t *testing.T) {
 	}
 }
 
-// AW-14: a refused post, a broken status or a missing run environment exits non-zero and prints no line.
+// AW-14: a refused post, a broken status, an unreadable MCP config or no config argument exits non-zero and prints
+// no line.
 func TestWorkerUsageFailures(t *testing.T) {
 	refused := newUsageDaemon(t, http.StatusUnauthorized)
+	cfg := refused.mcpConfig(t)
 	cases := []struct {
 		name  string
-		env   map[string]string
+		args  []string
 		stdin string
 		code  int
 	}{
-		{"daemon_refuses", refused.env(), statusJSON, cli.ExitError},
-		{"status_is_no_json", refused.env(), "nope", cli.ExitError},
-		{"no_run_environment", map[string]string{}, statusJSON, cli.ExitUsage},
+		{"daemon_refuses", []string{cfg}, statusJSON, cli.ExitError},
+		{"status_is_no_json", []string{cfg}, "nope", cli.ExitError},
+		{"mcp_config_missing", []string{filepath.Join(t.TempDir(), "none.json")}, statusJSON, cli.ExitError},
+		{"no_mcp_config_argument", nil, statusJSON, cli.ExitUsage},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			code, out, stderr := runArgsIn(t, tc.env, tc.stdin, "worker-usage")
+			code, out, stderr := runArgsIn(t, tc.stdin, append([]string{"worker-usage"}, tc.args...)...)
 			if code != tc.code || out != "" {
 				t.Errorf("exit %d, stdout %q; want exit %d and no line", code, out, tc.code)
 			}

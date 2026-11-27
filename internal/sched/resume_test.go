@@ -160,11 +160,14 @@ func readSettings(t *testing.T, path string) claudeSettings {
 		t.Fatal(err)
 	}
 	if info.Mode().Perm() != filePerm {
-		t.Errorf("settings mode = %v, want %v; it holds the run token", info.Mode().Perm(), os.FileMode(filePerm))
+		t.Errorf("settings mode = %v, want %v", info.Mode().Perm(), os.FileMode(filePerm))
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "secret") {
+		t.Errorf("AW-14: settings carry the run token, which sh would show in its argv: %s", data)
 	}
 	var s claudeSettings
 	if err := json.Unmarshal(data, &s); err != nil {
@@ -198,19 +201,18 @@ func TestFilesPrepare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got mcpConfig
+	var got faninmcp.MCPConfig
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	wantMCP := mcpConfig{Servers: map[string]mcpServer{MCPServerName: {Command: DefaultCommand,
+	wantMCP := faninmcp.MCPConfig{Servers: map[string]faninmcp.MCPServer{MCPServerName: {Command: DefaultCommand,
 		Args: []string{WorkerMCPArg},
 		Env:  map[string]string{faninmcp.EnvURL: f.DaemonURL, faninmcp.EnvRunID: "a1-run-1", faninmcp.EnvRunToken: "secret"}}}}
 	if diff := cmp.Diff(wantMCP, got); diff != "" {
 		t.Errorf("MCP config (-want +got):\n%s", diff)
 	}
 	wantSettings := claudeSettings{StatusLine: statusLine{Type: StatusLineType,
-		Command: "FANIN_URL='http://127.0.0.1:7' FANIN_RUN_ID='a1-run-1' FANIN_RUN_TOKEN='secret' 'fanin' " +
-			WorkerUsageArg}}
+		Command: "'fanin' " + WorkerUsageArg + " '" + paths.MCPConfig + "'"}}
 	if diff := cmp.Diff(wantSettings, readSettings(t, paths.Settings)); diff != "" {
 		t.Errorf("AW-14: settings (-want +got):\n%s", diff)
 	}
@@ -220,8 +222,7 @@ func TestFilesPrepare(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, want := readSettings(t, quoted.Settings).StatusLine.Command,
-		`FANIN_URL='http://h' FANIN_RUN_ID='a1-run-1' FANIN_RUN_TOKEN='secret' '/opt/it'\''s/fanin' `+
-			WorkerUsageArg; got != want {
+		`'/opt/it'\''s/fanin' `+WorkerUsageArg+" '"+quoted.MCPConfig+"'"; got != want {
 		t.Errorf("AW-14: command = %s, want %s", got, want)
 	}
 
