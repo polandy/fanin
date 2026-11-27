@@ -221,7 +221,9 @@ These scenarios cover waiting for a worker's result and nudging it when it stops
   - It says "unreadable" when no text can be read.
   - A numbered list in a normal reply is no dialog.
 - Source: `await.sh:116-126`, `loop.sh:565-571`. Test: `await.sh#26`, `loop.sh#41b`. Mark: CHANGES (C-LOOP).
-  It becomes an `owner_questions` row (`needs_owner`), shown in the UI inbox.
+  It becomes an `owner_questions` row (`needs_owner`), shown in the UI inbox, and one note to the owner. The same
+  dialog again asks nothing new; a changed dialog supersedes the open question. An unreadable dialog only notes the
+  owner (answer it in the pane).
 
 **AW-10**
 - Given: NO-STATUS with a stall mark.
@@ -599,7 +601,8 @@ These scenarios cover how the owner session learns that a worker settled.
   - An unchanged parked agent only shows as `still-parked` after 3 waits.
   - A re-park keeps the line.
 - Source: `watch-agents.sh`, `await.sh:130-144`. Test: `watch-agents.sh`, `await.sh#27`. Mark: CHANGES (C-LOOP).
-  An answer typed in the pane is detected by the adapter, and the question row is closed `answered_in_pane`.
+  An answer typed in the pane is detected by the adapter, and the question row is closed `answered in the pane`;
+  the task goes back to running. A key fanin pressed is no pane answer.
 
 **WA-4**
 - The Stop hook (`watch-agents.sh check`) refuses to end the owner's reply (exit 2) while an agent is unwatched or
@@ -787,7 +790,8 @@ These scenarios cover how owner answers reach workers and what the owner session
 **OA-1**
 - `answer.sh` on a blocked dialog: only an option number 1-9 is pressed as a key. Free text is refused, with the
   dialog's options, and nothing is sent or recorded.
-- Source: `answer.sh`. Test: `answer.sh`. Mark: CHANGES (C-LOOP): `POST /tasks/{id}/answer` validates the option.
+- Source: `answer.sh`. Test: `answer.sh`. Mark: CHANGES (C-LOOP): `POST /tasks/{id}/answer` validates the option,
+  and fanind presses it as a key in the run's pane (`herdr agent send-keys`).
 
 **OA-2**
 - A question in the transcript (the worker is idle): the answer goes in as a prompt, and
@@ -795,8 +799,8 @@ These scenarios cover how owner answers reach workers and what the owner session
 - Source: `answer.sh`. Test: `answer.sh`. Mark: PARITY (as an event).
 
 **OA-3**
-- Given: a gone agent, herdr not answering, or a failed send.
-- Then: ERROR, and nothing is recorded.
+- Given: a gone agent, an ended run, herdr not answering, or a failed send.
+- Then: ERROR, and nothing is recorded; the question stays open.
 - Test: `answer.sh`. Mark: PARITY.
 
 **OA-4**

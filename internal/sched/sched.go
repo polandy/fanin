@@ -96,6 +96,8 @@ type Deps struct {
 	// Reviewer reviews a PR head with green CI and no fanin/review status; nil leaves it to the worker's nudge
 	// (SCENARIOS OC-3, concept D5).
 	Reviewer PRReviewer
+	// Owner takes the workers' dialogs and pane answers; nil leaves a dialog to the timeout's spare (AW-9, WA-3).
+	Owner Questions
 }
 
 // Scheduler is the reactor of store events, runtime events and due timers. Only Run's goroutine touches it.
@@ -211,6 +213,9 @@ func (s *Scheduler) step(ctx context.Context) {
 	}
 	if err == nil {
 		err = s.dispatch(ctx)
+	}
+	if err == nil {
+		err = s.payOwed(ctx)
 	}
 	if err != nil {
 		s.fail(ctx, err)

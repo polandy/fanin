@@ -108,7 +108,8 @@ A restart opens the same file and reads:
 - `Ready(ctx, project)`: the queued tasks whose `After` tasks are all done. A task that is not done holds back only
   the tasks that name it (SCENARIOS CH-2). `Tx.NextTaskID` gives the next free `<project>-<n>`.
 - `ArmedTimers(ctx)` to re-arm every timer, and `DueTimers(ctx)` for those already due at the clock's now.
-- `OpenQuestions(ctx)` for the questions still waiting for the owner.
+- `OpenQuestions(ctx)` for the questions still waiting for the owner; `Tx.OpenRunQuestions(ctx, run)` for those of
+  one run, oldest first.
 - `ProjectTasks(ctx, project)`, `ProjectQuestions(ctx, project)` and `Projects(ctx)` for the per-project Markdown render
   (`docs/dev/spec/render.md`); they return every row, whatever its age or state.
 

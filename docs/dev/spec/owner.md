@@ -8,8 +8,14 @@ Direction: [concept](../concept.md), C-LOOP, migration step 4.
 
 - A question is an `owner_questions` row ([store](store.md)): the task moves to `needs_owner` in the same
   transaction, and `question_asked` is logged. `owner.Service.Ask` takes a `model.OwnerQuestion`;
-  `AskDialog` turns a worker's dialog (text and its numbered options) into one (SCENARIOS AW-9). A task already in
-  `needs_owner` keeps its state.
+  `AskDialog` turns a worker's dialog (text and its numbered options, up to `model.MaxDialogOptions` = 9) into one
+  (SCENARIOS AW-9). A task already in `needs_owner` keeps its state.
+- `AskDialog` asks once per dialog: an open question of the run with the same text and options is returned as is,
+  with no new note. Any other open question of the run is answered `superseded by a newer dialog`
+  (`owner.SupersededAnswer`) in the same transition as the new one.
+- `AnsweredInPane(run)` answers every open question of the run with `answered in the pane`
+  (`owner.AnsweredInPaneAnswer`, logged `owner answer for <run>: answered in the pane`) and moves the task back to
+  `running`; nothing is delivered (SCENARIOS WA-3). A run without an open question changes nothing.
 - Kinds: `dialog` (a worker's numbered menu; only an option number is a valid answer) and `transcript` (a
   question in the worker's output; free text too when `allow_text` is set).
 
@@ -29,8 +35,9 @@ note and logs `notified` or `notify_failed` with the project; a failed send neve
 3. Record: in one transition the question is answered (`question_answered` with `owner answer for <run>: <answer>`,
    SCENARIOS OA-2) and the task leaves `needs_owner`: to `running` when the question names a run, else `queued`.
 
-Answers are serialised, so two answers to one question cannot both be delivered. `fanind` uses
-`owner.NoDeliverer` until the scheduler delivers to workers: answers fail closed there.
+Answers and pane answers are serialised, so one question is never delivered twice. `Service.SetDeliverer` sets the
+deliverer: with a `loop: fanin` project fanind sets the scheduler's `sched.OwnerDelivery` (key press or prompt into
+the run's pane, [sched](sched.md)); without one it keeps `owner.NoDeliverer`, and answers fail closed.
 
 ## Commands
 

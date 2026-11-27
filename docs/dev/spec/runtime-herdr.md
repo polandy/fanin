@@ -40,6 +40,7 @@ A run on another host prefixes every command with `herdr --machine <host>`. Ever
 | pane text | `pane read <pane> --lines <n>` | plain text |
 | prompt | `agent prompt <agent> <text>` | exit code |
 | Enter | `agent send-keys <agent> enter` | exit code |
+| key | `agent send-keys <agent> <key>` (an owner's option number, OA-1) | exit code |
 | close | `pane close <pane>` | exit code |
 
 herdr reports `working`, `blocked`, `idle` and `done`. The adapter adds `gone` for an agent that `agent get`
@@ -76,9 +77,9 @@ Every `PollInterval` one probe runs `agent get` and `pane read <pane> --lines 20
 | `working` | the agent starts working | |
 | `idle` | herdr says `idle` or `done`, once per stop | `LastWords`, `Tail` |
 | `gone` | herdr no longer lists the agent; the channel closes, the pane is not read (AW-7) | |
-| `dialog` | herdr says `blocked`; again when the dialog text changes | `Dialog` |
+| `dialog` | herdr says `blocked`; again when the dialog text changes | `Dialog`, `Options` |
 | `stalled` | see Stalls | `Reason`, `LastWords`, `Tail` |
-| `answered_in_pane` | the agent leaves a dialog, or goes from idle to working, and fanin sent it no prompt or Enter since it began waiting (WA-3) | |
+| `answered_in_pane` | the agent leaves a dialog, or goes from idle to working, and fanin sent it no prompt, Enter or key since it began waiting (WA-3) | |
 | `unreachable` | a read stayed failed after every retry, or an Enter failed; the channel closes | `Err` |
 
 Every event carries herdr's `Status` and the clock time `At`. The channel also closes when `ctx` ends.
@@ -90,8 +91,8 @@ Every event carries herdr's `Status` and the clock time `At`. The channel also c
   answer and goes the same way.
 - **Dialogs (AW-9).** The bottom `DialogLines` (30) are searched for numbered options counted from 1, at least two,
   one of them behind claude's `❯` cursor. The question is the nearest text line above the first option.
-  `Dialog` is `<question> 1. <option> / 2. <option>`, cut to 400 runes. A blocked pane without such options is
-  `unreadable`. A numbered list in a reply has no cursor and is no dialog.
+  `Dialog` is `<question> 1. <option> / 2. <option>`, cut to 400 runes; `Options` are the labels without their
+  numbers. A blocked pane without such options is `unreadable` and has no `Options`. A numbered list in a reply has no cursor and is no dialog.
 - **Background work (AW-3).** A footer in the bottom `FooterLines` (4) that counts background tasks, agents or
   shells holds an idle agent: no `idle` is sent for up to `MaxBGWaits` (50) slices of `StallSlice`. The `idle`
   sent once the hold is over carries `BGFooter`, so the scheduler waits again (AW-11). A footer further up the

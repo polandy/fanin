@@ -39,6 +39,8 @@ func (idleWorkers) Start(context.Context, runtime.RunSpec) (runtime.RunHandle, e
 
 func (idleWorkers) Prompt(context.Context, runtime.RunHandle, string) error { return nil }
 
+func (idleWorkers) Press(context.Context, runtime.RunHandle, string) error { return nil }
+
 func (idleWorkers) Stop(context.Context, runtime.RunHandle) error { return nil }
 
 func (idleWorkers) Observe(context.Context, runtime.RunHandle) (<-chan runtime.RunEvent, error) {

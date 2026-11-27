@@ -31,6 +31,17 @@ func (h *harness) withOwner() *owner.Service {
 	return svc
 }
 
+// sendHeld is send for an event whose step fails: the retry holds the next step, so it waits only for the apply.
+func (h *harness) sendHeld(agent string, ev runtime.RunEvent) {
+	h.t.Helper()
+	n := h.s.applied.Load()
+	h.rt.mu.Lock()
+	feed := h.rt.feed(agent)
+	h.rt.mu.Unlock()
+	go func() { feed <- ev }()
+	h.until(func() bool { return h.s.applied.Load() > n })
+}
+
 func (h *harness) openQuestions() []model.OwnerQuestion {
 	h.t.Helper()
 	qs, err := h.st.OpenQuestions(h.t.Context())
@@ -96,7 +107,8 @@ func TestDialogToOwner(t *testing.T) {
 		h.start()
 		run := h.startOwner("a1")
 		h.send(run.Worker.Agent, pushDialogEvent())
-		h.restart()
+		h.stop()
+		h.restartWith(func(*fakeRuntime) { h.withOwner() })
 		h.until(func() bool { return len(h.rt.observes()) > 0 })
 		h.send(run.Worker.Agent, pushDialogEvent())
 		if qs := h.openQuestions(); len(qs) != 1 {
@@ -133,14 +145,14 @@ func TestDialogToOwner(t *testing.T) {
 		h.questions = flaky
 		h.start()
 		run := h.startOwner("a1")
-		h.send(run.Worker.Agent, pushDialogEvent())
+		h.sendHeld(run.Worker.Agent, pushDialogEvent())
 		if qs := h.openQuestions(); len(qs) != 0 || flaky.calls != 1 {
 			t.Fatalf("after a failed ask: %d questions, %d calls; want none and one call", len(qs), flaky.calls)
 		}
 		if !strings.Contains(h.logs.String(), errOwnerDown.Error()) {
 			t.Errorf("log does not name the failure:\n%s", h.logs.String())
 		}
-		h.advance(RetryAfter)
+		h.clk.Advance(RetryAfter)
 		h.until(func() bool { return len(h.openQuestions()) == 1 })
 	})
 
@@ -181,12 +193,11 @@ func TestAnsweredInPaneToOwner(t *testing.T) {
 		flaky := &flakyQuestions{Questions: svc, fails: 1}
 		h.questions = flaky
 		h.start()
-		h.send(run.Worker.Agent, runtime.RunEvent{Type: runtime.RunEventAnsweredInPane})
-		h.send(run.Worker.Agent, runtime.RunEvent{Type: runtime.RunEventWorking})
-		if qs := h.openQuestions(); len(qs) != 1 {
-			t.Fatalf("after a failed close: %d open questions, want 1", len(qs))
+		h.sendHeld(run.Worker.Agent, runtime.RunEvent{Type: runtime.RunEventAnsweredInPane})
+		if qs := h.openQuestions(); len(qs) != 1 || flaky.calls != 1 {
+			t.Fatalf("after a failed close: %d open questions, %d calls; want 1 and one call", len(qs), flaky.calls)
 		}
-		h.advance(RetryAfter)
+		h.clk.Advance(RetryAfter)
 		h.until(func() bool { return len(h.openQuestions()) == 0 })
 		if got := h.task("a1").State; got != model.TaskRunning {
 			t.Errorf("task = %s, want %s", got, model.TaskRunning)

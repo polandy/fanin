@@ -217,7 +217,7 @@ func (o *observation) idle(ctx context.Context, text string) error {
 }
 
 func (o *observation) blocked(ctx context.Context, text string) {
-	d, ok := parseDialog(text)
+	d, opts, ok := parseDialog(text)
 	if !ok {
 		d = runtime.DialogUnreadable
 	}
@@ -225,7 +225,7 @@ func (o *observation) blocked(ctx context.Context, text string) {
 		return
 	}
 	o.dialog = d
-	o.emit(ctx, runtime.RunEvent{Type: runtime.RunEventDialog, Dialog: d})
+	o.emit(ctx, runtime.RunEvent{Type: runtime.RunEventDialog, Dialog: d, Options: opts})
 }
 
 func (o *observation) emit(ctx context.Context, ev runtime.RunEvent) {

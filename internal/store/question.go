@@ -124,6 +124,16 @@ func (t *Tx) OpenTaskQuestion(ctx context.Context, task model.TaskID) (model.Own
 	return q, nil
 }
 
+// OpenRunQuestions returns the unanswered questions of a run inside the transaction, oldest first.
+func (t *Tx) OpenRunQuestions(ctx context.Context, run model.RunID) ([]model.OwnerQuestion, error) {
+	rows, err := t.tx.QueryContext(ctx, `SELECT `+questionColumns+` FROM owner_questions
+		WHERE run_id = ? AND answered_at = 0 ORDER BY asked_at, id`, string(run))
+	if err != nil {
+		return nil, fmt.Errorf("store: read open questions of run %q: %w", run, err)
+	}
+	return scanAll(rows, scanQuestion)
+}
+
 // OpenQuestions returns every unanswered owner question, oldest first.
 func (s *Store) OpenQuestions(ctx context.Context) ([]model.OwnerQuestion, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+questionColumns+` FROM owner_questions WHERE answered_at = 0

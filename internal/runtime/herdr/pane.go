@@ -92,10 +92,11 @@ func inputBox(ls []string) int {
 	return -1
 }
 
-// parseDialog returns a dialog's question and options; a numbered list without claude's ❯ cursor is no dialog.
-func parseDialog(text string) (string, bool) {
+// parseDialog returns a dialog's question line and its option labels; a numbered list without claude's ❯ cursor is
+// no dialog.
+func parseDialog(text string) (string, []string, bool) {
 	ls := bottom(lines(text), DialogLines)
-	var opts []string
+	var opts, labels []string
 	first, cursor := -1, false
 	for i, l := range ls {
 		m := optionLine.FindStringSubmatch(unframe(l))
@@ -108,15 +109,15 @@ func parseDialog(text string) (string, bool) {
 		}
 		switch {
 		case n == 1:
-			opts, first, cursor = nil, i, false
+			opts, labels, first, cursor = nil, nil, i, false
 		case n != len(opts)+1:
 			continue
 		}
 		cursor = cursor || m[1] != ""
-		opts = append(opts, m[2]+". "+m[3])
+		opts, labels = append(opts, m[2]+". "+m[3]), append(labels, m[3])
 	}
 	if !cursor || len(opts) < 2 {
-		return "", false
+		return "", nil, false
 	}
 	question := ""
 	for i := first - 1; i >= 0; i-- {
@@ -132,7 +133,7 @@ func parseDialog(text string) (string, bool) {
 	if r := []rune(d); len(r) > DialogLimit {
 		d = string(r[:DialogLimit])
 	}
-	return d, true
+	return d, labels, true
 }
 
 // liveFooter reports background work named in the bottom lines only; an old footer up the scrollback does not count.

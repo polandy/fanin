@@ -123,6 +123,8 @@ type RunEvent struct {
 	Reason StallReason
 	// Dialog is the question and its options on RunEventDialog, or DialogUnreadable.
 	Dialog string
+	// Options are the dialog's option labels in order, without their numbers; none when unreadable.
+	Options []string
 	// LastWords (input box and footer dropped) and Tail are set on RunEventIdle and RunEventStalled.
 	LastWords string
 	Tail      string
@@ -138,6 +140,8 @@ type WorkerRuntime interface {
 	Start(ctx context.Context, spec RunSpec) (RunHandle, error)
 	// Prompt sends text to a started agent; a refused prompt is an error at once.
 	Prompt(ctx context.Context, h RunHandle, text string) error
+	// Press sends one key, such as a dialog option's number, to a started agent; a refused key is an error at once.
+	Press(ctx context.Context, h RunHandle, key string) error
 	// Observe streams the agent's events until ctx ends.
 	Observe(ctx context.Context, h RunHandle) (<-chan RunEvent, error)
 	// Stop closes the run's own pane and nothing beside it.
