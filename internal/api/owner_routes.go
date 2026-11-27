@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -21,6 +22,13 @@ const (
 	detailPaused        = "paused before the next worker"
 	detailAlreadyPaused = "already paused"
 	detailResumed       = "resumed"
+	detailCancelled     = "cancelled"
+)
+
+// The body shapes a bodyError names.
+const (
+	shapeAnswer = `{"answer": "<option number or text>"}`
+	shapeCancel = `{"reason": "<text>"} or no body`
 )
 
 func init() { RegisterBuiltin(registerOwner) }
@@ -48,6 +56,7 @@ func registerOwner(r *Registry) {
 	cmd("POST /api/v1/tasks/{id}/go", func(s *Server, r *http.Request) (wire.Ack, error) {
 		return wire.Ack{Detail: detailGo}, s.cfg.Owner.Go(r.Context(), model.TaskID(r.PathValue("id")))
 	})
+	cmd("POST /api/v1/tasks/{id}/cancel", cancel)
 	cmd("POST /api/v1/holds/{id}/lift", func(s *Server, r *http.Request) (wire.Ack, error) {
 		return wire.Ack{Detail: detailLifted}, s.cfg.Owner.LiftHold(r.Context(), r.PathValue("id"))
 	})
@@ -99,7 +108,7 @@ func (s *Server) project(r *http.Request) (string, error) {
 func answer(s *Server, r *http.Request) (wire.Ack, error) {
 	var req wire.AnswerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return wire.Ack{}, &bodyError{err: err}
+		return wire.Ack{}, &bodyError{shape: shapeAnswer, err: err}
 	}
 	d, err := s.cfg.Owner.Answer(r.Context(), model.TaskID(r.PathValue("id")), req.Answer)
 	if err != nil {
@@ -111,11 +120,24 @@ func answer(s *Server, r *http.Request) (wire.Ack, error) {
 	return wire.Ack{Detail: d.Text}, nil
 }
 
+// cancel ends a task for good; the body with its reason may be left out (SCENARIOS OA-8).
+func cancel(s *Server, r *http.Request) (wire.Ack, error) {
+	var req wire.CancelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		return wire.Ack{}, &bodyError{shape: shapeCancel, err: err}
+	}
+	return wire.Ack{Detail: detailCancelled}, s.cfg.Owner.Cancel(r.Context(), model.TaskID(r.PathValue("id")),
+		req.Reason)
+}
+
 // bodyError is a request body that is no JSON of the expected shape.
-type bodyError struct{ err error }
+type bodyError struct {
+	shape string
+	err   error
+}
 
 func (e *bodyError) Error() string {
-	return fmt.Sprintf("the body is no JSON {\"answer\": \"<option number or text>\"}: %v", e.err)
+	return fmt.Sprintf("the body is no JSON %s: %v", e.shape, e.err)
 }
 
 func (e *bodyError) Unwrap() error { return e.err }
@@ -129,13 +151,14 @@ func writeOwnerError(s *Server, w http.ResponseWriter, r *http.Request, err erro
 	switch {
 	case errors.As(err, &tooLarge):
 		WriteError(w, http.StatusRequestEntityTooLarge, wire.CodeTooLarge,
-			fmt.Sprintf("the body is over %d bytes; send a shorter answer", MaxBodyBytes))
+			fmt.Sprintf("the body is over %d bytes; send a shorter body", MaxBodyBytes))
 	case errors.As(err, &badBody), errors.Is(err, owner.ErrInvalidAnswer), errors.Is(err, store.ErrInvalid),
 		errors.Is(err, model.ErrInvalidQuestion):
 		WriteError(w, http.StatusBadRequest, wire.CodeBadRequest, err.Error())
 	case errors.Is(err, store.ErrNotFound), errors.Is(err, errUnknownProject):
 		WriteError(w, http.StatusNotFound, wire.CodeNotFound, err.Error())
-	case errors.Is(err, owner.ErrNotReady), errors.Is(err, model.ErrTransition):
+	case errors.Is(err, owner.ErrNotReady), errors.Is(err, owner.ErrNotCancellable),
+		errors.Is(err, model.ErrTransition):
 		WriteError(w, http.StatusConflict, wire.CodeConflict, err.Error())
 	case errors.Is(err, owner.ErrDelivery):
 		WriteError(w, http.StatusBadGateway, wire.CodeDeliveryFailed, err.Error())

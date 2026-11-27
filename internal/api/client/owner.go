@@ -24,6 +24,13 @@ func (c *Client) Go(ctx context.Context, task string) (wire.Ack, error) {
 	return c.command(ctx, "/api/v1/tasks/"+url.PathEscape(task)+"/go")
 }
 
+// Cancel calls POST /api/v1/tasks/{id}/cancel with the owner's reason.
+func (c *Client) Cancel(ctx context.Context, task, reason string) (wire.Ack, error) {
+	var ack wire.Ack
+	err := c.Post(ctx, "/api/v1/tasks/"+url.PathEscape(task)+"/cancel", wire.CancelRequest{Reason: reason}, &ack)
+	return ack, err
+}
+
 // LiftHold calls POST /api/v1/holds/{id}/lift.
 func (c *Client) LiftHold(ctx context.Context, id string) (wire.Ack, error) {
 	return c.command(ctx, "/api/v1/holds/"+url.PathEscape(id)+"/lift")

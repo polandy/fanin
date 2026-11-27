@@ -196,6 +196,9 @@ func (s *Scheduler) gateRead(ctx context.Context, p config.Project, run model.Ru
 		s.post(ctx, func(ctx context.Context) {
 			again := s.busy[run.TaskID] == turnAgain
 			delete(s.busy, run.TaskID)
+			if ctx.Err() != nil || s.gone(ctx, run.TaskID) {
+				return
+			}
 			if err == nil {
 				err = s.gated(ctx, p, run, task, pr, step, files, filesErr)
 			}

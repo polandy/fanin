@@ -102,10 +102,22 @@ func (s *Store) Question(ctx context.Context, id string) (model.OwnerQuestion, e
 	return q, nil
 }
 
+// openTaskQuestion selects the newest open question of a task.
+const openTaskQuestion = `SELECT ` + questionColumns + ` FROM owner_questions
+	WHERE task_id = ? AND answered_at = 0 ORDER BY asked_at DESC, id DESC LIMIT 1`
+
 // OpenTaskQuestion reads the newest open question of a task; none is ErrNotFound.
 func (s *Store) OpenTaskQuestion(ctx context.Context, task model.TaskID) (model.OwnerQuestion, error) {
-	q, err := scanQuestion(s.db.QueryRowContext(ctx, `SELECT `+questionColumns+` FROM owner_questions
-		WHERE task_id = ? AND answered_at = 0 ORDER BY asked_at DESC, id DESC LIMIT 1`, string(task)))
+	q, err := scanQuestion(s.db.QueryRowContext(ctx, openTaskQuestion, string(task)))
+	if err != nil {
+		return model.OwnerQuestion{}, notFound(err, "open question of task", string(task))
+	}
+	return q, nil
+}
+
+// OpenTaskQuestion reads the newest open question of a task inside the transaction; none is ErrNotFound.
+func (t *Tx) OpenTaskQuestion(ctx context.Context, task model.TaskID) (model.OwnerQuestion, error) {
+	q, err := scanQuestion(t.tx.QueryRowContext(ctx, openTaskQuestion, string(task)))
 	if err != nil {
 		return model.OwnerQuestion{}, notFound(err, "open question of task", string(task))
 	}

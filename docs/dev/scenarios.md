@@ -824,6 +824,16 @@ These scenarios cover how owner answers reach workers and what the owner session
   chars, and logged with `--project`.
 - Source: `signal.sh`. Test: `signal.sh`. Mark: PARITY (the push channel links to `/#/task/<id>`).
 
+**OA-8**
+- `fanin task cancel <task> [--reason <text>]` (owner token, `POST /api/v1/tasks/{id}/cancel`) ends a stale task
+  for good: a queued task leaves the queue; a running, gating or needs_owner task has its open run canceled, its
+  slot and merge lock freed and its worker's pane closed, so the next queued task spawns. Nothing is merged and
+  nothing is written to the forge; the PR stays as it is. Its open question closes, and one `task_cancelled`
+  event with the reason (or `cancelled by the owner`) goes to the log and the board.
+- A done, merged (`post_merge`) or already canceled task is refused with 409 and nothing is logged; an unknown
+  task is 404, a missing token 401. A go that waits for the lock when the cancel lands drops its merge.
+- Source: —. Test: —. Mark: CHANGES (a task merged outside fanind blocked its slot in `gating`).
+
 ## 17. Failure paths
 
 These scenarios cover herdr, gh and ssh errors and the scripts' strictness.

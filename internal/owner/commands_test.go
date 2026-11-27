@@ -102,3 +102,106 @@ func TestPause(t *testing.T) {
 		}
 	})
 }
+
+func TestCancel(t *testing.T) {
+	const reason = "merged outside fanind"
+	to := func(states ...model.TaskState) func(ctx context.Context, tx *store.Tx) error {
+		return func(ctx context.Context, tx *store.Tx) error {
+			for _, s := range states {
+				if err := tx.SetTaskState(ctx, taskID, s, ""); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+	for _, tc := range []struct {
+		name  string
+		setup func(ctx context.Context, tx *store.Tx) error
+	}{
+		{"OA-8_a_running_task_ends_with_its_run", to()},
+		{"OA-8_a_gating_task_ends_with_its_run", to(model.TaskGating)},
+		{"OA-8_a_needs_owner_task_ends_with_its_run", to(model.TaskNeedsOwner)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t)
+			if err := e.st.Transition(context.Background(), tc.setup); err != nil {
+				t.Fatal(err)
+			}
+			if err := e.svc.Cancel(context.Background(), taskID, reason); err != nil {
+				t.Fatal(err)
+			}
+			if got := e.state(t); got != model.TaskCanceled {
+				t.Errorf("task state = %s, want %s", got, model.TaskCanceled)
+			}
+			run, err := e.st.Run(context.Background(), runID)
+			if err != nil || run.State != model.RunCanceled {
+				t.Errorf("run = %v %v, want %s", run.State, err, model.RunCanceled)
+			}
+			if d := cmp.Diff([]string{reason}, e.events(t, model.EventTaskCancelled)); d != "" {
+				t.Errorf("task_cancelled events (-want +got):\n%s", d)
+			}
+		})
+	}
+	t.Run("OA-8_a_queued_task_leaves_the_queue_with_the_default_reason", func(t *testing.T) {
+		e := newEnv(t)
+		if err := e.st.Transition(context.Background(), func(ctx context.Context, tx *store.Tx) error {
+			return tx.CreateTask(ctx, model.Task{ID: "t2", Project: proj, Title: "next", Shape: model.ShapePR})
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := e.svc.Cancel(context.Background(), "t2", " "); err != nil {
+			t.Fatal(err)
+		}
+		ready, err := e.st.Ready(context.Background(), proj)
+		if err != nil || len(ready) != 0 {
+			t.Errorf("ready = %v %v, want none", ready, err)
+		}
+		evs, err := e.st.Events(context.Background(), "t2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		last := evs[len(evs)-1]
+		if last.Type != model.EventTaskCancelled || last.Detail != DefaultCancelReason {
+			t.Errorf("last event = %s %q, want %s %q", last.Type, last.Detail, model.EventTaskCancelled,
+				DefaultCancelReason)
+		}
+	})
+	t.Run("OA-8_the_open_question_of_a_cancelled_task_closes", func(t *testing.T) {
+		e := newEnv(t)
+		e.ask(t, model.QuestionDialog, false)
+		if err := e.svc.Cancel(context.Background(), taskID, reason); err != nil {
+			t.Fatal(err)
+		}
+		if qs, err := e.st.OpenQuestions(context.Background()); err != nil || len(qs) != 0 {
+			t.Errorf("open questions = %v %v, want none", qs, err)
+		}
+	})
+	for _, tc := range []struct {
+		name   string
+		states []model.TaskState
+	}{
+		{"OA-8_a_done_task_cannot_be_cancelled", []model.TaskState{model.TaskGating, model.TaskDone}},
+		{"OA-8_a_merged_task_in_post_merge_cannot_be_cancelled", []model.TaskState{model.TaskGating, model.TaskPostMerge}},
+		{"OA-8_a_cancelled_task_cannot_be_cancelled_again", []model.TaskState{model.TaskCanceled}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t)
+			if err := e.st.Transition(context.Background(), to(tc.states...)); err != nil {
+				t.Fatal(err)
+			}
+			if err := e.svc.Cancel(context.Background(), taskID, reason); !errors.Is(err, ErrNotCancellable) {
+				t.Errorf("Cancel = %v, want ErrNotCancellable", err)
+			}
+			if got := e.events(t, model.EventTaskCancelled); len(got) != 0 {
+				t.Errorf("task_cancelled events %v, want none", got)
+			}
+		})
+	}
+	t.Run("OA-8_cancel_of_an_unknown_task", func(t *testing.T) {
+		e := newEnv(t)
+		if err := e.svc.Cancel(context.Background(), "nope", reason); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("Cancel = %v, want ErrNotFound", err)
+		}
+	})
+}

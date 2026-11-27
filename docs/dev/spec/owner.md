@@ -37,6 +37,7 @@ Answers are serialised, so two answers to one question cannot both be delivered.
 | Call | Effect |
 |---|---|
 | `Go(task)` | the task must be in `gating`, else `ErrNotReady`; logs `owner_go` (SCENARIOS OA-6) |
+| `Cancel(task, reason)` | ends an open task `canceled`: its open run is `canceled`, its open questions are answered with the cancel, and `task_cancelled` with the reason (default `DefaultCancelReason`) is logged last. A `done`, `post_merge` or `canceled` task is `ErrNotCancellable`. The scheduler then closes the worker's pane, frees a merge lock the task left and drops a go still waiting for the lock (SCENARIOS OA-8) |
 | `LiftHold(id)` | lifts an active hold (SCENARIOS MG-4) |
 | `Pause(project)` | sets the one-shot pause flag; the scheduler's `Tx.ConsumePause` stops before the next worker and clears it (SCENARIOS FP-2, CH-3). Returns false when already set |
 | `Resume(project)` | clears the flag |

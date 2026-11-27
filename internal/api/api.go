@@ -86,6 +86,7 @@ type Owner interface {
 	LiftHold(ctx context.Context, id string) error
 	Pause(ctx context.Context, project string) (bool, error)
 	Resume(ctx context.Context, project string) error
+	Cancel(ctx context.Context, task model.TaskID, reason string) error
 }
 
 // Server is the state the route handlers share.

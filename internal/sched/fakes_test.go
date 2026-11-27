@@ -24,8 +24,9 @@ type fakeRuntime struct {
 	// prompts are the texts sent per agent; stopped are the stopped agents.
 	prompts map[string][]string
 	stopped []string
-	// block makes Start wait for its ctx.
+	// block makes Start wait for its ctx; hold, when set, makes Start wait until it is closed.
 	block bool
+	hold  chan struct{}
 	feeds map[string]chan runtime.RunEvent
 }
 
@@ -36,8 +37,11 @@ func newFakeRuntime() *fakeRuntime {
 func (f *fakeRuntime) Start(ctx context.Context, spec runtime.RunSpec) (runtime.RunHandle, error) {
 	f.mu.Lock()
 	f.specs = append(f.specs, spec)
-	block := f.block
+	block, hold := f.block, f.hold
 	f.mu.Unlock()
+	if hold != nil {
+		<-hold
+	}
 	if block {
 		<-ctx.Done()
 		return runtime.RunHandle{}, ctx.Err()

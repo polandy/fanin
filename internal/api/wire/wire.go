@@ -246,6 +246,11 @@ type AnswerRequest struct {
 	Answer string `json:"answer"`
 }
 
+// CancelRequest is the optional body of POST /api/v1/tasks/{id}/cancel; an empty reason is the default one.
+type CancelRequest struct {
+	Reason string `json:"reason,omitempty"`
+}
+
 // Ack is the answer of an owner command; Detail says what it did.
 type Ack struct {
 	Status string `json:"status"`
