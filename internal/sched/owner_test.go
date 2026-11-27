@@ -183,6 +183,22 @@ func TestAnsweredInPaneToOwner(t *testing.T) {
 		}
 	})
 
+	t.Run("WA-3_FP-3_a_result_before_the_pane_answer_closes_the_question", func(t *testing.T) {
+		h := newHarness(t, testConfig())
+		h.withOwner()
+		h.start()
+		run := h.startAnalysis("a1")
+		h.send(run.Worker.Agent, pushDialogEvent())
+		h.report(run, model.Result{Kind: model.ResultNothing, Text: textNoTodo})
+		h.until(h.stopped(run.Worker.Agent))
+		if qs := h.openQuestions(); len(qs) != 0 {
+			t.Errorf("open questions = %+v, want none", qs)
+		}
+		if got := h.task("a1").State; got != model.TaskDone {
+			t.Errorf("task = %s, want %s", got, model.TaskDone)
+		}
+	})
+
 	t.Run("WA-3_a_failed_close_is_retried", func(t *testing.T) {
 		h := newHarness(t, testConfig())
 		svc := h.withOwner()
