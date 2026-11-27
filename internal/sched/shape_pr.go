@@ -276,7 +276,7 @@ func (s *Scheduler) redPR(ctx context.Context, p config.Project, run model.Run, 
 			return s.toOwner(ctx, p, run, model.TaskPaused, fmt.Sprintf("%s; review nudges spent: %d of %d", paused,
 				cur.Budget.ReviewNudges, ReviewNudges))
 		}
-		return s.nudgeRed(ctx, p, cur, prompt.NudgeReview, why, "", func(b *model.Budget) { b.ReviewNudges++ })
+		return s.nudgeRed(ctx, p, cur, prompt.NudgeReview, why, nil, func(b *model.Budget) { b.ReviewNudges++ })
 	case gate.CauseConflict, gate.CauseCI:
 	default:
 		return s.blockAnalysis(ctx, p, run, why)
@@ -304,9 +304,9 @@ func (s *Scheduler) redPR(ctx context.Context, p config.Project, run model.Run, 
 		}
 		return s.handOver(ctx, p, cur, reason, model.TaskPaused)
 	}
-	logTail := ""
-	if name == prompt.NudgeFix {
-		logTail = s.failLog(ctx, p, run, pr)
+	var logTail logReader
+	if name == prompt.NudgeFix && s.d.FailLog != nil {
+		logTail = func(ctx context.Context) string { return s.failLog(ctx, p, run, pr) }
 	}
 	return s.nudgeRed(ctx, p, cur, name, why, logTail, func(b *model.Budget) { b.FixRounds++ })
 }
@@ -314,9 +314,6 @@ func (s *Scheduler) redPR(ctx context.Context, p config.Project, run model.Run, 
 // failLog reads the failed CI step's log for the fix nudge; an unreadable log is warned about and left out, as the
 // nudge still names the failed checks.
 func (s *Scheduler) failLog(ctx context.Context, p config.Project, run model.Run, pr int) string {
-	if s.d.FailLog == nil {
-		return ""
-	}
 	tail, err := s.d.FailLog.FailedLog(ctx, p, pr)
 	if err != nil {
 		s.logFor(p.Name, run.TaskID, run.ID).WarnContext(ctx, "sched: failed step log unreadable; nudging without it",
@@ -327,7 +324,7 @@ func (s *Scheduler) failLog(ctx context.Context, p config.Project, run model.Run
 }
 
 // nudgeRed sends the run back to work and nudges it with the gate's reasons.
-func (s *Scheduler) nudgeRed(ctx context.Context, p config.Project, run model.Run, name prompt.Name, why, failLog string,
+func (s *Scheduler) nudgeRed(ctx context.Context, p config.Project, run model.Run, name prompt.Name, why string, failLog logReader,
 	count func(*model.Budget)) error {
 	if err := s.backToWork(ctx, p, run, why); err != nil {
 		return err

@@ -173,17 +173,20 @@ func (s *Scheduler) afterScan(ctx context.Context, p config.Project, h runtime.R
 	return s.toOwner(ctx, p, run, model.TaskNeedsOwner, detail)
 }
 
+// logReader reads a log tail for a nudge off the loop's goroutine; "" leaves the log out.
+type logReader func(ctx context.Context) string
+
 // nudge counts the nudge with count, records worker_nudged and sends the text in the background; a nudge that
 // cannot be delivered fails the run at once (AW-13).
 func (s *Scheduler) nudge(ctx context.Context, p config.Project, run model.Run, name prompt.Name,
 	count func(*model.Budget)) error {
-	return s.nudgeWith(ctx, p, run, name, "", "", count)
+	return s.nudgeWith(ctx, p, run, name, "", nil, count)
 }
 
 // nudgeWith is nudge with hint filled into the template.
-func (s *Scheduler) nudgeWith(ctx context.Context, p config.Project, run model.Run, name prompt.Name, hint, failLog string,
+func (s *Scheduler) nudgeWith(ctx context.Context, p config.Project, run model.Run, name prompt.Name, hint string, failLog logReader,
 	count func(*model.Budget)) error {
-	text, err := prompt.Render(name, prompt.Vars{Repo: p.Path, Base: p.Base, Hint: hint, Log: failLog})
+	text, err := prompt.Render(name, prompt.Vars{Repo: p.Path, Base: p.Base, Hint: hint})
 	if err != nil {
 		return fmt.Errorf("sched: nudge run %s: %w", run.ID, err)
 	}
@@ -209,6 +212,13 @@ func (s *Scheduler) nudgeWith(ctx context.Context, p config.Project, run model.R
 	log.InfoContext(ctx, "sched: nudging", "agent", run.Worker.Agent, "nudge", string(name))
 	h := handle(p.Name, run)
 	safego.Go(ctx, log, func(ctx context.Context) {
+		if failLog != nil {
+			if tail := failLog(ctx); tail != "" {
+				if withLog, rerr := prompt.Render(name, prompt.Vars{Repo: p.Path, Base: p.Base, Hint: hint, Log: tail}); rerr == nil {
+					text = withLog
+				}
+			}
+		}
 		err := s.d.Runtime.Prompt(ctx, h, text)
 		s.post(ctx, func(ctx context.Context) {
 			if err != nil && ctx.Err() == nil {

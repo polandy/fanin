@@ -343,7 +343,7 @@ func (s *Scheduler) regateRed(ctx context.Context, j mergeJob, res gate.Result) 
 	}
 	s.goAgain[j.run.TaskID] = true
 	j.run.State = model.RunWorking
-	return s.nudgeWith(ctx, j.p, j.run, prompt.NudgeRegate, j.ref()+" "+res.String(), "", nil)
+	return s.nudgeWith(ctx, j.p, j.run, prompt.NudgeRegate, j.ref()+" "+res.String(), nil, nil)
 }
 
 // mergeDone ends the merged run and task with detail, closes the pane and cleans up after the merge (SCENARIOS
