@@ -13,13 +13,15 @@ import (
 	"github.com/polandy/fanin/internal/runtime/testutil"
 )
 
+const keyRollup = "statusCheckRollup"
+
 var _ forge.BranchChecks = (*github.Client)(nil)
 
 // branchDoc is the GraphQL answer for the head of main with the given rollup nodes; nil nodes is no rollup.
 func branchDoc(more bool, nodes ...any) map[string]any {
-	target := map[string]any{"statusCheckRollup": nil}
+	target := map[string]any{keyRollup: nil}
 	if nodes != nil {
-		target["statusCheckRollup"] = map[string]any{"contexts": map[string]any{
+		target[keyRollup] = map[string]any{"contexts": map[string]any{
 			"pageInfo": map[string]any{"hasNextPage": more}, "nodes": nodes}}
 	}
 	return map[string]any{"data": map[string]any{"repository": map[string]any{"ref": map[string]any{
@@ -91,9 +93,9 @@ var _ forge.CommitChecks = (*github.Client)(nil)
 
 // commitDoc is the GraphQL answer for one commit with the given rollup nodes; nil nodes is no rollup.
 func commitDoc(nodes ...any) map[string]any {
-	object := map[string]any{"statusCheckRollup": nil}
+	object := map[string]any{keyRollup: nil}
 	if nodes != nil {
-		object["statusCheckRollup"] = map[string]any{"contexts": map[string]any{
+		object[keyRollup] = map[string]any{"contexts": map[string]any{
 			"pageInfo": map[string]any{"hasNextPage": false}, "nodes": nodes}}
 	}
 	return map[string]any{"data": map[string]any{"repository": map[string]any{"object": object}}}

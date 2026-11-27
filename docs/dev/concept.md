@@ -88,7 +88,8 @@ fanin does not run merges itself. It combines existing building blocks and stays
 - The review skill defaults to `/pr-review` and is configurable per project (another skill or command, another
   model or worker kind).
 - A review counts only for the head it reviewed. A new push needs a new review; an unreadable review is an
-  error, never a verdict.
+  error, never a verdict. One exception: a head that only merges the base into a ready head, without conflicts,
+  carries that head's review; CI still gates it ([ADR-0002](adr/0002-carry-review-over-base-merge.md)).
 - The review run: [`spec/review.md`](spec/review.md). The gate verdicts and the wait policy:
   [`spec/gate.md`](spec/gate.md).
 

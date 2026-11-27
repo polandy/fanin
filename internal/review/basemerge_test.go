@@ -17,8 +17,8 @@ const mergeTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 var (
 	mergeParents   = testutil.Reply{Stdout: headSHA + " " + parentSHA + " " + baseSHA + "\n"}
-	fetchBaseArgv  = []string{gitBin, "-C", repoDir, "fetch", "-q", "origin", "main"}
-	ancestorArgv   = []string{gitBin, "-C", repoDir, "merge-base", "--is-ancestor", baseSHA, "origin/main"}
+	fetchBaseArgv  = []string{gitBin, "-C", repoDir, gitFetch, "-q", gitRemote, baseBranch}
+	ancestorArgv   = []string{gitBin, "-C", repoDir, "merge-base", "--is-ancestor", baseSHA, gitRemote + "/" + baseBranch}
 	mergeTreeArgv  = []string{gitBin, "-C", repoDir, "merge-tree", "--write-tree", parentSHA, baseSHA}
 	headTreeArgv   = []string{gitBin, "-C", repoDir, "rev-parse", headSHA + "^{tree}"}
 	cleanMergeTree = testutil.Reply{Stdout: mergeTree + "\n"}

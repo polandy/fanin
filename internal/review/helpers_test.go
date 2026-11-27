@@ -39,20 +39,23 @@ const (
 
 const (
 	gitBin        = "git"
+	gitFetch      = "fetch"
+	gitRemote     = "origin"
+	baseBranch    = "main"
 	flagModel     = "--model"
 	reviewSkill   = "/pr-review"
 	reviewTimeout = 1800 * time.Second
 )
 
 var (
-	worktree   = repoDir + "/.claude/worktrees/fanin-review-42"
-	fetchArgv  = []string{gitBin, "-C", repoDir, "fetch", "-q", "origin", headBranch}
+	worktree  = repoDir + "/.claude/worktrees/fanin-review-42"
+	fetchArgv = []string{gitBin, "-C", repoDir, gitFetch, "-q", gitRemote, headBranch}
 	// parentsArgv answers ownCommit for a head with own changes, which every review runs on.
 	parentsArgv = []string{gitBin, "-C", repoDir, "rev-list", "--parents", "-n", "1", headSHA}
 	ownCommit   = testutil.Reply{Stdout: headSHA + " " + parentSHA + "\n"}
-	addArgv    = []string{gitBin, "-C", repoDir, "worktree", "add", "-q", "--detach", worktree, headSHA}
-	removeArgv = []string{gitBin, "-C", repoDir, "worktree", "remove", "--force", worktree}
-	claudeArgv = []string{"claude", "-p", "--output-format", "json", flagModel, reviewModel, "--allowedTools",
+	addArgv     = []string{gitBin, "-C", repoDir, "worktree", "add", "-q", "--detach", worktree, headSHA}
+	removeArgv  = []string{gitBin, "-C", repoDir, "worktree", "remove", "--force", worktree}
+	claudeArgv  = []string{"claude", "-p", "--output-format", "json", flagModel, reviewModel, "--allowedTools",
 		strings.Join(review.AllowedTools, ",")}
 	start = time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
 )
@@ -80,7 +83,7 @@ func newForge(comments ...[]forge.Comment) *fakeForge {
 	return &fakeForge{
 		pr: forge.PR{
 			Repo: repo, Number: number, Title: "feat: add the widget", State: forge.StateOpen,
-			Mergeable: forge.MergeableYes, HeadBranch: headBranch, HeadSHA: headSHA, BaseBranch: "main",
+			Mergeable: forge.MergeableYes, HeadBranch: headBranch, HeadSHA: headSHA, BaseBranch: baseBranch,
 		},
 		comments: comments,
 	}

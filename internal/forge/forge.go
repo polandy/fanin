@@ -214,3 +214,9 @@ type FailLogs interface {
 	// redacted; ErrNotFound when no run on sha failed.
 	FailedLog(ctx context.Context, repo, sha string, max int) (string, error)
 }
+
+// CommitChecks reads the checks on one commit, such as the review of a PR head the branch has moved past (see
+// SCENARIOS OC-3).
+type CommitChecks interface {
+	CommitChecks(ctx context.Context, repo, sha string) ([]Check, error)
+}

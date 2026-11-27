@@ -41,11 +41,11 @@ func TestReview(t *testing.T) {
 		}
 		rr.Done()
 		calls := rr.Calls()
-		claude := calls[2]
+		claude := calls[3]
 		if claude.Dir != worktree {
 			t.Errorf("claude runs in %q, want the worktree %q", claude.Dir, worktree)
 		}
-		for _, c := range []runtime.Cmd{calls[1], claude} {
+		for _, c := range []runtime.Cmd{calls[2], claude} {
 			if diff := cmp.Diff([]string{review.LFSSkipEnv}, c.Env); diff != "" {
 				t.Errorf("%q env (-want +got):\n%s", c.Argv, diff)
 			}
