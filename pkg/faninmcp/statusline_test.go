@@ -22,6 +22,8 @@ func TestParseStatusLine(t *testing.T) {
 		{"AW-14_null_share_is_computed_from_the_input", `{"context_window":{"total_input_tokens":150000,
 			"total_output_tokens":10,"context_window_size":200000,"used_percentage":null,"current_usage":null}}`,
 			Usage{InputTokens: 150000, OutputTokens: 10, ContextPct: 75}},
+		{"AW-14_share_over_the_window_is_capped", `{"context_window":{"total_input_tokens":250000,
+			"context_window_size":200000}}`, Usage{InputTokens: 250000, ContextPct: 100}},
 		{"AW-14_before_the_first_response_is_empty", `{"session_id":"s"}`, Usage{}},
 	}
 	for _, tc := range cases {
