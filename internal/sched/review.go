@@ -44,7 +44,7 @@ func (s *Scheduler) review(ctx context.Context, p config.Project, run model.Run,
 		head, err := s.d.Reviewer.Review(ctx, p, run, pr)
 		s.post(ctx, func(ctx context.Context) {
 			delete(s.reviewing, run.TaskID)
-			if ctx.Err() != nil {
+			if ctx.Err() != nil || s.gone(ctx, run.TaskID) {
 				return
 			}
 			due := s.d.Clock.Now()

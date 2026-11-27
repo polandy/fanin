@@ -52,6 +52,7 @@ none of the existing ones.
 | `POST /api/v1/tasks` | body `wire.TaskRequest`; 201 `wire.Task`. 400 for a request that breaks an intake rule, 404 unknown project, 409 task ID exists, see [intake](intake.md) |
 | `POST /api/v1/tasks/{id}/answer` | body `{"answer": "2"}`; `wire.Ack`. 400 with the options, 404 no open question, 502 `delivery_failed` |
 | `POST /api/v1/tasks/{id}/go` | `wire.Ack`; 409 `conflict` when the task is not in `gating` |
+| `POST /api/v1/tasks/{id}/cancel` | optional body `wire.CancelRequest` (`reason`); `wire.Ack`; 409 `conflict` when the task is done, merged or canceled, 404 when unknown, 400 on a body that is no JSON (SCENARIOS OA-8) |
 | `POST /api/v1/holds/{id}/lift` | `wire.Ack`; 404 for no active hold |
 | `POST /api/v1/projects/{p}/pause`, `/resume` | `wire.Ack`; 404 for a project outside the config |
 | `POST /api/v1/runs/{id}/report`, `/progress` | run token; `wire.Ack`, see [worker contract](worker-contract.md) |
@@ -83,6 +84,6 @@ body, out)` for the typed calls other strands add. Owner calls: `Answer`, `Go`, 
 `internal/api/api_test.go` (httptest, real SQLite): POST without a token 401 and with it 200; a webhook-shaped call
 refused; a route registered from its own function; the snapshot golden file (`go test ./internal/api -update`);
 SSE after a store write, waiting on a channel; resume by cursor; keep-alive from the manual clock. `owner_routes_test.go`: every owner route through the client with a fake
-`Deliverer`, its failure codes, and `wait` with a cursor, a cancel and a bad parameter. `webhook_routes_test.go`:
+`Deliverer`, its failure codes (cancel: done, unknown, no token, bad body), and `wait` with a cursor, a cancel and a bad parameter. `webhook_routes_test.go`:
 a bad signature 401 with nothing queued, no token needed, a signed call on a command endpoint refused, and each
 outcome's and error's status.

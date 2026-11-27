@@ -91,6 +91,9 @@ func (s *Scheduler) checkHead(ctx context.Context, p config.Project, run model.R
 	safego.Go(ctx, log, func(ctx context.Context) {
 		head, err := r.PR(ctx, target.Repo, target.Number)
 		s.post(ctx, func(ctx context.Context) {
+			if ctx.Err() != nil || s.gone(ctx, run.TaskID) {
+				return
+			}
 			if err == nil {
 				err = s.headRead(ctx, p, run, pr, head)
 			} else {
@@ -205,7 +208,7 @@ func (s *Scheduler) ready(ctx context.Context, p config.Project, run model.Run, 
 		out, err := s.d.PreGo.Run(ctx, req)
 		s.post(ctx, func(ctx context.Context) {
 			delete(s.checking, run.TaskID)
-			if ctx.Err() != nil {
+			if ctx.Err() != nil || s.gone(ctx, run.TaskID) {
 				return
 			}
 			switch {

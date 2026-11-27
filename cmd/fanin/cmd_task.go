@@ -23,19 +23,20 @@ const (
 	taskAdd    = "add"
 	taskList   = "list"
 	taskImport = "import"
+	taskCancel = "cancel"
 )
 
 func init() {
 	register(Command{
 		Name:    "task",
-		Summary: "queue and list tasks: task add|list|import (--project, --task or --analyze, --after, <chain file>)",
+		Summary: "queue, list and cancel tasks: task add|list|import|cancel (--project, --task or --analyze, --reason)",
 		Run:     runTask,
 	})
 }
 
 func runTask(ctx context.Context, g Globals, out cli.Output, args []string) error {
 	if len(args) == 0 {
-		return cli.Usagef("task needs an action: fanin task %s|%s|%s", taskAdd, taskList, taskImport)
+		return cli.Usagef("task needs an action: fanin task %s|%s|%s|%s", taskAdd, taskList, taskImport, taskCancel)
 	}
 	switch args[0] {
 	case taskAdd:
@@ -44,8 +45,39 @@ func runTask(ctx context.Context, g Globals, out cli.Output, args []string) erro
 		return runTaskList(ctx, g, out, args[1:])
 	case taskImport:
 		return runTaskImport(ctx, g, out, args[1:])
+	case taskCancel:
+		return runTaskCancel(ctx, g, out, args[1:])
 	}
-	return cli.Usagef("unknown task action %q; use %s, %s or %s", args[0], taskAdd, taskList, taskImport)
+	return cli.Usagef("unknown task action %q; use %s, %s, %s or %s", args[0], taskAdd, taskList, taskImport,
+		taskCancel)
+}
+
+// runTaskCancel ends a task for good with the owner's token (SCENARIOS OA-8).
+func runTaskCancel(ctx context.Context, g Globals, out cli.Output, args []string) error {
+	const usage = "task cancel needs exactly one task: fanin task cancel <task> [--reason TEXT]"
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return cli.Usagef(usage)
+	}
+	id := args[0]
+	fs := flag.NewFlagSet("task "+taskCancel, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	reason := fs.String("reason", "", "why the task ends")
+	if err := parseTaskFlags(fs, args[1:]); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return cli.Usagef(usage)
+	}
+	c, err := daemonClient(g, "task cancel")
+	if err != nil {
+		return err
+	}
+	ack, err := c.Cancel(ctx, id, *reason)
+	if err != nil {
+		return fmt.Errorf("task cancel %s: %w", id, err)
+	}
+	out.Println(id + ": " + ack.Detail)
+	return nil
 }
 
 func taskFlags(name string) (*flag.FlagSet, *string) {

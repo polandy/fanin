@@ -36,6 +36,8 @@ var (
 	ErrDelivery = errors.New("owner: delivery failed")
 	// ErrNotReady is a go on a task that is not waiting for one.
 	ErrNotReady = errors.New("owner: task not ready")
+	// ErrNotCancellable is a cancel of a task that is done, merged or already canceled.
+	ErrNotCancellable = errors.New("owner: task cannot be cancelled")
 	// ErrNoDeliverer is returned by NoDeliverer.
 	ErrNoDeliverer = errors.New("owner: no deliverer")
 )

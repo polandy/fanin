@@ -30,7 +30,8 @@ type watch struct {
 // SpawnFailedDetail leads the detail of a run whose worker did not start.
 const SpawnFailedDetail = "spawn failed "
 
-// started records the live worker and arms its timers, or fails the run; a stop by ctx changes nothing.
+// started records the live worker and arms its timers, or fails the run; the pane of a run cancelled meanwhile
+// is closed, and a stop by ctx changes nothing.
 func (s *Scheduler) started(ctx context.Context, p config.Project, run model.Run, h runtime.RunHandle, err error) {
 	if ctx.Err() != nil {
 		return
@@ -41,12 +42,13 @@ func (s *Scheduler) started(ctx context.Context, p config.Project, run model.Run
 	}
 	run.Worker = model.Worker{Host: run.Worker.Host, Agent: h.Agent, Workspace: h.Workspace, Tab: h.Tab, Pane: h.Pane}
 	now := s.d.Clock.Now()
-	live := false
+	live, cancelled := false, false
 	err = s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
 		cur, err := tx.Run(ctx, run.ID)
 		if err != nil {
 			return err
 		}
+		cancelled = cur.State == model.RunCanceled
 		if err := tx.SetRunWorker(ctx, run.ID, run.Worker); err != nil || cur.State != model.RunStarting {
 			return err
 		}
@@ -66,14 +68,20 @@ func (s *Scheduler) started(ctx context.Context, p config.Project, run model.Run
 	if live {
 		s.watch(ctx, p.Name, run)
 	}
+	if cancelled {
+		s.closePane(ctx, p, run)
+	}
 }
 
-// spawnFailed ends the run and its task failed (SCENARIOS SP-8).
+// spawnFailed ends the run and its task failed (SCENARIOS SP-8); a run that already ended, as by a cancel, stays.
 func (s *Scheduler) spawnFailed(ctx context.Context, p config.Project, run model.Run, cause error) {
 	detail := fmt.Sprintf("%s%s: %v", SpawnFailedDetail, run.Worker.Agent, cause)
 	s.logFor(p.Name, run.TaskID, run.ID).ErrorContext(ctx, "sched: spawn failed", "agent", run.Worker.Agent,
 		"err", cause)
 	err := s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
+		if cur, err := tx.Run(ctx, run.ID); err != nil || cur.State.Terminal() {
+			return err
+		}
 		if err := tx.SetRunState(ctx, run.ID, model.RunFailed, detail); err != nil {
 			return err
 		}

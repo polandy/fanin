@@ -73,8 +73,11 @@ fanin task add --project alpha --task "fix the build" --model opus   # queue an 
 fanin task add --project alpha --analyze "why is CI slow?"           # queue an owner question
 fanin task list --project alpha  # open tasks, with their `after` dependencies
 fanin task import batch.chain --project alpha                        # queue a chain file
+fanin task cancel t1 --reason "merged outside fanind"                # end a stale task for good
 ```
 
+- `task cancel` ends a queued, running, gating or blocked task: its worker's pane closes and its slot goes to
+  the next task. It merges nothing and leaves the PR as it is. A done or merged task is refused.
 - `answer` refuses free text on a numbered dialog and lists the options; nothing reaches the worker then. When
   the answer cannot be delivered, nothing is recorded and the question stays open.
 - `task add` takes `--task` or `--analyze`, never both, plus `--model`, `--worker` and `--after <id>` (repeatable). An

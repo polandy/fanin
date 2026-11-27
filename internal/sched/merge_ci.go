@@ -122,3 +122,26 @@ func (s *Scheduler) liveRuns(ctx context.Context, j mergeJob) ([]model.Run, erro
 	}
 	return out, nil
 }
+
+// mergeHeld records a merge a hold pauses; held is false when nothing holds it or the holds are unreadable.
+func (s *Scheduler) mergeHeld(ctx context.Context, j mergeJob) (mergeEnd, bool) {
+	h, ok, err := s.d.Store.MergeHold(ctx, j.p.Name, j.run.TaskID)
+	if err != nil {
+		return mergeEnd{err: fmt.Errorf("read the holds of %s: %w", j.p.Name, err)}, true
+	}
+	if !ok {
+		return mergeEnd{}, false
+	}
+	detail := fmt.Sprintf("%s%s%s(%s hold %s: %s) (worker %s still open)", PausedDetail, j.ref(), MergeHeldNote,
+		h.Kind, h.ID, h.Reason, j.run.Worker.Agent)
+	err = s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
+		_, err := tx.AppendEvent(ctx, model.Event{Type: model.EventMergeHeld, Project: j.p.Name,
+			TaskID: j.run.TaskID, RunID: j.run.ID, Detail: detail})
+		return err
+	})
+	if err != nil {
+		return mergeEnd{err: fmt.Errorf("record the held merge of %s: %w", j.run.TaskID, err)}, true
+	}
+	s.logFor(j.p.Name, j.run.TaskID, j.run.ID).InfoContext(ctx, "sched: "+detail)
+	return mergeEnd{held: true}, true
+}

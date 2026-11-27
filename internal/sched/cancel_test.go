@@ -1,7 +1,6 @@
 package sched
 
 import (
-	"context"
 	"log/slog"
 	"slices"
 	"strings"
@@ -112,6 +111,56 @@ func TestCancel(t *testing.T) {
 			t.Fatal(err)
 		}
 		r.cancelTask("a1")
+		r.until(func() bool {
+			locks, err := r.st.Locks(t.Context())
+			return err == nil && len(locks) == 0
+		})
+	})
+
+	t.Run("OA-8_a_pane_of_a_cancelled_task_that_cannot_close_is_logged", func(t *testing.T) {
+		h := newHarness(t, testConfig())
+		h.rt.stopErr = errPaneGone
+		h.start()
+		h.startOwner("a1")
+		h.cancelTask("a1")
+		h.until(h.logged(closeByHnd))
+		if got := h.task("a1").State; got != model.TaskCanceled {
+			t.Errorf("task state = %s, want %s", got, model.TaskCanceled)
+		}
+	})
+
+	t.Run("OA-8_a_spawn_that_fails_after_the_cancel_leaves_the_run_canceled", func(t *testing.T) {
+		h := newHarness(t, testConfig())
+		hold := make(chan struct{})
+		h.rt.hold, h.rt.startErr = hold, errPaneGone
+		h.start()
+		h.addTask(ownerTask("a1"))
+		h.until(h.startedAgent(AgentName("a1", 1)))
+		h.cancelTask("a1")
+		close(hold)
+		h.until(h.logged("spawn failed"))
+		h.quiet()
+		if got := h.run(RunID("a1", 1)).State; got != model.RunCanceled {
+			t.Errorf("run state = %s, want %s", got, model.RunCanceled)
+		}
+		if strings.Contains(h.logs.String(), stepFailed) {
+			t.Errorf("logs = %q, want no failed step", h.logs.String())
+		}
+	})
+
+	t.Run("OA-8_an_unreleasable_lock_of_a_cancelled_task_is_retried", func(t *testing.T) {
+		r := newMergeRig(t, mergeConfig())
+		r.start()
+		r.ready("a1", prNumber)
+		if err := r.st.AcquireLock(t.Context(), store.LockRequest{Project: projAlpha, Holder: "a1",
+			Lease: lockLease}); err != nil {
+			t.Fatal(err)
+		}
+		r.fault("project_locks", "DELETE")
+		r.cancelTask("a1")
+		r.until(r.logged(stepFailed))
+		r.clearFault("project_locks", "DELETE")
+		r.advance(RetryAfter)
 		r.until(func() bool {
 			locks, err := r.st.Locks(t.Context())
 			return err == nil && len(locks) == 0

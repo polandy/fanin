@@ -268,6 +268,17 @@ held, no new worker` and stays queued. The fix task's own merge skips the base c
 merge; the project's other live workers get the `nudge-ci-fixed` nudge, and a nudge that fails is named in the
 merged detail. An unreadable base CI goes to the owner; without `Deps.BaseCI` nothing is read.
 
+## Cancel (OA-8)
+
+The owner's cancel ends the task and its open run `canceled` in one transaction and logs `task_cancelled` last
+(see [owner](owner.md)). On that event the loop drops the task's held merge, standing go and review head, closes
+the pane of its latest run (`Runtime.Stop`; a failure logs that it must be closed by hand) and releases a merge lock
+the task still holds, unless a merge of it is in flight. The slot is free at once, because `load` skips terminal
+tasks. A merge that takes the lock after the cancel finds the task out of `gating`, logs `MergeDroppedLog` and
+merges nothing. A gate read, review, pre-go check or merge that ends after the cancel records nothing; a merge
+error is still logged. A worker that starts after its run was cancelled has its pane closed and is not watched;
+one whose start fails leaves the run `canceled`.
+
 ## Restart (SP-10, SP-11)
 
 `Run` first resumes every non-ended latest run of a scheduled project:

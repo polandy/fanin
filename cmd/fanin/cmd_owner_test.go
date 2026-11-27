@@ -176,7 +176,7 @@ func TestGoHoldPauseCommands(t *testing.T) {
 func TestTaskCancelCommand(t *testing.T) {
 	t.Run("OA-8_cancel_ends_the_task_with_the_reason", func(t *testing.T) {
 		st, _, url := startOwnerDaemon(t)
-		code, out, errOut := ownerRun(t, url, "task", "cancel", "a1", "--reason", "merged outside fanind")
+		code, out, errOut := ownerRun(t, url, argTask, taskCancel, "a1", "--reason", "merged outside fanind")
 		if code != cli.ExitOK || !strings.HasPrefix(out, "a1: ") {
 			t.Fatalf("exit %d, stdout %q, stderr %q", code, out, errOut)
 		}
@@ -187,14 +187,14 @@ func TestTaskCancelCommand(t *testing.T) {
 	})
 	t.Run("OA-8_cancel_of_an_unknown_task_fails", func(t *testing.T) {
 		_, _, url := startOwnerDaemon(t)
-		if code, _, errOut := ownerRun(t, url, "task", "cancel", "nope"); code != cli.ExitError ||
+		if code, _, errOut := ownerRun(t, url, argTask, taskCancel, "nope"); code != cli.ExitError ||
 			!strings.Contains(errOut, "nope") {
 			t.Errorf("exit %d, stderr %q; want 1 naming the task", code, errOut)
 		}
 	})
 	t.Run("OA-8_usage_errors", func(t *testing.T) {
-		for _, args := range [][]string{{"task", "cancel"}, {"task", "cancel", "--reason", "x"},
-			{"task", "cancel", "a1", "a2"}, {"task", "cancel", "a1", "--why", "x"}} {
+		for _, args := range [][]string{{argTask, taskCancel}, {argTask, taskCancel, "--reason", "x"},
+			{argTask, taskCancel, "a1", "a2"}, {argTask, taskCancel, "a1", "--why", "x"}} {
 			if code, _, _ := runArgs(t, defaultRegistry, nil, args...); code != cli.ExitUsage {
 				t.Errorf("%v: exit %d, want %d", args, code, cli.ExitUsage)
 			}

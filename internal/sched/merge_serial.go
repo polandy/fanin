@@ -183,6 +183,9 @@ func (s *Scheduler) mergeOnce(ctx context.Context, j mergeJob) mergeEnd {
 
 // mergeLocked is the part of a merge that runs under the lock.
 func (s *Scheduler) mergeLocked(ctx context.Context, j mergeJob, regate bool) mergeEnd {
+	if end, stop := s.mergeDropped(ctx, j); stop {
+		return end
+	}
 	if end, held := s.mergeHeld(ctx, j); held {
 		return end
 	}
@@ -204,29 +207,6 @@ func (s *Scheduler) mergeLocked(ctx context.Context, j mergeJob, regate bool) me
 		return mergeEnd{owner: fmt.Sprintf("%s%s: merge failed: %v", MergeErrorDetail, j.ref(), err)}
 	}
 	return s.afterMerge(ctx, j, fixFor)
-}
-
-// mergeHeld records a merge a hold pauses; held is false when nothing holds it or the holds are unreadable.
-func (s *Scheduler) mergeHeld(ctx context.Context, j mergeJob) (mergeEnd, bool) {
-	h, ok, err := s.d.Store.MergeHold(ctx, j.p.Name, j.run.TaskID)
-	if err != nil {
-		return mergeEnd{err: fmt.Errorf("read the holds of %s: %w", j.p.Name, err)}, true
-	}
-	if !ok {
-		return mergeEnd{}, false
-	}
-	detail := fmt.Sprintf("%s%s%s(%s hold %s: %s) (worker %s still open)", PausedDetail, j.ref(), MergeHeldNote,
-		h.Kind, h.ID, h.Reason, j.run.Worker.Agent)
-	err = s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
-		_, err := tx.AppendEvent(ctx, model.Event{Type: model.EventMergeHeld, Project: j.p.Name,
-			TaskID: j.run.TaskID, RunID: j.run.ID, Detail: detail})
-		return err
-	})
-	if err != nil {
-		return mergeEnd{err: fmt.Errorf("record the held merge of %s: %w", j.run.TaskID, err)}, true
-	}
-	s.logFor(j.p.Name, j.run.TaskID, j.run.ID).InfoContext(ctx, "sched: "+detail)
-	return mergeEnd{held: true}, true
 }
 
 // regate reads the gate once more after another task's merge; only a green gate merges (SCENARIOS MG-2).
@@ -314,7 +294,7 @@ func (s *Scheduler) renewLock(ctx context.Context, j mergeJob, req store.LockReq
 // mergeEnded applies a merge attempt on the loop.
 func (s *Scheduler) mergeEnded(ctx context.Context, j mergeJob, end mergeEnd) {
 	delete(s.merging, j.run.TaskID)
-	if ctx.Err() != nil {
+	if ctx.Err() != nil || end.err == nil && s.gone(ctx, j.run.TaskID) {
 		return
 	}
 	var err error

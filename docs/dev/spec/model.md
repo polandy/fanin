@@ -94,8 +94,8 @@ The bash statuses become `ResultKind` values; each kind requires one field (`Res
   run around a run, not after a merge.
 - **Owner questions** (`needs_owner`): a question that stands on its own, 2 to 4 options with distinct labels,
   and the index of the recommended option (`OwnerQuestion.Validate`). Its `Kind` is `dialog` or `transcript`;
-  only a transcript question may allow free text. Owner commands log `owner_go`, `project_paused`,
-  `project_resumed` and `pause_consumed`, see [owner](owner.md). The push channel logs `notified` and
+  only a transcript question may allow free text. Owner commands log `owner_go`, `task_cancelled`,
+  `project_paused`, `project_resumed` and `pause_consumed`, see [owner](owner.md). The push channel logs `notified` and
   `notify_failed`, see [notify](notify.md).
 
 ## Rules

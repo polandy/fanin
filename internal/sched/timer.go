@@ -54,6 +54,8 @@ func (s *Scheduler) onStoreEvent(ctx context.Context, ev model.Event) error {
 		return s.startMerge(ctx, p, ev.TaskID, false)
 	case model.EventHoldLifted:
 		return s.retryHeld(ctx, ev.Project)
+	case model.EventTaskCancelled:
+		return s.cancelled(ctx, p, ev.TaskID)
 	}
 	return nil
 }
