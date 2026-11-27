@@ -40,7 +40,7 @@ func (h *harness) events(id model.TaskID, typ model.EventType) []string {
 func TestDispatch(t *testing.T) {
 	t.Run("PK-3_picker_nothing_ends_idle_and_starts_no_worker", func(t *testing.T) {
 		h := newHarness(t, testConfig())
-		h.pk.res = pick.Result{Idle: true, Reason: "no open todo"}
+		h.pk.res = pick.Result{Idle: true, Reason: textNoTodo}
 		h.start()
 		h.addTask(model.Task{ID: "a1", Title: titleLoop})
 		h.until(h.taskIn("a1", model.TaskDone))
@@ -62,7 +62,7 @@ func TestDispatch(t *testing.T) {
 			res  pick.Result
 			done func(h *harness) func() bool
 		}{
-			{"idle", pick.Result{Idle: true, Reason: "no open todo", Usage: usage},
+			{"idle", pick.Result{Idle: true, Reason: textNoTodo, Usage: usage},
 				func(h *harness) func() bool { return h.taskIn("a1", model.TaskDone) }},
 			{"pick", pick.Result{Task: "x", Model: pick.ModelSonnet, Usage: usage},
 				func(h *harness) func() bool { return h.runIn(RunID("a1", 1), model.RunWorking) }},
@@ -83,7 +83,7 @@ func TestDispatch(t *testing.T) {
 
 	t.Run("PK-8_no_usage_records_no_event", func(t *testing.T) {
 		h := newHarness(t, testConfig())
-		h.pk.res = pick.Result{Idle: true, Reason: "no open todo"}
+		h.pk.res = pick.Result{Idle: true, Reason: textNoTodo}
 		h.start()
 		h.addTask(model.Task{ID: "a1", Title: titleLoop})
 		h.until(h.taskIn("a1", model.TaskDone))
