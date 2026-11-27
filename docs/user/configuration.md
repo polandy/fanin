@@ -124,6 +124,7 @@ Settings, in a project file or under `defaults`:
 | `loop` | `bash` \| `fanin` | `bash` | `fanin` lets `fanind` start the workers, gate their PRs and nudge them; local projects only for now |
 | `stall_after` | duration | `15m` | no heartbeat for this long is a stall |
 | `worker_timeout` | duration | `45m` | no heartbeat or result for this long ends the run |
+| `worker_max_wall` | duration | `90m` | a run this long past its start hands over to a fresh run, even while it works; once `budgets.max_runs_per_task` runs are used, the task pauses |
 | `budgets.fix_rounds_per_run` | integer ≥ 0 | `2` | fix rounds one run may take; one more rolls over to a fresh run |
 | `budgets.rollover_pct` | 1–100 | `75` | context use that rolls over to a fresh run |
 | `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | tokens that roll over to a fresh run |

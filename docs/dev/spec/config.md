@@ -109,6 +109,7 @@ Settings, in a project file or under `defaults`:
 | `loop` | `bash` \| `fanin` | `bash` | who drives the workers: the bash orchestrator or `fanind` ([sched](sched.md)) |
 | `stall_after` | duration | `15m` | no heartbeat for this long is a stall (AW-4) |
 | `worker_timeout` | duration | `45m` | no heartbeat or result for this long ends the run (WD-1) |
+| `worker_max_wall` | duration | `90m` | a working run this long past its start hands over to a fresh run (WD-5) |
 | `budgets.fix_rounds_per_run` | integer ≥ 0 | `2` | C-BUDGET |
 | `budgets.rollover_pct` | 1–100 | `75` | context use that rolls over to a fresh run |
 | `budgets.max_tokens_per_run` | integer ≥ 1 | `3000000` | |
