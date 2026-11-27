@@ -199,6 +199,27 @@ func TestAnsweredInPaneToOwner(t *testing.T) {
 		}
 	})
 
+	t.Run("WA-3_FP-3_a_failed_close_on_a_result_is_retried", func(t *testing.T) {
+		h := newHarness(t, testConfig())
+		svc := h.withOwner()
+		h.start()
+		run := h.startAnalysis("a1")
+		h.send(run.Worker.Agent, pushDialogEvent())
+		h.stop()
+		h.questions = &flakyQuestions{Questions: svc, fails: 1}
+		h.start()
+		h.report(run, model.Result{Kind: model.ResultNothing, Text: textNoTodo})
+		h.until(h.logged(errOwnerDown.Error()))
+		if got := h.task("a1").State; got != model.TaskNeedsOwner {
+			t.Fatalf("task = %s, want %s after the failed close", got, model.TaskNeedsOwner)
+		}
+		h.clk.Advance(RetryAfter)
+		h.until(h.stopped(run.Worker.Agent))
+		if got := h.task("a1").State; got != model.TaskDone {
+			t.Errorf("task = %s, want %s", got, model.TaskDone)
+		}
+	})
+
 	t.Run("WA-3_a_failed_close_is_retried", func(t *testing.T) {
 		h := newHarness(t, testConfig())
 		svc := h.withOwner()
