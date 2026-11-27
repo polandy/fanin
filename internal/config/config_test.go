@@ -162,7 +162,8 @@ func TestLoad(t *testing.T) {
 			t.Errorf("budgets (-want +got):\n%s", diff)
 		}
 		if beta.Base != "main" || beta.OCMerge != OCMergeAuto || beta.Loop != LoopBash || beta.StallAfter != Duration(15*time.Minute) ||
-			beta.WorkerTimeout != Duration(45*time.Minute) || beta.ReviewSkill != "/team-review" {
+			beta.WorkerTimeout != Duration(45*time.Minute) || beta.WorkerMaxWall != Duration(90*time.Minute) ||
+			beta.ReviewSkill != "/team-review" {
 			t.Errorf("beta defaults = %+v", beta)
 		}
 		gh := GitHubGate{WatchTimeout: Duration(30 * time.Minute), Settle: Duration(20 * time.Second), MaxWaits: 12,

@@ -108,7 +108,7 @@ their ids, and the board of the web UI shows them with a Lift button. Fix the ca
 
 A worker that stalls gets one nudge; at the next stall fanin ends the run and starts a fresh one. The fresh
 run's prompt carries a handover: state, open items, branch, last errors and the pane tail. A spent budget
-(`budgets` in the config) does the same. A worker that stops without a result is waited for while a background
+(`budgets` in the config) does the same, and so does a run still working `worker_max_wall` after its start. A worker that stops without a result is waited for while a background
 shell runs, then nudged to continue, then to push. After that its task is needs-owner, with the unpushed commits
 and the last words in the detail; its pane stays open. Once a task has used `budgets.max_runs_per_task` runs, a
 spent budget pauses it and a second stall sets it needs-owner.

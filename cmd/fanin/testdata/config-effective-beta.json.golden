@@ -67,6 +67,7 @@
     "/settings/review_timeout": "default",
     "/settings/stall_after": "default",
     "/settings/worker_kind": "projects/beta.yaml:4",
+    "/settings/worker_max_wall": "default",
     "/settings/worker_timeout": "default",
     "/worker_kind/runtime": "worker-kinds.yaml:7"
   },
@@ -108,6 +109,7 @@
     "review_timeout": "30m0s",
     "stall_after": "15m0s",
     "worker_kind": "opencode",
+    "worker_max_wall": "1h30m0s",
     "worker_timeout": "45m0s"
   },
   "worker_kind": {

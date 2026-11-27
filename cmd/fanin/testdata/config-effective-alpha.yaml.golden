@@ -30,6 +30,7 @@ settings:
     lock_lease: 10m0s # default
   stall_after: 15m0s # default
   worker_timeout: 45m0s # default
+  worker_max_wall: 1h30m0s # default
   gate:
     github:
       watch_timeout: 30m0s # default

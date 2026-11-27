@@ -161,6 +161,7 @@ type Project struct {
 	Merge         Merge    `yaml:"merge"`
 	StallAfter    Duration `yaml:"stall_after"`
 	WorkerTimeout Duration `yaml:"worker_timeout"`
+	WorkerMaxWall Duration `yaml:"worker_max_wall"`
 	Gate          Gate     `yaml:"gate"`
 	OCMerge       string   `yaml:"oc_merge"`
 	Loop          string   `yaml:"loop"`

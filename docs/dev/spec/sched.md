@@ -2,7 +2,7 @@
 
 Status: implemented in `internal/sched` and wired into `cmd/fanind` for every project with `loop: fanin`.
 Direction: [concept](../concept.md) D1, C-LOOP, C-SLOTS and C-BUDGET. Scenarios: PK-3 to PK-6, SP-8, SP-10, SP-11,
-LN-1 to LN-6, WD-1 to WD-3, FP-3, FP-6, AW-10 to AW-13, GH-11, GH-12, MG-1 to MG-5, MG-8.
+LN-1 to LN-6, WD-1 to WD-3, WD-5, FP-3, FP-6, AW-10 to AW-13, GH-11, GH-12, MG-1 to MG-5, MG-8.
 
 `fanind` is the event loop. The owner session only answers. The bash orchestrator keeps every project with
 `loop: bash` (the default), and `fanind --shadow` keeps importing the bash state of those projects only.
@@ -68,7 +68,7 @@ forge that is not GitHub or of a shape other than PR (SP-9). An opencode spec ca
 project's base. A started worker that cannot be
 recorded is logged as having unknown status and keeps its slot: no second worker is started.
 
-## Timers (WD-1, WD-2, WD-3, FP-6)
+## Timers (WD-1, WD-2, WD-3, WD-5, FP-6)
 
 The timers are store rows armed on the injected clock, so they survive a restart. The newest sign of work is the
 run's start, a `progress` event, or a runtime `working` event.
@@ -86,6 +86,11 @@ run's start, a `progress` event, or a runtime `working` event.
   - the worker's own background-shell footer has been there for less than `BGFooterMax` (180 min);
   - the worker's status is unknown: no event yet, the runtime is unreachable, or the stream ended without the
     agent being gone. An unknown state never ends a run.
+- **`worker_max_wall` (WD-5)**: the `worker_timeout` timer looks again at `worker_max_wall` after the run's start
+  at the latest. A run past it whose worker is working, or that shows a sign of work while no other spare holds,
+  is handed over ([handover](handover.md)) with `wall time spent: running for <d>, limit <max>`, or its task is
+  paused once it has used `max_runs_per_task` runs. A dialog, a held lock, an own background shell or an unknown
+  status still spares it; a run without a sign of work for `worker_timeout` still times out.
 - **When a result arrives**: on `result_reported` the run moves to reported and both timers are disarmed. The
   slot stays held until the task leaves running.
 

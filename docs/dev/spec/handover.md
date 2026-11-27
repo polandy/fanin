@@ -1,7 +1,7 @@
 # Handover spec
 
 Status: implemented in `internal/prompt` (`Handover.Markdown`) and `internal/sched` (`handOver`).
-Direction: [concept](../concept.md) C-BUDGET. Scenarios: AW-10, the C-BUDGET row.
+Direction: [concept](../concept.md) C-BUDGET. Scenarios: AW-10, WD-5, the C-BUDGET row.
 
 A run that has spent a budget is not nudged on and on. The scheduler ends it `rolled_over` and starts a fresh run
 of the same task. The fresh run's prompt is the task's worker prompt with the same hint, followed by the handover
@@ -14,6 +14,7 @@ document below.
 | `total_tokens >= max_tokens_per_run` | `token budget spent: <n> of <limit> tokens` | `paused` |
 | `context_pct >= rollover_pct` | `context <n>% full, roll-over at <limit>%` | `paused` |
 | `fix_rounds > fix_rounds_per_run` | `fix budget spent: fix round <n> of <limit>` | `paused` |
+| a working run past `worker_max_wall` (WD-5) | `wall time spent: running for <d>, limit <max>` | `paused` |
 | a second stall after the stall nudge (AW-10) | `no progress for <stall_after> after the stall nudge; tail: <last words>` | `needs_owner` |
 
 The budgets are read from `token_usage` events, which `Tx.SetRunBudget` appends when a Claude worker's status line
