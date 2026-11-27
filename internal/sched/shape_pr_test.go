@@ -318,6 +318,39 @@ func (f *fakeFailLog) FailedLog(_ context.Context, _ config.Project, pr int) (st
 	return f.log, f.err
 }
 
+// fakeReviewText answers every read with text or err.
+type fakeReviewText struct {
+	text string
+	err  error
+}
+
+func (f *fakeReviewText) ReviewText(context.Context, config.Project, int) (string, error) {
+	return f.text, f.err
+}
+
+func TestPRRedReviewText(t *testing.T) {
+	const body = "## PR quality review - internal/x.go:3 lacks a test."
+	t.Run("GH-10_the_review_nudge_carries_the_review_text_without_a_doubled_not_ready", func(t *testing.T) {
+		r := prRig(t, mergeConfig(), reviewRedPR())
+		r.reviewText = &fakeReviewText{text: body}
+		r.start()
+		text := r.redRound(r.startPR("a1", ""), 1)
+		if !strings.Contains(text, body) || strings.Contains(text, "not ready: #42") || strings.Contains(text, "not ready: ") {
+			t.Errorf("review nudge = %q, want the review text and no doubled not ready", text)
+		}
+	})
+
+	t.Run("GH-10_an_unreadable_review_nudges_with_the_gate_reasons", func(t *testing.T) {
+		r := prRig(t, mergeConfig(), reviewRedPR())
+		r.reviewText = &fakeReviewText{err: errors.New("gh down")}
+		r.start()
+		text := r.redRound(r.startPR("a1", ""), 1)
+		if !strings.Contains(text, "review: not ready: "+reviewNote) || strings.Contains(text, "gh down") {
+			t.Errorf("review nudge = %q, want the gate reasons without the read error", text)
+		}
+	})
+}
+
 func TestPRRedFailLog(t *testing.T) {
 	const failed = "--- FAIL: TestX"
 	t.Run("GH-9_the_fix_nudge_carries_the_failed_step_log", func(t *testing.T) {
