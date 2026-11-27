@@ -11,6 +11,7 @@ import (
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/pick"
 	"github.com/polandy/fanin/internal/runtime"
+	"github.com/polandy/fanin/internal/runtime/headless"
 	"github.com/polandy/fanin/internal/store"
 )
 
@@ -112,6 +113,21 @@ func TestStoreFaults(t *testing.T) {
 		h.until(h.logged("end task a1"))
 		if got := h.task("a1").State; got != model.TaskQueued {
 			t.Errorf("task = %s, want queued", got)
+		}
+	})
+
+	t.Run("PK-8_unwritable_events_keep_the_task_queued_and_start_no_worker", func(t *testing.T) {
+		h := newHarness(t, testConfig())
+		h.pk.res = pick.Result{Task: "x", Model: pick.ModelSonnet, Usage: headless.Usage{Input: 1}}
+		h.start()
+		h.addTask(model.Task{ID: "a1", Title: titleLoop})
+		h.fault("events", "INSERT")
+		h.until(h.logged(stepFailed))
+		if got := h.task("a1").State; got != model.TaskQueued {
+			t.Errorf("task = %s, want queued", got)
+		}
+		if n := len(h.rt.starts()); n != 0 {
+			t.Errorf("starts = %d, want none", n)
 		}
 	})
 

@@ -85,6 +85,12 @@ These scenarios cover how the next task is chosen and with which model.
 - Then: usage error before any spawn.
 - Source: `loop.sh:37-79`. Test: `loop.sh#9`. Mark: PARITY (CLI validation).
 
+**PK-8**
+- Given: a pick that cost tokens, whether it ends in a pick or `NOTHING`.
+- Then: the task gets a `token_usage` event `pick: N tokens (…)` with counts only. A pick without usage (a failed
+  one) records no event. The picker model stays the kind's choice (`haiku` is a valid `picker.model`).
+- Source: `loop.sh`. Test: `PK-8`. Mark: CHANGES (C-BUDGET): the bash loop did not count the picker.
+
 ## 2. Spawn
 
 These scenarios cover starting a worker and handing it its prompt.
