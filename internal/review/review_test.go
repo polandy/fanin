@@ -50,7 +50,8 @@ func TestReview(t *testing.T) {
 			}
 		}
 		prompt := string(claude.Stdin)
-		for _, want := range []string{"/pr-review 42", headSHA, "review only"} {
+		for _, want := range []string{"/pr-review 42", headSHA, "review only", "skip the fix step", "do not run make ci",
+			"skip the CI status and branch freshness sections"} {
 			if !strings.Contains(prompt, want) {
 				t.Errorf("prompt lacks %q:\n%s", want, prompt)
 			}
