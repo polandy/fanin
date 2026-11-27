@@ -31,9 +31,16 @@ func (s *Scheduler) reviewable(id model.TaskID, res gate.Result) bool {
 		s.reviewed[id] != res.Head
 }
 
-// review runs fanin's review in the background, outside the worker slots, one per task at a time. A posted
-// verdict gates the PR again at once, a failed run after gate.RetryInterval.
-func (s *Scheduler) review(ctx context.Context, p config.Project, run model.Run, pr int) error {
+// reviewFails counts the failed review runs on one head of a task.
+type reviewFails struct {
+	head string
+	n    int
+}
+
+// review runs fanin's review of head in the background, outside the worker slots, one per task at a time. A
+// posted verdict gates the PR again at once, a failed run after gate.RetryInterval; the ReviewAttempts-th failed
+// run on one head asks the owner.
+func (s *Scheduler) review(ctx context.Context, p config.Project, run model.Run, pr int, head string) error {
 	if s.reviewing[run.TaskID] {
 		return nil
 	}
@@ -45,26 +52,46 @@ func (s *Scheduler) review(ctx context.Context, p config.Project, run model.Run,
 	log := s.logFor(p.Name, run.TaskID, run.ID)
 	log.InfoContext(ctx, "sched: fanin review started", "pr", pr)
 	safego.Go(ctx, log, func(ctx context.Context) {
-		head, err := s.d.Reviewer.Review(ctx, p, run, pr)
+		posted, err := s.d.Reviewer.Review(ctx, p, run, pr)
 		s.post(ctx, func(ctx context.Context) {
 			delete(s.reviewing, run.TaskID)
 			if ctx.Err() != nil || s.gone(ctx, run.TaskID) {
 				return
 			}
-			due := s.d.Clock.Now()
 			if err != nil {
-				log.ErrorContext(ctx, ReviewFailed, "pr", pr, "err", err)
-				due = due.Add(gate.RetryInterval)
+				err = s.reviewFailed(ctx, p, run, pr, head, err)
 			} else {
-				s.reviewed[run.TaskID] = head
-				log.InfoContext(ctx, "sched: fanin review posted", "pr", pr, "head", head)
+				delete(s.reviewFails, run.TaskID)
+				s.reviewed[run.TaskID] = posted
+				log.InfoContext(ctx, "sched: fanin review posted", "pr", pr, "head", posted)
+				err = s.armRegate(ctx, p, run.TaskID, s.d.Clock.Now())
 			}
-			if err := s.armRegate(ctx, p, run.TaskID, due); err != nil {
+			if err != nil {
 				s.fail(ctx, err)
 			}
 		})
 	})
 	return nil
+}
+
+// reviewFailed counts a failed review run on head: the gate retries it after gate.RetryInterval, and the
+// ReviewAttempts-th failure on one head moves the task to the owner instead.
+func (s *Scheduler) reviewFailed(ctx context.Context, p config.Project, run model.Run, pr int, head string,
+	cause error) error {
+	s.logFor(p.Name, run.TaskID, run.ID).ErrorContext(ctx, ReviewFailed, "pr", pr, "head", head, "err", cause)
+	f := s.reviewFails[run.TaskID]
+	if f.head != head {
+		f = reviewFails{head: head}
+	}
+	f.n++
+	if f.n < ReviewAttempts {
+		s.reviewFails[run.TaskID] = f
+		return s.armRegate(ctx, p, run.TaskID, s.d.Clock.Now().Add(gate.RetryInterval))
+	}
+	delete(s.reviewFails, run.TaskID)
+	return s.askOwner(ctx, p, run, fmt.Sprintf("%s#%d: fanin review of head %s failed %d of %d times; review it "+
+		"by hand or post %s on the head: %v", GateErrorDetail, pr, head, f.n, ReviewAttempts, gate.ReviewContext,
+		cause))
 }
 
 // armRegate arms a gate retry, so the gate reads the PR again when it is due.

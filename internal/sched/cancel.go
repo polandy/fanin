@@ -23,6 +23,7 @@ func (s *Scheduler) cancelled(ctx context.Context, p config.Project, id model.Ta
 	delete(s.held, id)
 	delete(s.goAgain, id)
 	delete(s.reviewed, id)
+	delete(s.reviewFails, id)
 	delete(s.gates, id)
 	runs, err := s.d.Store.Runs(ctx, id)
 	if err != nil {

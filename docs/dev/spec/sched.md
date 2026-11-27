@@ -214,6 +214,11 @@ A GitHub head with green CI and no `fanin/review` status is RED with cause `no_r
 - A posted verdict arms a `gate_retry` due at once: the gate reads the PR again and sees the new status.
 - A failed run posts nothing, logs `sched: fanin review failed, the next gate tick runs it again` with the error and
   arms a `gate_retry` due after 60 s; that read starts the review again. The task stays gating, nobody is nudged.
+- Failed runs are counted per head (`ReviewAttempts`, 3): no comment, an unreadable verdict, a timeout or any other
+  error. The third failure on one head arms no retry and moves the task to `needs_owner` with
+  `ERROR #<n>: fanin review of head <sha> failed 3 of 3 times; review it by hand or post fanin/review on the
+  head: <error>`, sent as a note. A new head, a posted verdict, the hand-over or a cancel starts the count again;
+  the count lives in memory, so a restart starts it again too.
 - A new push is a new head without a status, so the next read starts a new run. A head fanin already reviewed
   that still reads `no_review` goes on as RED, review.
 
