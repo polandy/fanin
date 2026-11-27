@@ -14,6 +14,7 @@ import (
 	"github.com/polandy/fanin/internal/pick"
 	"github.com/polandy/fanin/internal/prompt"
 	"github.com/polandy/fanin/internal/runtime"
+	"github.com/polandy/fanin/internal/runtime/headless"
 	"github.com/polandy/fanin/internal/store"
 )
 
@@ -51,6 +52,43 @@ func TestDispatch(t *testing.T) {
 		}
 		if !strings.Contains(h.logs.String(), "picker found nothing") {
 			t.Errorf("logs lack the idle line:\n%s", h.logs)
+		}
+	})
+
+	t.Run("PK-8_picker_usage_is_recorded_as_token_usage", func(t *testing.T) {
+		usage := headless.Usage{Input: 10, Output: 5, CacheRead: 100}
+		for _, tc := range []struct {
+			name string
+			res  pick.Result
+			done func(h *harness) func() bool
+		}{
+			{"idle", pick.Result{Idle: true, Reason: "no open todo", Usage: usage},
+				func(h *harness) func() bool { return h.taskIn("a1", model.TaskDone) }},
+			{"pick", pick.Result{Task: "x", Model: pick.ModelSonnet, Usage: usage},
+				func(h *harness) func() bool { return h.runIn(RunID("a1", 1), model.RunWorking) }},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				h := newHarness(t, testConfig())
+				h.pk.res = tc.res
+				h.start()
+				h.addTask(model.Task{ID: "a1", Title: titleLoop})
+				h.until(tc.done(h))
+				want := []string{"pick: 115 tokens (input 10, output 5, cache creation 0, cache read 100)"}
+				if diff := cmp.Diff(want, h.events("a1", model.EventTokenUsage)); diff != "" {
+					t.Errorf("token_usage (-want +got):\n%s", diff)
+				}
+			})
+		}
+	})
+
+	t.Run("PK-8_no_usage_records_no_event", func(t *testing.T) {
+		h := newHarness(t, testConfig())
+		h.pk.res = pick.Result{Idle: true, Reason: "no open todo"}
+		h.start()
+		h.addTask(model.Task{ID: "a1", Title: titleLoop})
+		h.until(h.taskIn("a1", model.TaskDone))
+		if got := h.events("a1", model.EventTokenUsage); len(got) != 0 {
+			t.Errorf("token_usage = %v, want none", got)
 		}
 	})
 
