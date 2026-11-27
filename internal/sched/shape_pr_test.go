@@ -335,7 +335,7 @@ func TestPRRedReviewText(t *testing.T) {
 		r.reviewText = &fakeReviewText{text: body}
 		r.start()
 		text := r.redRound(r.startPR("a1", ""), 1)
-		if !strings.Contains(text, body) || strings.Contains(text, "not ready: #42") || strings.Contains(text, "not ready: ") {
+		if !strings.Contains(text, body) || strings.Contains(text, "not ready") {
 			t.Errorf("review nudge = %q, want the review text and no doubled not ready", text)
 		}
 	})
