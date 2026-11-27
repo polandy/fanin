@@ -170,8 +170,7 @@ func (s *Service) notifyQuestion(ctx context.Context, project, id string, q mode
 	}
 }
 
-// AskDialog turns a worker's dialog into a dialog question; unreadable text is said so. The same dialog of the run
-// still open is not asked again, and any other open dialog of the run is closed as superseded (see SCENARIOS AW-9).
+// AskDialog asks a worker's dialog once per run and supersedes the run's other open dialogs (see SCENARIOS AW-9).
 func (s *Service) AskDialog(ctx context.Context, d Dialog) (string, error) {
 	text := strings.TrimSpace(d.Text)
 	if text == "" {
@@ -219,8 +218,7 @@ func (s *Service) AskDialog(ctx context.Context, d Dialog) (string, error) {
 	return id, nil
 }
 
-// AnsweredInPane closes the open questions of run, which the owner answered in the worker's pane, and moves its
-// task on as an answer does; it returns how many it closed (see SCENARIOS WA-3).
+// AnsweredInPane closes the run's open questions, answered in the pane, and returns how many (see SCENARIOS WA-3).
 func (s *Service) AnsweredInPane(ctx context.Context, run model.RunID) (int, error) {
 	s.answering.Lock()
 	defer s.answering.Unlock()

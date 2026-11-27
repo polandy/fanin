@@ -92,8 +92,7 @@ func inputBox(ls []string) int {
 	return -1
 }
 
-// parseDialog returns a dialog's question line and its option labels; a numbered list without claude's ❯ cursor is
-// no dialog.
+// parseDialog returns a dialog's text and option labels; a numbered list without claude's ❯ cursor is no dialog.
 func parseDialog(text string) (string, []string, bool) {
 	ls := bottom(lines(text), DialogLines)
 	var opts, labels []string

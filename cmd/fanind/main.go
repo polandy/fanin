@@ -191,9 +191,7 @@ func fanin(cfg config.Config) map[string]bool {
 	return out
 }
 
-// startSched runs the scheduler when a project has loop: fanin and hands it the owner channel svc, which then
-// delivers answers to the workers (SCENARIOS AW-9, OA-1); an error of the scheduler stops fanind through
-// cancel, and the returned stop waits for it.
+// startSched runs the scheduler and its owner delivery for loop: fanin projects; its error stops fanind (AW-9, OA-1).
 func startSched(ctx context.Context, cancel context.CancelCauseFunc, cfg config.Config, st *store.Store,
 	notifier notify.Notifier, svc *owner.Service, log *slog.Logger, d deps) (func(), error) {
 	if len(fanin(cfg)) == 0 {

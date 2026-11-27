@@ -62,8 +62,7 @@ type OwnerQuestion struct {
 	AnsweredAt time.Time
 }
 
-// Validate checks the kind, the question text, MinOptions..MaxOptions (MaxDialogOptions for a dialog) distinct
-// labelled options and the recommendation.
+// Validate checks kind, text, MinOptions..MaxOptions (MaxDialogOptions for a dialog) distinct options, recommendation.
 func (q OwnerQuestion) Validate() error {
 	if _, err := ParseQuestionKind(string(q.Kind)); err != nil {
 		return fmt.Errorf("%w: %w", ErrInvalidQuestion, err)

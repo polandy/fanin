@@ -19,15 +19,13 @@ var ErrNoWorker = errors.New("sched: no live worker for the answer")
 // unreadableNote is the note on a dialog the owner can only answer in the pane (SCENARIOS AW-9).
 const unreadableNote = "%s shows a dialog fanin cannot answer (dialog: %s); answer it in the pane"
 
-// Questions is the owner channel the scheduler hands workers' dialogs and pane answers to; *owner.Service is the
-// real one.
+// Questions takes the workers' dialogs and pane answers; *owner.Service is the real one.
 type Questions interface {
 	AskDialog(ctx context.Context, d owner.Dialog) (string, error)
 	AnsweredInPane(ctx context.Context, run model.RunID) (int, error)
 }
 
-// OwnerDelivery is the owner.Deliverer that hands an answer to the question's run: a key press for a dialog option,
-// a prompt for a free-text answer (SCENARIOS OA-1, OA-2, OA-3).
+// OwnerDelivery is the owner.Deliverer into the question's run: a key for an option, else a prompt (OA-1 to OA-3).
 type OwnerDelivery struct {
 	Store   *store.Store
 	Runtime runtime.WorkerRuntime
@@ -55,8 +53,7 @@ func (o OwnerDelivery) Deliver(ctx context.Context, d owner.Delivery) error {
 	return o.Runtime.Prompt(ctx, h, d.Text)
 }
 
-// payOwner hands the watch's owed dialog or pane answer to the owner channel; a failure keeps it owed for the next
-// step. A dialog fanin cannot answer only sends a note (SCENARIOS AW-9, WA-3).
+// payOwner hands the watch's owed dialog or pane answer to the owner; a failure keeps it owed (AW-9, WA-3).
 func (s *Scheduler) payOwner(ctx context.Context, w *watch) error {
 	ev := w.owed
 	if ev == nil || s.d.Owner == nil {
@@ -103,8 +100,7 @@ func (s *Scheduler) payOwed(ctx context.Context) error {
 	return nil
 }
 
-// resultAnswered closes the run's open questions once it reports: the worker got past its dialog, answered in the
-// pane before the observer saw it (SCENARIOS WA-3).
+// resultAnswered closes a reporting run's open questions: its dialog was answered in the pane (SCENARIOS WA-3).
 func (s *Scheduler) resultAnswered(ctx context.Context, ev model.Event) error {
 	if s.d.Owner == nil {
 		return nil
