@@ -29,7 +29,8 @@ Only GitHub projects are reviewed for now: the skill posts its comment with `gh`
    `git -C <dir> worktree add -q --detach <dir>/.claude/worktrees/fanin-review-<n> <head sha>` with
    `GIT_LFS_SKIP_SMUDGE=1`. All git goes through `runtime.Runner`.
 4. Run `claude -p` in the worktree with the prompt `<skill> <n>` plus fanin's rules: review only, the head SHA, the
-   comment contract, change nothing. The tools are read-only (`Read`, `Grep`, `Glob`, `git diff/log/show/status`,
+   comment contract, change nothing, and skip the skill's fix step, `make ci`, CI status and branch freshness
+   sections. The tools are read-only (`Read`, `Grep`, `Glob`, `git diff/log/show/status`,
    `gh pr view/diff/checks`) plus `gh pr comment`.
 5. Read the comments again. The newest comment that is new or changed against the baseline is the review; none is
    `review.ErrNoComment`.

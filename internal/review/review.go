@@ -297,6 +297,8 @@ func Prompt(skill string, pr forge.PR) string {
 		"checked out detached.\n", pr.HeadSHA, pr.HeadBranch)
 	fmt.Fprintf(&b, "Post the verdict comment as the skill says: first line `## %s`, last line `%s: %s` or `%s: %s`.\n",
 		CommentMark, VerdictLabel, Ready, VerdictLabel, NotReady)
+	b.WriteString("For the skill's sections: skip the fix step (report findings, fix none), do not run make ci, " +
+		"skip the CI status and branch freshness sections.\n")
 	fmt.Fprintf(&b, "Change nothing: no commits, no pushes, no merge of %s into the branch, no CI re-runs, "+
 		"no other worktrees.\n", pr.BaseBranch)
 	return b.String()
