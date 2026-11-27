@@ -14,6 +14,7 @@ import (
 	"github.com/polandy/fanin/internal/pick"
 	"github.com/polandy/fanin/internal/prompt"
 	"github.com/polandy/fanin/internal/runtime"
+	"github.com/polandy/fanin/internal/runtime/headless"
 	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/store"
 )
@@ -125,6 +126,10 @@ func (s *Scheduler) picked(ctx context.Context, p config.Project, id model.TaskI
 		log.InfoContext(ctx, "sched: "+CIHeldDetail)
 		return
 	}
+	if err := s.recordPickUsage(ctx, p, id, res.Usage); err != nil {
+		s.fail(ctx, err)
+		return
+	}
 	var hint, mdl string
 	switch {
 	case perr != nil:
@@ -139,6 +144,24 @@ func (s *Scheduler) picked(ctx context.Context, p config.Project, id model.TaskI
 	if err := s.spawn(ctx, p, task, slot, hint, mdl); err != nil {
 		s.fail(ctx, err)
 	}
+}
+
+// recordPickUsage appends the picker's tokens as a token_usage event of the task; it carries counts only.
+func (s *Scheduler) recordPickUsage(ctx context.Context, p config.Project, id model.TaskID, u headless.Usage) error {
+	if u.Total() == 0 {
+		return nil
+	}
+	ev := model.Event{Type: model.EventTokenUsage, Project: p.Name, TaskID: id,
+		Detail: fmt.Sprintf("pick: %d tokens (input %d, output %d, cache creation %d, cache read %d)",
+			u.Total(), u.Input, u.Output, u.CacheCreation, u.CacheRead)}
+	err := s.d.Store.Transition(ctx, func(ctx context.Context, tx *store.Tx) error {
+		_, err := tx.AppendEvent(ctx, ev)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("sched: record the pick usage of task %s: %w", id, err)
+	}
+	return nil
 }
 
 // IdleDetail leads the detail of a task the picker found nothing for.
