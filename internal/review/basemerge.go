@@ -102,24 +102,24 @@ func (r *Reviewer) carry(ctx context.Context, req Request, pr forge.PR, reviewed
 
 // gitOut runs git and returns its stdout.
 func (r *Reviewer) gitOut(ctx context.Context, dir string, args ...string) (string, error) {
-	out, yes, err := r.gitAsk(ctx, dir, args...)
-	if err == nil && !yes {
-		err = fmt.Errorf("review: git -C %s %s exited %d", dir, strings.Join(args, " "), gitNo)
+	argv := append([]string{gitProgram, "-C", dir}, args...)
+	res, err := r.runner.Run(ctx, runtime.Cmd{Argv: argv})
+	if err != nil {
+		return string(res.Stdout), fmt.Errorf("review: %s: %w", strings.Join(argv, " "), err)
 	}
-	return out, err
+	return string(res.Stdout), nil
 }
 
 // gitAsk runs a git query: exit 0 is yes, exit gitNo is no, anything else an error.
 func (r *Reviewer) gitAsk(ctx context.Context, dir string, args ...string) (string, bool, error) {
-	argv := append([]string{gitProgram, "-C", dir}, args...)
-	res, err := r.runner.Run(ctx, runtime.Cmd{Argv: argv})
+	out, err := r.gitOut(ctx, dir, args...)
 	var exit *runtime.ExitError
 	switch {
 	case err == nil:
-		return string(res.Stdout), true, nil
+		return out, true, nil
 	case errors.As(err, &exit) && exit.Code == gitNo:
-		return string(res.Stdout), false, nil
+		return out, false, nil
 	default:
-		return "", false, fmt.Errorf("review: %s: %w", strings.Join(argv, " "), err)
+		return "", false, err
 	}
 }

@@ -97,18 +97,8 @@ func (f *fakeForge) PR(_ context.Context, _ string, _ int) (forge.PR, error) {
 		return forge.PR{}, f.prErr
 	}
 	pr := f.pr
-	pr.Checks = []forge.Check{{Name: "ci", State: forge.CheckSuccess, UpdatedAt: start}}
-	for i, st := range f.statuses {
-		if st.SHA != pr.HeadSHA {
-			continue
-		}
-		state := forge.CheckFailure
-		if st.State == forge.StatusSuccess {
-			state = forge.CheckSuccess
-		}
-		pr.Checks = append(pr.Checks, forge.Check{Name: st.Context, State: state,
-			UpdatedAt: start.Add(time.Duration(i+1) * time.Minute), Description: st.Description})
-	}
+	pr.Checks = append([]forge.Check{{Name: "ci", State: forge.CheckSuccess, UpdatedAt: start}},
+		f.checksOf(pr.HeadSHA)...)
 	return pr, nil
 }
 
@@ -143,6 +133,11 @@ func (f *fakeForge) CommitChecks(_ context.Context, _ string, sha string) ([]for
 	if f.commitChecksErr != nil {
 		return nil, f.commitChecksErr
 	}
+	return f.checksOf(sha), nil
+}
+
+// checksOf is the posted statuses on sha as checks, one minute apart in post order; f.mu is held.
+func (f *fakeForge) checksOf(sha string) []forge.Check {
 	checks := []forge.Check{}
 	for i, st := range f.statuses {
 		if st.SHA != sha {
@@ -155,7 +150,7 @@ func (f *fakeForge) CommitChecks(_ context.Context, _ string, sha string) ([]for
 		checks = append(checks, forge.Check{Name: st.Context, State: state,
 			UpdatedAt: start.Add(time.Duration(i+1) * time.Minute), Description: st.Description})
 	}
-	return checks, nil
+	return checks
 }
 
 // push moves the PR head, as a worker's fix commit does.
