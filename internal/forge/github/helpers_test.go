@@ -28,6 +28,7 @@ const (
 	flagRepo      = "--repo"
 	flagLimit     = "--limit"
 	verbList      = "list"
+	verbRun       = "run"
 	api           = "api"
 	reviewContext = "fanin/review"
 	keyState      = "state"
