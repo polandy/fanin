@@ -35,6 +35,17 @@ func TestNudges(t *testing.T) {
 		}
 	})
 
+	t.Run("GH-9_the_fix_nudge_carries_the_failed_step_log_in_a_fence_the_log_cannot_close", func(t *testing.T) {
+		log := "--- FAIL: TestX\n```\nboom"
+		out := mustRender(t, NudgeFix, Vars{Hint: "#42 RED: failed: ci FAILURE", Log: log})
+		if !strings.Contains(out, "````\n"+log+"\n````") || !strings.Contains(out, "#42 RED") {
+			t.Errorf("fix nudge = %q, want the reasons and the log in a four-backtick fence", out)
+		}
+		if out := mustRender(t, NudgeFix, Vars{Hint: "#42 RED"}); strings.Contains(out, "```") {
+			t.Errorf("fix nudge without a log = %q, want no fence", out)
+		}
+	})
+
 	t.Run("GH-9_GH-10_fix_and_review_nudges_carry_the_reasons", func(t *testing.T) {
 		for _, n := range []Name{NudgeFix, NudgeReview} {
 			if out := mustRender(t, n, Vars{Hint: "#42 RED: failed: ci FAILURE"}); !strings.Contains(out,
