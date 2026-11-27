@@ -118,18 +118,15 @@ func TestPrompt(t *testing.T) {
 		}
 	})
 
-	t.Run("SP-7_diff_review_before_first_push_pr_review_after", func(t *testing.T) {
-		for _, n := range []Name{Worker} {
-			out := mustRender(t, n, vars)
-			local := "/pr-review local diff, no PR yet: review git diff origin/main...HEAD"
-			i, j := strings.Index(out, local), strings.Index(out, "Then push and open the PR.")
-			if i < 0 || j < i {
-				t.Errorf("%s: local review at %d, push at %d; want the review first", n, i, j)
-			}
-			k := strings.Index(out, "Then run /pr-review on your PR right away")
-			if k < j {
-				t.Errorf("%s: PR review at %d, want it after the push at %d", n, k, j)
-			}
+	t.Run("SP-7_diff_review_before_first_push_no_pr_review_after", func(t *testing.T) {
+		out := mustRender(t, Worker, vars)
+		local := "/pr-review local diff, no PR yet: review git diff origin/main...HEAD"
+		i, j := strings.Index(out, local), strings.Index(out, "Then push and open the PR.")
+		if i < 0 || j < i {
+			t.Errorf("local review at %d, push at %d; want the review first", i, j)
+		}
+		if got := strings.Count(out, "/pr-review"); got != 1 {
+			t.Errorf("/pr-review appears %d times, want 1 (the local diff review only)", got)
 		}
 	})
 
