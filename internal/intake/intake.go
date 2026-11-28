@@ -12,6 +12,7 @@ import (
 
 	"github.com/polandy/fanin/internal/config"
 	"github.com/polandy/fanin/internal/model"
+	"github.com/polandy/fanin/internal/scope"
 	"github.com/polandy/fanin/internal/store"
 )
 
@@ -44,6 +45,8 @@ type TaskRequest struct {
 	Worker string
 	// After lists the tasks that must be done first.
 	After []model.TaskID
+	// AllowedPaths is the task's file scope; see scope.Validate for its rules (SCENARIOS SC-1).
+	AllowedPaths []string
 }
 
 // Service queues requests in the store, checked against the config.
@@ -59,8 +62,8 @@ func invalidf(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrInvalid, fmt.Sprintf(format, args...))
 }
 
-// CheckFlags checks the rules that need no config: exactly one of Task and Analyze, and opencode only for a
-// task (see SCENARIOS PK-7).
+// CheckFlags checks the rules that need no config: exactly one of Task and Analyze, opencode only for a task and
+// a valid scope (see SCENARIOS PK-7, SC-1).
 func (r TaskRequest) CheckFlags() error {
 	switch {
 	case strings.TrimSpace(r.Task) != "" && strings.TrimSpace(r.Analyze) != "":
@@ -69,6 +72,9 @@ func (r TaskRequest) CheckFlags() error {
 		return invalidf("no task text; give the task or the analysis question")
 	case r.Worker == KindOpencode && strings.TrimSpace(r.Task) == "":
 		return invalidf("worker %s without a task; opencode takes owner tasks only, never analyses", KindOpencode)
+	}
+	if err := scope.Validate(r.AllowedPaths); err != nil {
+		return fmt.Errorf("%w: allowed_paths: %w", ErrInvalid, err)
 	}
 	return nil
 }
@@ -148,7 +154,7 @@ func (r TaskRequest) task() model.Task {
 	}
 	return model.Task{
 		ID: r.ID, Project: r.Project, Title: title(text), Prompt: text, Shape: shape, OwnerTask: true,
-		After: r.After, OwnerModel: r.Model, WorkerKind: r.Worker,
+		After: r.After, OwnerModel: r.Model, WorkerKind: r.Worker, AllowedPaths: r.AllowedPaths,
 	}
 }
 

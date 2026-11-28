@@ -93,27 +93,31 @@ func parseTaskFlags(fs *flag.FlagSet, args []string) error {
 	return nil
 }
 
-type afterFlag []string
+// listFlag collects a repeatable flag.
+type listFlag []string
 
-func (a *afterFlag) String() string     { return strings.Join(*a, ",") }
-func (a *afterFlag) Set(v string) error { *a = append(*a, v); return nil }
+func (a *listFlag) String() string     { return strings.Join(*a, ",") }
+func (a *listFlag) Set(v string) error { *a = append(*a, v); return nil }
 
 func runTaskAdd(ctx context.Context, g Globals, out cli.Output, args []string) error {
 	fs, project := taskFlags(taskAdd)
-	var after afterFlag
+	var after listFlag
 	task := fs.String("task", "", "owner task text")
 	analyze := fs.String("analyze", "", "owner question to analyse")
 	mdl := fs.String("model", "", "worker model")
 	worker := fs.String("worker", "", "worker kind")
 	fs.Var(&after, "after", "task that must be done first (repeatable)")
+	var allow listFlag
+	fs.Var(&allow, "allow", "repo-relative path or glob the task may change (repeatable)")
 	if err := parseTaskFlags(fs, args); err != nil {
 		return err
 	}
-	req := wire.TaskRequest{Project: *project, Task: *task, Analyze: *analyze, Model: *mdl, Worker: *worker, After: after}
+	req := wire.TaskRequest{Project: *project, Task: *task, Analyze: *analyze, Model: *mdl, Worker: *worker, After: after,
+		AllowedPaths: allow}
 	if *project == "" || fs.NArg() != 0 {
 		return cli.Usagef("task add needs --project and --task or --analyze: fanin task add --project P --task TEXT")
 	}
-	if err := (intake.TaskRequest{Task: *task, Analyze: *analyze, Worker: *worker}).CheckFlags(); err != nil {
+	if err := (intake.TaskRequest{Task: *task, Analyze: *analyze, Worker: *worker, AllowedPaths: allow}).CheckFlags(); err != nil {
 		return cli.Usagef("%v", err)
 	}
 	c, err := daemonClient(g, "task add")

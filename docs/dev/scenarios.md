@@ -1008,6 +1008,24 @@ Metrics, `fanin doctor` and structured logs ([spec](spec/observability.md)).
 - Every task-bound log line of the scheduler carries `project`, `task_id` and `run_id`.
 - Source: —. Test: `internal/sched/logids_test.go`. Mark: CHANGES (C-LOG).
 
+## 21. Task scope
+
+A task's `allowed_paths` and the `fanin/scope` commit status ([spec](spec/gate.md#task-scope-scenarios-sc-1-sc-2)).
+
+**SC-1**
+- A task takes optional `allowed_paths` (`fanin task add --allow`, repeatable): at most 20 repo-relative paths or
+  globs. An empty entry, an absolute path, a drive prefix, a backslash (so a UNC path), a `..` segment, a control
+  character or a malformed glob is a 400 (usage error, exit 2) and queues nothing.
+- Source: —. Test: `internal/scope/scope_test.go`, `internal/intake/intake_test.go`,
+  `internal/api/task_routes_test.go`, `cmd/fanin/cmd_task_test.go`. Mark: CHANGES (C-CONFIG).
+
+**SC-2**
+- On every reported PR head that passed the head check, fanind posts `fanin/scope` before the gate: failure when the
+  PR's diff against its base touches a file outside `allowed_paths`, success otherwise or when the task has none.
+  A failure is a CI red and nudges the worker; a file list or post that fails goes to the owner and never gates.
+- Source: —. Test: `internal/scope/scope_test.go`, `internal/sched/scope_test.go`, `cmd/fanind/scope_test.go`.
+  Mark: CHANGES (C-LOOP).
+
 ## Coverage gaps today
 
 These have no test and need one in fanin:

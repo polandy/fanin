@@ -130,7 +130,10 @@ func (s *Scheduler) headRead(ctx context.Context, p config.Project, run model.Ru
 		}
 		run.Branch = head.HeadBranch
 	}
-	return s.startGate(ctx, p, run, pr, &head)
+	if s.d.Scopes == nil {
+		return s.startGate(ctx, p, run, pr, &head)
+	}
+	return s.scopeHead(ctx, p, run, task, pr, head)
 }
 
 // headClaim names why the PR may not be gated for run, or "" when its head is the run's own branch.

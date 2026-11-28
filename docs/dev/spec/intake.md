@@ -8,7 +8,8 @@ produces the same `intake.TaskRequest`: the CLI, the signed webhooks, cron and r
 ## TaskRequest
 
 `Project`, exactly one of `Task` (owner task, shape `pr`) and `Analyze` (owner question, shape `analysis`), optional
-`Model`, `Worker` (worker kind) and `After` (task IDs), and an optional `ID`. Both forms set `OwnerTask`
+`Model`, `Worker` (worker kind), `After` (task IDs) and `AllowedPaths` (the file scope, see
+[gate](gate.md#task-scope-scenarios-sc-1-sc-2)), and an optional `ID`. Both forms set `OwnerTask`
 (SCENARIOS PK-6), so no picker runs and the project loop ends after the first merge. The title is the first line of
 the text, cut at 80 runes.
 
@@ -17,7 +18,8 @@ the text, cut at 80 runes.
 `Service.Enqueue` validates and queues in one transaction; on any error nothing is queued.
 
 - `CheckFlags` (no config needed, so the CLI runs it before any call): `task` with `analyze`, neither, or
-  `--worker opencode` without a task is `ErrInvalid` (PK-7).
+  `--worker opencode` without a task is `ErrInvalid` (PK-7); `AllowedPaths` that break `scope.Validate` are
+  `ErrInvalid` (SC-1).
 - `Validate`: an unknown project is `ErrUnknownProject`; an unknown worker kind, or a model the effective kind
   (the request's worker, else the project's) does not list, is `ErrInvalid` (PK-7). A kind without models takes no
   model.
@@ -92,5 +94,5 @@ is lost, and the sender's redelivery starts it again.
 
 ## CLI
 
-`fanin task add --project P (--task TEXT | --analyze TEXT) [--model M] [--worker K] [--after ID]...` prints the new
+`fanin task add --project P (--task TEXT | --analyze TEXT) [--model M] [--worker K] [--after ID]... [--allow PATH]...` prints the new
 ID. `fanin task list [--project P]` lists the open tasks. `fanin task import FILE --project P` as above.

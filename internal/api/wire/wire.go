@@ -47,18 +47,20 @@ type Health struct {
 
 // Task is one task of a project.
 type Task struct {
-	ID        string    `json:"id"`
-	Project   string    `json:"project"`
-	Title     string    `json:"title"`
-	Prompt    string    `json:"prompt"`
-	Shape     string    `json:"shape"`
-	State     string    `json:"state"`
-	OwnerTask bool      `json:"owner_task"`
-	After     []string  `json:"after"`
-	Model     string    `json:"model"`
-	Worker    string    `json:"worker,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string   `json:"id"`
+	Project   string   `json:"project"`
+	Title     string   `json:"title"`
+	Prompt    string   `json:"prompt"`
+	Shape     string   `json:"shape"`
+	State     string   `json:"state"`
+	OwnerTask bool     `json:"owner_task"`
+	After     []string `json:"after"`
+	Model     string   `json:"model"`
+	Worker    string   `json:"worker,omitempty"`
+	// AllowedPaths is the task's file scope; empty means none.
+	AllowedPaths []string  `json:"allowed_paths,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // Budget is the usage of one run.
@@ -266,6 +268,8 @@ type TaskRequest struct {
 	Model   string   `json:"model,omitempty"`
 	Worker  string   `json:"worker,omitempty"`
 	After   []string `json:"after,omitempty"`
+	// AllowedPaths is the task's file scope for the fanin/scope status (SCENARIOS SC-1).
+	AllowedPaths []string `json:"allowed_paths,omitempty"`
 }
 
 // Tasks is the answer of GET /api/v1/tasks.

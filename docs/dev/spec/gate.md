@@ -42,6 +42,19 @@ so a review still running keeps the gate PENDING. Otherwise the files decide: do
 An unreadable PR is an error. Unreadable statuses (`forge.ErrChecksUnreadable`) are PENDING
 `statuses unreadable`; unreadable files are PENDING `files unreadable`; neither is ever GREEN.
 
+## Task scope (SCENARIOS SC-1, SC-2)
+
+`internal/scope` owns a task's `allowed_paths`. `scope.Validate` takes at most `scope.MaxPaths` (20) entries, each
+repo-relative: none empty, absolute, with a drive prefix, a backslash, a `..` segment, a control character or a
+malformed glob (`scope.ErrInvalid`). An entry ending in `/` holds everything below it, `*` stays inside one
+directory and a `**` segment spans any number of directories.
+
+`scope.Post` posts the commit status `fanin/scope` (`scope.Context`) on the PR head: failure with the files outside
+the scope (cut to 140 runes) when the PR's changed files (its diff against the base) leave it, success otherwise or
+when the task has no scope (its files are then not read). A file list that cannot be read posts nothing and is an
+error, as is a failed post. The gate reads `fanin/scope` as one more CI check, so a failure is RED cause `ci`;
+a branch protection can require it like `fanin/review`.
+
 ## Causes
 
 Every RED carries its cause (`gate.Cause`): `closed` (not open, or another base), `conflict`, `ci` (failed

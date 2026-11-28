@@ -43,7 +43,7 @@ func registerTasks(r *Registry) {
 			}
 			t, err := s.cfg.Intake.Enqueue(r.Context(), intake.TaskRequest{
 				ID: model.TaskID(req.ID), Project: req.Project, Task: req.Task, Analyze: req.Analyze,
-				Model: req.Model, Worker: req.Worker, After: after,
+				Model: req.Model, Worker: req.Worker, After: after, AllowedPaths: req.AllowedPaths,
 			})
 			if err != nil {
 				writeTaskError(s, w, r, err)

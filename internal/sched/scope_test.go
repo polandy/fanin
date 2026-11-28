@@ -32,8 +32,8 @@ type fakeScopes struct {
 	err   error
 }
 
-func (f *fakeScopes) Post(_ context.Context, _ config.Project, pr int, head string, allowed []string) (forge.StatusState,
-	error) {
+func (f *fakeScopes) PostScope(_ context.Context, _ config.Project, pr int, head string,
+	allowed []string) (forge.StatusState, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, scopeCall{PR: pr, Head: head, Allowed: allowed})
