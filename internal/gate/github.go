@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/polandy/fanin/internal/forge"
+	"github.com/polandy/fanin/internal/scope"
 )
 
 // GitHub returns the verdict of a GitHub PR as read with its head checks (see SCENARIOS GH-1 to GH-4). The review
@@ -38,7 +39,7 @@ func GitHub(pr forge.PR) Result {
 		return red(CauseCI, reasons...)
 	case len(running) > 0:
 		return pending(WaitChecks)
-	case len(ci) == 0:
+	case !hasCI(ci):
 		return pending(WaitNoChecks)
 	case pr.Mergeable != forge.MergeableYes:
 		return pending(WaitMergeable)
@@ -65,4 +66,14 @@ func reviewReason(review *forge.Check, head string) string {
 		return "review: not ready"
 	}
 	return "review: not ready: " + review.Description
+}
+
+// hasCI reports whether checks hold a check of the project's own CI; fanin's own fanin/scope status is none.
+func hasCI(checks []forge.Check) bool {
+	for _, c := range checks {
+		if c.Name != scope.Context {
+			return true
+		}
+	}
+	return false
 }

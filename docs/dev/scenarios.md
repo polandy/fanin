@@ -1023,8 +1023,9 @@ A task's `allowed_paths` and the `fanin/scope` commit status ([spec](spec/gate.m
 - On every reported PR head that passed the head check, fanind posts `fanin/scope` before the gate: failure when the
   PR's diff against its base touches a file outside `allowed_paths`, success otherwise or when the task has none.
   A failure is a CI red and nudges the worker; a file list or post that fails goes to the owner and never gates.
-- Source: —. Test: `internal/scope/scope_test.go`, `internal/sched/scope_test.go`, `cmd/fanind/scope_test.go`.
-  Mark: CHANGES (C-LOOP).
+  `fanin/scope` alone is no CI: such a head is PENDING `no checks`, never green.
+- Source: —. Test: `internal/scope/scope_test.go`, `internal/sched/scope_test.go`, `cmd/fanind/scope_test.go`,
+  `internal/gate/github_test.go`, `internal/gate/gitea_test.go`. Mark: CHANGES (C-LOOP).
 
 ## Coverage gaps today
 

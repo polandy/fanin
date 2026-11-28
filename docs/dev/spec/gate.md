@@ -53,7 +53,8 @@ directory and a `**` segment spans any number of directories.
 the scope (cut to 140 runes) when the PR's changed files (its diff against the base) leave it, success otherwise or
 when the task has no scope (its files are then not read). A file list that cannot be read posts nothing and is an
 error, as is a failed post. The gate reads `fanin/scope` as one more CI check, so a failure is RED cause `ci`;
-a branch protection can require it like `fanin/review`.
+a branch protection can require it like `fanin/review`. It never counts as the project's CI: a head whose only
+check is `fanin/scope` is PENDING `no checks` (Gitea: on the way to `NOCI`).
 
 ## Causes
 
