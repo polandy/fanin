@@ -199,6 +199,34 @@ func testCH1MalformedChainLineNamesLine(t *testing.T) {
 	}
 }
 
+func testSC1AllowedPathsAreStored(t *testing.T) {
+	svc, _ := newService(t)
+	paths := []string{"internal/scope/", "docs/**"}
+	got, err := svc.Enqueue(context.Background(), TaskRequest{Project: projGH, Task: "a", AllowedPaths: paths})
+	if err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+	if diff := cmp.Diff(paths, got.AllowedPaths); diff != "" {
+		t.Errorf("allowed paths -want +got:\n%s", diff)
+	}
+}
+
+func testSC1BadAllowedPathsQueueNothing(t *testing.T) {
+	for _, paths := range [][]string{{"/etc"}, {"../x"}, {"C:/x"}, {`\\host\share`}, {"a\nb"},
+		strings.Split(strings.Repeat("a,", 20)+"a", ",")} {
+		t.Run(strings.Join(paths, ","), func(t *testing.T) {
+			svc, st := newService(t)
+			_, err := svc.Enqueue(context.Background(), TaskRequest{Project: projGH, Task: "a", AllowedPaths: paths})
+			if !errors.Is(err, ErrInvalid) {
+				t.Errorf("Enqueue err = %v; want ErrInvalid", err)
+			}
+			if n := len(openTasks(t, st)); n != 0 {
+				t.Errorf("%d tasks queued; want none", n)
+			}
+		})
+	}
+}
+
 func TestIntake(t *testing.T) {
 	t.Run("PK-6_owner_task_is_marked", testPK6OwnerTaskIsMarked)
 	t.Run("PK-6_analyze_makes_an_analysis_task", testPK6AnalyzeMakesAnAnalysisTask)
@@ -208,4 +236,6 @@ func TestIntake(t *testing.T) {
 	t.Run("CH-1_chain_file_becomes_after_chain", testCH1ChainFileBecomesAfterChain)
 	t.Run("CH-1_reimport_of_a_changed_file_adds_only_new", testCH1ReimportOfAChangedFileAddsOnlyNew)
 	t.Run("CH-1_malformed_chain_line_names_the_line", testCH1MalformedChainLineNamesLine)
+	t.Run("SC-1_allowed_paths_are_stored", testSC1AllowedPathsAreStored)
+	t.Run("SC-1_bad_allowed_paths_queue_nothing", testSC1BadAllowedPathsQueueNothing)
 }

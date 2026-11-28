@@ -19,6 +19,7 @@ import (
 	"github.com/polandy/fanin/internal/review"
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/sched"
+	"github.com/polandy/fanin/internal/scope"
 )
 
 // GiteaTimeout bounds one call to a Gitea or Forgejo API.
@@ -220,4 +221,18 @@ func (f *forges) repo(ctx context.Context, p config.Project) (string, error) {
 		return "", fmt.Errorf("origin of %s at %s: %w", p.Name, p.Path, err)
 	}
 	return repo, nil
+}
+
+// PostScope posts fanin/scope on head of PR pr of p from the task's allowed paths (SCENARIOS SC-2).
+func (f *forges) PostScope(ctx context.Context, p config.Project, pr int, head string, allowed []string) (
+	forge.StatusState, error) {
+	client, _, err := f.res.For(p.Name)
+	if err != nil {
+		return "", err
+	}
+	repo, err := f.repo(ctx, p)
+	if err != nil {
+		return "", err
+	}
+	return scope.Post(ctx, client, repo, pr, head, allowed)
 }

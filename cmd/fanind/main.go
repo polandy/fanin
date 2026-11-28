@@ -251,6 +251,7 @@ func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log
 		Merger: fg, Cleaner: cleanup.New(runner, fg), Hook: hook.New(st, runner), PreGo: hook.NewPreGo(runner), StateDir: state,
 		Worktrees: worktree.New(runner),
 		Reviewer:  newReviews(fg, runner, d.clock, log, st),
+		Scopes:    fg,
 		Files:     sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
 }
 

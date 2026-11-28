@@ -62,7 +62,7 @@ func Gitea(pr forge.PR, base string) Result {
 		return red(cause, reasons...)
 	case len(running) > 0:
 		return pending(WaitChecks)
-	case len(pr.Checks) == 0:
+	case !hasCI(pr.Checks):
 		return pending(WaitNoChecks)
 	case pr.Mergeable != forge.MergeableYes:
 		return pending(WaitMergeable)

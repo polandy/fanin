@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/polandy/fanin/internal/api/client"
@@ -29,7 +30,7 @@ func (f *fakeIntake) Enqueue(_ context.Context, r intake.TaskRequest) (model.Tas
 	}
 	f.got = append(f.got, r)
 	return model.Task{ID: "alpha-1", Project: r.Project, Title: r.Task, Shape: model.ShapePR, State: model.TaskQueued,
-		OwnerTask: true, After: r.After}, nil
+		OwnerTask: true, After: r.After, AllowedPaths: r.AllowedPaths}, nil
 }
 
 func startTaskAPI(t *testing.T, in Intake) (*store.Store, *client.Client) {
@@ -64,6 +65,19 @@ func TestPostTasksQueuesTheRequest(t *testing.T) {
 	}
 	if len(in.got) != 1 || in.got[0].Task != "x" || len(in.got[0].After) != 1 || in.got[0].After[0] != "t0" {
 		t.Errorf("intake saw %+v", in.got)
+	}
+}
+
+func TestPostTasksCarriesAllowedPathsSC1(t *testing.T) {
+	in := &fakeIntake{}
+	_, c := startTaskAPI(t, in)
+	paths := []string{"internal/scope/", "docs/**"}
+	got, err := c.AddTask(context.Background(), wire.TaskRequest{Project: projAlpha, Task: "x", AllowedPaths: paths})
+	if err != nil {
+		t.Fatalf("AddTask: %v", err)
+	}
+	if len(in.got) != 1 || !slices.Equal(in.got[0].AllowedPaths, paths) || !slices.Equal(got.AllowedPaths, paths) {
+		t.Errorf("intake saw %+v, answer %+v; want allowed paths %q in both", in.got, got, paths)
 	}
 }
 

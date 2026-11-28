@@ -104,7 +104,8 @@ as patterns; disable force push.
 `ci` is your CI job; `fanin/review` is the status fanin's review run posts once `ci` is green on the PR head
 (`review_skill`, `review_model` and `review_timeout` in the project file). A head that only merges `main` into a
 reviewed head without conflicts gets `fanin/review` without a new run; `ci` still has to pass on it. `fanin doctor` reads the classic rule
-only, so a ruleset shows as a `FAIL` row. A check that never reports keeps the PR blocked (Gitea projects end in
+only, so a ruleset shows as a `FAIL` row. To enforce `--allow` scopes, add `fanin/scope` as a required check too;
+fanind posts it on every PR head it gates, success for a task without a scope. A check that never reports keeps the PR blocked (Gitea projects end in
 `NOCI` after `gate.gitea.noci_after_polls` polls without a status).
 
 ## Upgrade

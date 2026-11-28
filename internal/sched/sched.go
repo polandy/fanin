@@ -102,6 +102,8 @@ type Deps struct {
 	// Reviewer reviews a PR head with green CI and no fanin/review status; nil leaves it to the worker's nudge
 	// (SCENARIOS OC-3, concept D5).
 	Reviewer PRReviewer
+	// Scopes posts fanin/scope on each reported PR head before its gate; nil posts none (SCENARIOS SC-2).
+	Scopes ScopeChecks
 	// Owner takes the workers' dialogs and pane answers; nil leaves a dialog to the timeout's spare (AW-9, WA-3).
 	Owner Questions
 	// Worktrees prepares each Claude run's worktree before its start; nil fails every such spawn (SP-12).

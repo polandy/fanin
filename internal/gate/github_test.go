@@ -9,6 +9,7 @@ import (
 
 	"github.com/polandy/fanin/internal/forge"
 	"github.com/polandy/fanin/internal/gate"
+	"github.com/polandy/fanin/internal/scope"
 )
 
 // see SCENARIOS GH-1, GH-2, GH-3, GH-4, FP-6
@@ -46,6 +47,10 @@ func TestGitHubVerdicts(t *testing.T) {
 			pendingFor(gate.WaitChecks)},
 		{"GH-3_no_checks_yet", openPR(ready),
 			pendingFor(gate.WaitNoChecks)},
+		{"SC-2_a_scope_status_alone_is_no_CI", openPR(check(scope.Context, forge.CheckSuccess, 1), ready),
+			pendingFor(gate.WaitNoChecks)},
+		{"SC-2_a_failed_scope_is_a_CI_red", openPR(ci, check(scope.Context, forge.CheckFailure, 1), ready),
+			redFor(gate.CauseCI, "failed: "+scope.Context+" failure")},
 		{"GH-3_mergeable_unknown", withPR(func(pr *forge.PR) { pr.Mergeable = forge.MergeableUnknown }),
 			pendingFor(gate.WaitMergeable)},
 		{"GH-4_failed_check_ahead_of_running_with_review_reasons", openPR(check("lint", forge.CheckPending, 1),

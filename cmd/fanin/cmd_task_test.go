@@ -82,6 +82,22 @@ func TestTaskAddCommand(t *testing.T) {
 			t.Errorf("exit %d, stderr %q, tasks %+v", code, errOut, ts)
 		}
 	})
+	t.Run("SC-1_allow_sets_the_scope", func(t *testing.T) {
+		st, url := startIntakeDaemon(t)
+		code, _, errOut := taskRun(t, url, "task", "add", "--project", projAlpha, flagTask, "a", "--allow",
+			"internal/scope/", "--allow", "docs/**")
+		ts := queued(t, st)
+		if code != cli.ExitOK || len(ts) != 1 || strings.Join(ts[0].AllowedPaths, ",") != "internal/scope/,docs/**" {
+			t.Errorf("exit %d, stderr %q, tasks %+v", code, errOut, ts)
+		}
+	})
+	t.Run("SC-1_an_absolute_allow_is_a_usage_error", func(t *testing.T) {
+		st, url := startIntakeDaemon(t)
+		code, _, errOut := taskRun(t, url, "task", "add", "--project", projAlpha, flagTask, "a", "--allow", "/etc")
+		if code != cli.ExitUsage || len(queued(t, st)) != 0 || !strings.Contains(errOut, "absolute") {
+			t.Errorf("exit %d, stderr %q; want usage error 2 naming the absolute path, nothing queued", code, errOut)
+		}
+	})
 	for name, args := range map[string][]string{
 		"task_with_analyze":      {flagTask, "a", "--analyze", "b"},
 		"opencode_without_task":  {"--analyze", "b", "--worker", intake.KindOpencode},

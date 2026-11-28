@@ -84,9 +84,12 @@ fanin task cancel t1 --reason "merged outside fanind"                # end a sta
   open question with a note to you; `fanin answer t1 2` presses key 2 in the worker's pane. A dialog fanind cannot
   read only sends a note: answer it in the pane. An answer typed in the pane, or a result the worker reports,
   closes the open question.
-- `task add` takes `--task` or `--analyze`, never both, plus `--model`, `--worker` and `--after <id>` (repeatable). An
+- `task add` takes `--task` or `--analyze`, never both, plus `--model`, `--worker`, `--after <id>` and `--allow <path>` (both repeatable). An
   unknown model or worker, `--worker opencode` for an analysis or a Gitea project, or an unknown `--after` task is a
   usage error (exit 2) and queues nothing.
+- `--allow` limits the files the task's PR may change: a repo-relative path (`internal/gate/` for a directory),
+  or a glob (`*` within a directory, `**` across directories), at most 20. fanind posts `fanin/scope` on each PR
+  head: failure when the PR changes a file outside, which nudges the worker to fix it; success otherwise.
 - An analysis on a `loop: fanin` project ends by its report: an issue or nothing ends it `done` and closes its
   pane; blocked notifies you and keeps the pane; a PR is gated and waits for your `go`, nothing merges.
 - `task import` reads one `model|task` per line; `#` lines and blank lines are skipped but counted. Each task waits

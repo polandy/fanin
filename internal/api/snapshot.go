@@ -138,7 +138,7 @@ func taskDTO(t model.Task) wire.Task {
 	return wire.Task{
 		ID: string(t.ID), Project: t.Project, Title: t.Title, Prompt: t.Prompt, Shape: string(t.Shape),
 		State: string(t.State), OwnerTask: t.OwnerTask, After: after, Model: t.Model(), Worker: t.WorkerKind,
-		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		AllowedPaths: t.AllowedPaths, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
 }
 

@@ -17,6 +17,7 @@ func TestTaskRoundTripAndStateEvents(t *testing.T) {
 	in := task("t1")
 	in.Prompt, in.OwnerTask, in.After = "do it", true, []model.TaskID{"t0"}
 	in.OwnerModel, in.ProjectModel, in.PickedModel = "o", "p", "k"
+	in.AllowedPaths = []string{"internal/scope/", "docs/**"}
 	mustTx(t, s, func(ctx context.Context, tx *Tx) error { return tx.CreateTask(ctx, in) })
 	clk.Advance(time.Minute)
 	mustTx(t, s, func(ctx context.Context, tx *Tx) error {

@@ -198,7 +198,10 @@ On `done_pr` the PR is read once (the head check, GH-14). It goes to the owner a
 - it heads another branch than the run's: `#<n> heads <head>, not the run's branch <branch>`;
 - another live task's latest run has that branch or reported that PR: `#<n> is claimed by task <id>`.
 
-A run without a branch takes the PR's head. The gate then starts from that same read and runs on its timers as for
+A run without a branch takes the PR's head. `Deps.Scopes` then posts `fanin/scope` on the head from the task's
+`allowed_paths` (SC-2, see [gate](gate.md#task-scope-scenarios-sc-1-sc-2)); the read's checks take its result, so
+a file outside the scope is RED, CI. A scope that cannot be posted goes to the owner as
+`ERROR #<n>: fanin/scope not posted: …` and never gates. The gate then starts from that same read and runs on its timers as for
 an analysis. A final answer decides:
 
 | Verdict | Then |

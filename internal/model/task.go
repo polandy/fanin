@@ -61,7 +61,9 @@ type Task struct {
 	// After lists the tasks that must be done before this one is dispatched.
 	After []TaskID
 	// WorkerKind is the worker kind the owner asked for; empty means the project's.
-	WorkerKind   string
+	WorkerKind string
+	// AllowedPaths is the task's file scope for fanin/scope; empty means no scope (see SCENARIOS SC-1).
+	AllowedPaths []string
 	OwnerModel   string
 	ProjectModel string
 	PickedModel  string
