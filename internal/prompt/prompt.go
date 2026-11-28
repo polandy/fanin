@@ -1,5 +1,5 @@
 // Package prompt renders the worker prompts and nudges: embedded templates with {{INCLUDE:part}}, {{REPO}},
-// {{BASE}}, {{HINT}}, plus a follow-up run's handover.
+// {{BASE}}, {{HINT}}, {{WORKTREE}}, {{BRANCH}}, plus a follow-up run's handover.
 package prompt
 
 import (
@@ -61,6 +61,9 @@ type Vars struct {
 	Repo string
 	Base string
 	Hint string
+	// Worktree and Branch are the run's prepared worktree and branch (SCENARIOS SP-12).
+	Worktree string
+	Branch   string
 	// Log, when set, is appended in a code fence: the tail of a failed CI step's log.
 	Log string
 	// Handover, when set, is appended as it is: a follow-up run's handover document (Handover.Markdown).
@@ -103,10 +106,11 @@ func render(fsys fs.FS, name Name, v Vars) (string, error) {
 		p = strings.ReplaceAll(p, m[0], part)
 	}
 	if left := unknownPlaceholder(p); left != "" {
-		return "", fmt.Errorf("%w: %s in %s; use REPO, BASE, HINT or INCLUDE:<part>", ErrPlaceholder, left, name)
+		return "", fmt.Errorf("%w: %s in %s; use REPO, BASE, HINT, WORKTREE, BRANCH or INCLUDE:<part>", ErrPlaceholder, left, name)
 	}
 	// Placeholders are gone before the values go in, so a hint is never expanded.
-	out := strings.NewReplacer("{{REPO}}", v.Repo, "{{BASE}}", v.Base, "{{HINT}}", v.Hint).Replace(p) + "\n"
+	out := strings.NewReplacer("{{REPO}}", v.Repo, "{{BASE}}", v.Base, "{{HINT}}", v.Hint, "{{WORKTREE}}", v.Worktree,
+		"{{BRANCH}}", v.Branch).Replace(p) + "\n"
 	if v.Log != "" {
 		fence := "```"
 		for strings.Contains(v.Log, fence) {
@@ -123,7 +127,7 @@ func render(fsys fs.FS, name Name, v Vars) (string, error) {
 func unknownPlaceholder(p string) string {
 	for _, m := range placeholderRe.FindAllString(p, -1) {
 		switch m {
-		case "{{REPO}}", "{{BASE}}", "{{HINT}}":
+		case "{{REPO}}", "{{BASE}}", "{{HINT}}", "{{WORKTREE}}", "{{BRANCH}}":
 		default:
 			return m
 		}

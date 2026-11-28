@@ -38,6 +38,7 @@ import (
 	"github.com/polandy/fanin/internal/shadow"
 	"github.com/polandy/fanin/internal/store"
 	"github.com/polandy/fanin/internal/version"
+	"github.com/polandy/fanin/internal/worktree"
 )
 
 // envConfig is the fallback of --config.
@@ -248,8 +249,9 @@ func schedDeps(cfg config.Config, st *store.Store, notifier notify.Notifier, log
 	return sched.Deps{Config: cfg, Store: st, Runtime: rt, Picker: pk, Clock: d.clock, Log: log,
 		Unpushed: sched.GitUnpushed{Runner: exec.Runner{}}, Notify: notifier, Gates: fg, BaseCI: fg, FailLog: fg, ReviewText: fg,
 		Merger: fg, Cleaner: cleanup.New(runner, fg), Hook: hook.New(st, runner), PreGo: hook.NewPreGo(runner), StateDir: state,
-		Reviewer: newReviews(fg, runner, d.clock, log, st),
-		Files:    sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
+		Worktrees: worktree.New(runner),
+		Reviewer:  newReviews(fg, runner, d.clock, log, st),
+		Files:     sched.Files{Dir: filepath.Join(filepath.Dir(cfg.Store), RunsDir), DaemonURL: "http://" + cfg.Listen}}, nil
 }
 
 // realWorkers is the herdr runtime behind the opencode sandbox runtime, and the headless picker.

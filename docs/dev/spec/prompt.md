@@ -28,11 +28,12 @@ The worker templates put the task hint line last before the status-line part, so
 
 ## Rendering
 
-`prompt.Render(name, Vars{Repo, Base, Hint, Handover})`:
+`prompt.Render(name, Vars{Repo, Base, Hint, Worktree, Branch, Log, Handover})`:
 
 1. `{{INCLUDE:part}}` is replaced by `parts/<part>.md`, repeatedly (at most 16 rounds, so a cycle is an error).
-2. Any remaining placeholder other than `{{REPO}}`, `{{BASE}}`, `{{HINT}}` is `ErrPlaceholder`.
-3. The three values go in in one pass, so a hint is inserted literally: a `{{REPO}}` or `{{INCLUDE:x}}` in it stays as typed.
+2. Any remaining placeholder other than `{{REPO}}`, `{{BASE}}`, `{{HINT}}`, `{{WORKTREE}}`, `{{BRANCH}}` is
+   `ErrPlaceholder`. The worker templates send the worker to the prepared `{{WORKTREE}}` on `{{BRANCH}}` (SP-12).
+3. The values go in in one pass, so a hint is inserted literally: a `{{REPO}}` or `{{INCLUDE:x}}` in it stays as typed.
 
 A missing template or part is `ErrTemplate` (wrapping `fs.ErrNotExist`); the renderer never returns a prompt with an
 include left in. The output ends with one newline. A non-empty `Handover` (`Handover.Markdown()`) is appended

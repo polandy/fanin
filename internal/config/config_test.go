@@ -16,6 +16,7 @@ const (
 	unknownKey     = "colour"
 	keyMaxParallel = "max_parallel"
 	wordRetired    = "retired"
+	fileAlpha      = "projects/alpha.yaml"
 )
 
 const (
@@ -78,7 +79,7 @@ model: sonnet
 func baseTree() map[string]string {
 	return map[string]string{
 		fileFanin: faninYAML, fileHosts: hostsYAML, fileForges: forgesYAML, fileWorkerKinds: kindsYAML,
-		fileTriggers: "", "projects/alpha.yaml": alphaYAML, "projects/beta.yaml": betaYAML,
+		fileTriggers: "", fileAlpha: alphaYAML, "projects/beta.yaml": betaYAML,
 	}
 }
 
@@ -135,6 +136,13 @@ func TestLoad(t *testing.T) {
 		want := [...]string{"/path/to/alpha", HostLocal, "github", "trunk", "opencode"}
 		if got != want {
 			t.Errorf("alpha = %v, want %v", got, want)
+		}
+	})
+	t.Run("SP-12_worktree_dir_is_optional", func(t *testing.T) {
+		cfg, _ := mustLoad(t, with(map[string]string{fileAlpha: alphaYAML +
+			"worktree_dir: /work/trees\n"}))
+		if got, _ := cfg.Project("alpha"); got.WorktreeDir != "/work/trees" || beta.WorktreeDir != "" {
+			t.Errorf("worktree_dir = %q and %q, want /work/trees and none", got.WorktreeDir, beta.WorktreeDir)
 		}
 	})
 	t.Run("ST-4_local_is_this_host", func(t *testing.T) {
@@ -194,7 +202,7 @@ func TestLoadOptionalFilesMayBeMissing(t *testing.T) {
 // TestLoadRefusesABadConfig covers SCENARIOS ST-4 and LN-2: a bad config refuses to start and names the file,
 // the path and the rule.
 func TestLoadRefusesABadConfig(t *testing.T) {
-	alpha := "projects/alpha.yaml"
+	alpha := fileAlpha
 	for _, tc := range []struct {
 		name  string
 		edits map[string]string
@@ -227,6 +235,8 @@ func TestLoadRefusesABadConfig(t *testing.T) {
 			[]string{"/hosts"}},
 		{"ST-4_relative_path", map[string]string{alpha: strings.Replace(alphaYAML, "/path/to/alpha", "alpha", 1)},
 			alpha, []string{"/path"}},
+		{"SP-12_relative_worktree_dir", map[string]string{alpha: alphaYAML + "worktree_dir: trees\n"}, alpha,
+			[]string{"/worktree_dir"}},
 		{"ST-4_bad_duration", map[string]string{alpha: alphaYAML + "stall_after: soon\n"}, alpha,
 			[]string{"/stall_after", "soon"}},
 		{"ST-4_bad_project_file_name", map[string]string{"projects/Alpha Two.yaml": alphaYAML}, "Alpha Two.yaml",

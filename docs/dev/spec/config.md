@@ -94,6 +94,7 @@ Project-only keys (not allowed under `defaults`):
 | `fallback` | kind name | none | kind used when `worker_kind` is unavailable |
 | `post_merge_hook` | string | none | command run after a merge, under the project lock |
 | `pre_go_check` | string | none | command whose output goes with a ready PR before the owner's go |
+| `worktree_dir` | absolute path | checkout's parent | where fanind creates each run's worktree (SP-12) |
 
 Settings, in a project file or under `defaults`:
 

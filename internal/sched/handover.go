@@ -1,6 +1,7 @@
 package sched
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/store"
+	"github.com/polandy/fanin/internal/worktree"
 )
 
 // What a handover carries over from the task's earlier runs (spec: docs/dev/spec/handover.md).
@@ -58,6 +60,9 @@ func (s *Scheduler) handOver(ctx context.Context, p config.Project, run model.Ru
 	ho, err := s.handover(ctx, run, reason)
 	if err != nil {
 		return err
+	}
+	if tree, ok := treeOf(p, task, run.Hint); ok {
+		ho.Worktree, ho.Branch = tree.Path, cmp.Or(ho.Branch, tree.Branch)
 	}
 	spec, err := s.spec(p, task, run.Hint, "", ho.Markdown())
 	if err != nil {
@@ -154,11 +159,31 @@ func (s *Scheduler) launch(ctx context.Context, p config.Project, run model.Run,
 	}
 	spec.MCPConfig, spec.Settings = paths.MCPConfig, paths.Settings
 	log := s.logFor(p.Name, run.TaskID, run.ID)
-	log.InfoContext(ctx, "sched: spawning", "agent", spec.Agent, "slot", run.Slot, "model", spec.Model)
+	log.InfoContext(ctx, "sched: spawning", "agent", spec.Agent, "slot", run.Slot, "model", spec.Model,
+		"worktree", spec.Worktree)
 	safego.Go(ctx, log, func(ctx context.Context) {
+		if err := s.prepareTree(ctx, p, spec); err != nil {
+			s.post(ctx, func(ctx context.Context) { s.started(ctx, p, run, runtime.RunHandle{}, err) })
+			return
+		}
 		h, err := s.d.Runtime.Start(ctx, spec)
 		s.post(ctx, func(ctx context.Context) { s.started(ctx, p, run, h, err) })
 	})
+}
+
+// prepareTree creates or reuses the worktree of a spec with a branch (SCENARIOS SP-12).
+func (s *Scheduler) prepareTree(ctx context.Context, p config.Project, spec runtime.RunSpec) error {
+	if spec.Branch == "" {
+		return nil
+	}
+	if s.d.Worktrees == nil {
+		return fmt.Errorf("%w: %s on %s for project %s; wire Deps.Worktrees", ErrNoWorktrees, spec.Worktree,
+			spec.Branch, p.Name)
+	}
+	if err := s.d.Worktrees.Prepare(ctx, p, worktree.Tree{Path: spec.Worktree, Branch: spec.Branch}); err != nil {
+		return fmt.Errorf("sched: prepare worktree %s on %s: %w", spec.Worktree, spec.Branch, err)
+	}
+	return nil
 }
 
 // handle is the runtime handle of the run's stored worker.

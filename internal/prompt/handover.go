@@ -10,8 +10,10 @@ const (
 	NoState  = "No progress was reported."
 	NoneOpen = "Nothing recorded."
 	NoBranch = "Not recorded; find the run's branch with `git branch` and `git worktree list`."
-	NoErrors = "None recorded."
-	NoTail   = "Not recorded."
+	// NoWorktree is the worktree section of a run that had no prepared worktree.
+	NoWorktree = "Not recorded; find the run's worktree with `git worktree list`."
+	NoErrors   = "None recorded."
+	NoTail     = "Not recorded."
 )
 
 // minFence is the shortest Markdown code fence.
@@ -26,6 +28,8 @@ type Handover struct {
 	State  string
 	Open   []string
 	Branch string
+	// Worktree is the prepared worktree the fresh run starts in.
+	Worktree string
 	// Errors are the latest failures, stalls and red verdicts of the task's earlier runs, oldest first.
 	Errors []string
 	Tail   string
@@ -44,6 +48,11 @@ func (h Handover) Markdown() string {
 		branch = "`" + h.Branch + "`"
 	}
 	fmt.Fprintf(&b, "### Branch\n\n%s\n\n", branch)
+	tree := NoWorktree
+	if h.Worktree != "" {
+		tree = "`" + h.Worktree + "`"
+	}
+	fmt.Fprintf(&b, "### Worktree\n\n%s\n\n", tree)
 	fmt.Fprintf(&b, "### Last errors\n\n%s\n\n", list(h.Errors, NoErrors))
 	b.WriteString("### Tail\n\n")
 	if tail := strings.TrimRight(h.Tail, "\n"); tail == "" {

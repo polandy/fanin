@@ -16,6 +16,7 @@ import (
 	"github.com/polandy/fanin/internal/runtime"
 	"github.com/polandy/fanin/internal/runtime/headless"
 	"github.com/polandy/fanin/internal/store"
+	"github.com/polandy/fanin/internal/worktree"
 )
 
 func ownerTask(id model.TaskID) model.Task {
@@ -98,7 +99,9 @@ func TestDispatch(t *testing.T) {
 		h.start()
 		h.addTask(model.Task{ID: "a1", Title: titleLoop})
 		h.until(h.runIn(RunID("a1", 1), model.RunWorking))
-		want, err := prompt.Render(prompt.Worker, prompt.Vars{Repo: pathAlpha, Base: baseMain})
+		tree := worktree.For(alphaProject(t, h.cfg), "a1", false, titleLoop)
+		want, err := prompt.Render(prompt.Worker, prompt.Vars{Repo: pathAlpha, Base: baseMain, Worktree: tree.Path,
+			Branch: tree.Branch})
 		if err != nil {
 			t.Fatal(err)
 		}
