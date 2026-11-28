@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/polandy/fanin/internal/config"
-	"github.com/polandy/fanin/internal/intake"
 	"github.com/polandy/fanin/internal/model"
 	"github.com/polandy/fanin/internal/prompt"
 	"github.com/polandy/fanin/internal/runtime"
@@ -62,8 +61,7 @@ func (s *Scheduler) handOver(ctx context.Context, p config.Project, run model.Ru
 	if err != nil {
 		return err
 	}
-	if kind := cmp.Or(task.WorkerKind, p.WorkerKind); kind != intake.KindOpencode {
-		tree := treeOf(p, task, run.Hint)
+	if tree, ok := treeOf(p, task, run.Hint); ok {
 		ho.Worktree, ho.Branch = tree.Path, cmp.Or(ho.Branch, tree.Branch)
 	}
 	spec, err := s.spec(p, task, run.Hint, "", ho.Markdown())

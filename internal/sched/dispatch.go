@@ -231,8 +231,8 @@ func (s *Scheduler) spec(p config.Project, task model.Task, hint, picked, handov
 		Base: p.Base}
 	if kind == intake.KindOpencode {
 		spec.Kind = runtime.KindOpencode
-	} else {
-		tree := treeOf(p, task, hint)
+	}
+	if tree, ok := treeOf(p, task, hint); ok {
 		spec.Worktree, spec.Branch = tree.Path, tree.Branch
 	}
 	spec.Prompt, err = prompt.Render(promptName(kind, task.Shape, forgeKind), prompt.Vars{Repo: p.Path, Base: p.Base,
@@ -243,9 +243,13 @@ func (s *Scheduler) spec(p config.Project, task model.Task, hint, picked, handov
 	return spec, nil
 }
 
-// treeOf names the worktree of a Claude run of task, from its hint, else its title (SCENARIOS SP-12).
-func treeOf(p config.Project, task model.Task, hint string) worktree.Tree {
-	return worktree.For(p, string(task.ID), task.Shape != model.ShapePR, cmp.Or(hint, task.Title))
+// treeOf names the worktree of a run of task, from its hint, else its title; an opencode run has none, as it works
+// in a sandbox clone (SCENARIOS SP-12).
+func treeOf(p config.Project, task model.Task, hint string) (worktree.Tree, bool) {
+	if cmp.Or(task.WorkerKind, p.WorkerKind) == intake.KindOpencode {
+		return worktree.Tree{}, false
+	}
+	return worktree.For(p, string(task.ID), task.Shape != model.ShapePR, cmp.Or(hint, task.Title)), true
 }
 
 // promptName picks the worker template by worker kind, task shape and forge.
