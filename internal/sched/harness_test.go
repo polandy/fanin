@@ -68,6 +68,7 @@ type harness struct {
 	st         *store.Store
 	clk        *clock.Manual
 	rt         *fakeRuntime
+	wt         *fakeWorktrees
 	pk         *fakePicker
 	up         *fakeUnpushed
 	nt         *fakeNotifier
@@ -105,7 +106,7 @@ func newHarness(t *testing.T, cfg config.Config) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := &harness{t: t, cfg: cfg, path: path, st: st, clk: clk, rt: newFakeRuntime(), pk: &fakePicker{},
+	h := &harness{t: t, cfg: cfg, path: path, st: st, clk: clk, rt: newFakeRuntime(), wt: &fakeWorktrees{}, pk: &fakePicker{},
 		up: &fakeUnpushed{}, nt: &fakeNotifier{}, files: Files{Dir: t.TempDir(), DaemonURL: "http://127.0.0.1:1"}, logs: &syncBuffer{}}
 	t.Cleanup(func() {
 		h.stop()
@@ -121,13 +122,17 @@ func (h *harness) start() {
 	h.t.Helper()
 	ctx, cancel := context.WithCancel(h.t.Context())
 	h.cancel, h.waiting, h.done = cancel, make(chan struct{}), make(chan error, 1)
+	var trees Worktrees
+	if h.wt != nil {
+		trees = h.wt
+	}
 	var post PostMerge
 	if h.hookRun != nil {
 		post = hook.New(h.st, h.hookRun)
 	}
 	s, err := New(Deps{Config: h.cfg, Store: h.st, Runtime: h.rt, Picker: h.pk, Files: h.files, Clock: h.clk,
 		Unpushed: h.up, Notify: h.nt, Gates: h.gates, Merger: h.merger, Cleaner: h.cleaner, Hook: post, BaseCI: h.baseCI, FailLog: h.failLog, ReviewText: h.reviewText, PreGo: h.preGo,
-		StateDir: h.stateDir, OCDeliver: h.ocPush, OCReview: h.ocReview, Reviewer: h.reviewer, Owner: h.questions,
+		StateDir: h.stateDir, OCDeliver: h.ocPush, OCReview: h.ocReview, Reviewer: h.reviewer, Owner: h.questions, Worktrees: trees,
 		Log: slog.New(slog.NewTextHandler(h.logs, nil)), Waiting: func() {
 			h.cursor.Store(h.s.cursor)
 			select {

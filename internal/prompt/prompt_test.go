@@ -25,7 +25,13 @@ const (
 	testBase = "main"
 )
 
-var vars = Vars{Repo: testRepo, Base: testBase, Hint: "fix it"}
+// The prepared worktree and branch the tests render with.
+const (
+	testWorktree = "/r/repo-7-fix-it"
+	testBranch   = "fix/7-fix-it"
+)
+
+var vars = Vars{Repo: testRepo, Base: testBase, Hint: "fix it", Worktree: testWorktree, Branch: testBranch}
 
 func mustRender(t *testing.T, n Name, v Vars) string {
 	t.Helper()
@@ -48,6 +54,22 @@ func TestPrompt(t *testing.T) {
 			for _, want := range []string{vars.Repo, vars.Hint} {
 				if !strings.Contains(out, want) {
 					t.Errorf("%s: %q missing", n, want)
+				}
+			}
+		}
+	})
+
+	t.Run("SP-12_the_worker_works_in_the_prepared_worktree_and_branch", func(t *testing.T) {
+		for _, n := range []Name{Worker, WorkerGitea, WorkerAnalyze, WorkerGiteaAnalyze} {
+			out := mustRender(t, n, vars)
+			for _, want := range []string{"`" + testWorktree + "`", "`" + testBranch + "`"} {
+				if !strings.Contains(out, want) {
+					t.Errorf("%s: %q missing", n, want)
+				}
+			}
+			for _, stale := range []string{"worktree beside the checkout", "on a new branch"} {
+				if strings.Contains(out, stale) {
+					t.Errorf("%s: still asks the worker to make its own worktree: %q", n, stale)
 				}
 			}
 		}
