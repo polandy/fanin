@@ -167,6 +167,8 @@ type Project struct {
 	Loop          string   `yaml:"loop"`
 	PostMergeHook string   `yaml:"post_merge_hook,omitempty"`
 	PreGoCheck    string   `yaml:"pre_go_check,omitempty"`
+	// WorktreeDir holds the runs' worktrees; empty means the checkout's parent (SCENARIOS SP-12).
+	WorktreeDir string `yaml:"worktree_dir,omitempty"`
 }
 
 // Budgets bound a run and a task (C-BUDGET).

@@ -15,6 +15,7 @@ import (
 	"github.com/polandy/fanin/internal/prompt"
 	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/store"
+	"github.com/polandy/fanin/internal/worktree"
 )
 
 // The details a merge leaves on its task (SCENARIOS MG-1 to MG-8).
@@ -48,6 +49,11 @@ type Merger interface {
 // Cleaner removes the branches and worktree of a merged PR; *cleanup.Cleaner is the real one.
 type Cleaner interface {
 	Cleanup(ctx context.Context, p config.Project, pr int) error
+}
+
+// Worktrees creates or reuses a run's worktree and branch; *worktree.Maker is the real one (SCENARIOS SP-12).
+type Worktrees interface {
+	Prepare(ctx context.Context, p config.Project, t worktree.Tree) error
 }
 
 // PostMerge runs a project's post-merge hook under its hold; *hook.Hook is the real one.

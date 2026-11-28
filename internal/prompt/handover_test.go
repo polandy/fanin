@@ -93,7 +93,9 @@ func TestHandover(t *testing.T) {
 
 	t.Run("C-BUDGET_handover_is_appended_literally", func(t *testing.T) {
 		ho := Handover{FromRun: 1, Reason: "r", State: "{{REPO}} {{INCLUDE:owner-input}}"}.Markdown()
-		out := mustRender(t, Worker, Vars{Repo: testRepo, Base: testBase, Hint: "fix it", Handover: ho})
+		v := vars
+		v.Handover = ho
+		out := mustRender(t, Worker, v)
 		base := mustRender(t, Worker, vars)
 		if want := base + "\n" + ho; out != want {
 			t.Errorf("prompt with handover (-want +got):\n%s", cmp.Diff(want, out))

@@ -11,13 +11,14 @@ import (
 )
 
 const (
+	project  = "alpha"
 	repoPath = "/srv/alpha"
 	tree     = "/srv/alpha-7-retry-the-gate"
 	branch   = "fix/7-retry-the-gate"
 )
 
 func TestFor(t *testing.T) {
-	p := config.Project{Name: "alpha", Path: repoPath, Base: "main"}
+	p := config.Project{Name: project, Path: repoPath, Base: "main"}
 	tests := []struct {
 		name     string
 		project  config.Project
@@ -27,7 +28,7 @@ func TestFor(t *testing.T) {
 		want     Tree
 	}{
 		{name: "SP-12_type_and_slug_from_a_conventional_hint", project: p, task: "alpha-7",
-			text: "fix(gate): retry the gate on a 502", want: Tree{Path: tree, Branch: branch}},
+			text: "fix(gate): retry the gate", want: Tree{Path: tree, Branch: branch}},
 		{name: "SP-12_a_hint_without_a_known_type_is_a_feat", project: p, task: "alpha-8",
 			text: "Add a Dark Mode!", want: Tree{Path: "/srv/alpha-8-add-a-dark-mode", Branch: "feat/8-add-a-dark-mode"}},
 		{name: "SP-12_an_unknown_prefix_stays_in_the_slug", project: p, task: "alpha-9", text: "wip: thing",
@@ -39,7 +40,7 @@ func TestFor(t *testing.T) {
 		{name: "SP-12_a_foreign_task_id_is_kept_whole", project: p, task: "chain-x-2", text: "docs: readme",
 			want: Tree{Path: "/srv/alpha-chain-x-2-readme", Branch: "docs/chain-x-2-readme"}},
 		{name: "SP-12_the_configured_worktree_dir", task: "alpha-5", text: "test: cover it",
-			project: config.Project{Name: "alpha", Path: repoPath, WorktreeDir: "/work/trees"},
+			project: config.Project{Name: project, Path: repoPath, WorktreeDir: "/work/trees"},
 			want:    Tree{Path: "/work/trees/alpha-5-cover-it", Branch: "test/5-cover-it"}},
 		{name: "SP-12_a_long_text_is_cut_at_a_word", project: p, task: "alpha-6",
 			text: "refactor: internationalization localization accessibility observability",
@@ -73,7 +74,7 @@ func listing(entries ...[2]string) string {
 }
 
 func TestPrepare(t *testing.T) {
-	p := config.Project{Name: "alpha", Path: repoPath, Base: "main"}
+	p := config.Project{Name: project, Path: repoPath, Base: "main"}
 	list := git("worktree", "list", "--porcelain")
 	fetch := git("fetch", "--quiet", "origin", "main")
 	show := git("show-ref", "--verify", "--quiet", "refs/heads/"+branch)

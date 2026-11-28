@@ -49,6 +49,8 @@ type RunSpec struct {
 	// Host is the machine the worker runs on; empty means this host.
 	Host     string
 	Worktree string
+	// Branch is the branch fanind checked out at Worktree; empty when the worker works in the checkout (opencode).
+	Branch string
 	// Agent is the slot's agent name; it carries no lane name (concept C-SLOTS).
 	Agent string
 	// Title is the task's short title for the session name; empty leaves it out.

@@ -12,7 +12,7 @@ adapter. Every herdr call goes through `runtime.Runner`, every wait through the 
 | `Observe(ctx, RunHandle) (<-chan RunEvent, error)` | polls herdr and the pane and streams `RunEvent`s (see Observe) |
 | `Stop(ctx, RunHandle) error` | closes the run's pane, never its tab (FP-7, MG-7) |
 
-`RunSpec` carries the task and run IDs (for logs), the project label, host, worktree, agent name, short title, model, prompt and MCP config path, plus the worker kind (`claude` or
+`RunSpec` carries the task and run IDs (for logs), the project label, host, worktree and its branch (empty for opencode, which starts in the checkout), agent name, short title, model, prompt and MCP config path, plus the worker kind (`claude` or
 `opencode`; empty is claude), the base branch and a directory to put first on the pane's PATH.
 The session name is `<project> · <short title> · <agent>` (SP-1); the title is left out when empty. Agent names
 are slot names without a lane (C-SLOTS). `RunHandle` names host, agent, workspace, tab and pane, plus the task and run IDs and the project for logs.

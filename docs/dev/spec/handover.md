@@ -50,6 +50,10 @@ not start over.
 
 `<branch>`
 
+### Worktree
+
+`<path>`
+
 ### Last errors
 
 - run <run id>: <detail>
@@ -64,8 +68,11 @@ not start over.
 - **State** is the spent run's newest `progress` detail, else its last report.
 - **Open** lists the PR of a `done_pr` report, the question of a `blocked` report, and a note on unpushed commits
   once the run got `NUDGE_SECURE`.
-- **Branch** is the run's branch: the one stored on the run, else the branch of its first report. Without one,
+- **Branch** is the run's branch: the one stored on the run, else the branch of its first report, else the
+  prepared worktree's branch. Without one,
   the section tells the worker to find it with `git branch` and `git worktree list`.
+- **Worktree** is the path fanind prepared for the task (SP-12), the follow-up run's too. Without one, the section
+  tells the worker to find it with `git worktree list`.
 - **Last errors** are the newest `HandoverErrors` (5) `run_state` details of the task that start with `stalled: `,
   `spawn failed `, `worker timeout: `, `rolled over: ` or `nudge to `, oldest first.
 - **Tail** is the last `HandoverTailLines` (40) lines of the tail stored on the run (AW-12). Its code fence is longer

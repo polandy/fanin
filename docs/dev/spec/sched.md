@@ -57,13 +57,26 @@ One transaction writes the run row in state `starting`:
 Then, in the background:
 
 1. `RunFiles.Prepare` writes `runs/<run>/mcp.json` next to the store. It is mode 0600 and holds the run token.
-2. `WorkerRuntime.Start` starts the worker.
+2. `Worktrees.Prepare` (`internal/worktree`) readies the run's worktree for a Claude worker (SP-12), see below.
+3. `WorkerRuntime.Start` starts the worker there.
+
+The worktree is `<dir>/<repo>-<slug>` on branch `<type>/<slug>`. `<dir>` is the project's `worktree_dir`, else the
+checkout's parent. `<slug>` is the task ID without its `<project>-` prefix plus at most four words of the hint (else
+the task title), cut at 40 characters. `<type>` is the hint's Conventional Commit type, else `feat`; an analysis
+or answer task gets `docs` and `analysis` leads its words. The task ID keeps two slots of one project apart, and the
+name is a function of task and hint, so a follow-up run gets the same tree. `Prepare` takes one lock per checkout and
+reads `git worktree list --porcelain`: the tree with that branch at that path is reused. A path that has another
+branch, a branch checked out elsewhere (`ErrInUse`) or a local branch without a worktree (`ErrBranchExists`) is
+refused; else `git fetch origin <base>` and `git worktree add -b <branch> <path> origin/<base>` create both. Any git
+failure (dirty or existing path, full disk, no remote) is `ErrGit`. The spec's `Worktree` and `Branch` and the
+prompt's `{{WORKTREE}}` and `{{BRANCH}}` name the tree; the worker creates none of its own. An opencode worker keeps
+the checkout, since it works in a sandbox clone. `internal/cleanup` removes the tree after the merge (MG-7).
 
 When the start succeeds, the run gets its workspace, tab and pane (`Tx.SetRunWorker`), moves to working, and the
 task's `stall` and `worker_timeout` timers are armed.
 
-A failed write or start ends the run failed, with detail `spawn failed <agent>: <cause>`, and the task failed
-(SP-8). A worker kind whose runtime is not herdr is refused with `ErrWorkerKind`, and so is an opencode task on a
+A failed write, worktree or start ends the run failed, with detail `spawn failed <agent>: <cause>`, and the task failed
+(SP-8). A Claude spawn without `Deps.Worktrees` fails closed with `ErrNoWorktrees`. A worker kind whose runtime is not herdr is refused with `ErrWorkerKind`, and so is an opencode task on a
 forge that is not GitHub or of a shape other than PR (SP-9). An opencode spec carries kind `opencode` and the
 project's base. A started worker that cannot be
 recorded is logged as having unknown status and keeps its slot: no second worker is started.

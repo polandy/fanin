@@ -50,6 +50,8 @@ var (
 	ErrWorkerKind = errors.New("sched: worker kind cannot run a worker")
 	// ErrRemoteHost is a loop: fanin project on a remote host; fanind runs workers on its own host only.
 	ErrRemoteHost = errors.New("sched: loop: fanin on a remote host")
+	// ErrNoWorktrees is a Claude run spawned without Deps.Worktrees; it fails closed (SCENARIOS SP-12).
+	ErrNoWorktrees = errors.New("sched: no worktree maker")
 )
 
 // Picker chooses a task for a non-owner task; *pick.Picker is the real one.
@@ -102,6 +104,8 @@ type Deps struct {
 	Reviewer PRReviewer
 	// Owner takes the workers' dialogs and pane answers; nil leaves a dialog to the timeout's spare (AW-9, WA-3).
 	Owner Questions
+	// Worktrees prepares each Claude run's worktree before its start; nil fails every such spawn (SP-12).
+	Worktrees Worktrees
 }
 
 // Scheduler is the reactor of store events, runtime events and due timers. Only Run's goroutine touches it.

@@ -17,6 +17,7 @@ import (
 	"github.com/polandy/fanin/internal/runtime/headless"
 	"github.com/polandy/fanin/internal/safego"
 	"github.com/polandy/fanin/internal/store"
+	"github.com/polandy/fanin/internal/worktree"
 )
 
 // dispatch fills the free slots of every project.
@@ -226,17 +227,25 @@ func (s *Scheduler) spec(p config.Project, task model.Task, hint, picked, handov
 	if err != nil {
 		return runtime.RunSpec{}, fmt.Errorf("sched: task %s: %w", task.ID, err)
 	}
-	text, err := prompt.Render(promptName(kind, task.Shape, forgeKind),
-		prompt.Vars{Repo: p.Path, Base: p.Base, Hint: hint, Handover: handover})
+	spec := runtime.RunSpec{TaskID: task.ID, Project: p.Name, Worktree: p.Path, Title: task.Title, Model: mdl,
+		Base: p.Base}
+	if kind == intake.KindOpencode {
+		spec.Kind = runtime.KindOpencode
+	} else {
+		tree := treeOf(p, task, hint)
+		spec.Worktree, spec.Branch = tree.Path, tree.Branch
+	}
+	spec.Prompt, err = prompt.Render(promptName(kind, task.Shape, forgeKind), prompt.Vars{Repo: p.Path, Base: p.Base,
+		Hint: hint, Worktree: spec.Worktree, Branch: spec.Branch, Handover: handover})
 	if err != nil {
 		return runtime.RunSpec{}, fmt.Errorf("sched: task %s: %w", task.ID, err)
 	}
-	spec := runtime.RunSpec{TaskID: task.ID, Project: p.Name, Worktree: p.Path, Title: task.Title, Model: mdl,
-		Prompt: text, Base: p.Base}
-	if kind == intake.KindOpencode {
-		spec.Kind = runtime.KindOpencode
-	}
 	return spec, nil
+}
+
+// treeOf names the worktree of a Claude run of task, from its hint, else its title (SCENARIOS SP-12).
+func treeOf(p config.Project, task model.Task, hint string) worktree.Tree {
+	return worktree.For(p, string(task.ID), task.Shape != model.ShapePR, cmp.Or(hint, task.Title))
 }
 
 // promptName picks the worker template by worker kind, task shape and forge.

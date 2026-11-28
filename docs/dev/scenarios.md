@@ -165,6 +165,14 @@ These scenarios cover starting a worker and handing it its prompt.
 - Then: `ERROR: status of <agent> unknown …, no second worker started`.
 - Source: `loop.sh:398`. Test: `loop.sh#36`. Mark: PARITY.
 
+**SP-12**
+- Given: a Claude worker is spawned for a task.
+- Then: fanind creates its own git worktree and branch from `origin/<base>` (or reuses the one a follow-up run of
+  the task already has) and starts the pane there; the prompt and the handover name both. Two slots of one project
+  never share one. A failed `git worktree add` (branch exists, path taken, full disk) fails the spawn before the
+  start.
+- Source: —. Mark: CHANGES. The bash worker created its worktree from the prompt.
+
 ## 3. Await, stall, nudge budgets
 
 These scenarios cover waiting for a worker's result and nudging it when it stops.

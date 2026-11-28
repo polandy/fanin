@@ -16,6 +16,7 @@ const (
 	unknownKey     = "colour"
 	keyMaxParallel = "max_parallel"
 	wordRetired    = "retired"
+	fileAlpha      = "projects/alpha.yaml"
 )
 
 const (
@@ -78,7 +79,7 @@ model: sonnet
 func baseTree() map[string]string {
 	return map[string]string{
 		fileFanin: faninYAML, fileHosts: hostsYAML, fileForges: forgesYAML, fileWorkerKinds: kindsYAML,
-		fileTriggers: "", "projects/alpha.yaml": alphaYAML, "projects/beta.yaml": betaYAML,
+		fileTriggers: "", fileAlpha: alphaYAML, "projects/beta.yaml": betaYAML,
 	}
 }
 
@@ -138,7 +139,7 @@ func TestLoad(t *testing.T) {
 		}
 	})
 	t.Run("SP-12_worktree_dir_is_optional", func(t *testing.T) {
-		cfg, _ := mustLoad(t, with(map[string]string{"projects/alpha.yaml": alphaYAML +
+		cfg, _ := mustLoad(t, with(map[string]string{fileAlpha: alphaYAML +
 			"worktree_dir: /work/trees\n"}))
 		if got, _ := cfg.Project("alpha"); got.WorktreeDir != "/work/trees" || beta.WorktreeDir != "" {
 			t.Errorf("worktree_dir = %q and %q, want /work/trees and none", got.WorktreeDir, beta.WorktreeDir)
@@ -201,7 +202,7 @@ func TestLoadOptionalFilesMayBeMissing(t *testing.T) {
 // TestLoadRefusesABadConfig covers SCENARIOS ST-4 and LN-2: a bad config refuses to start and names the file,
 // the path and the rule.
 func TestLoadRefusesABadConfig(t *testing.T) {
-	alpha := "projects/alpha.yaml"
+	alpha := fileAlpha
 	for _, tc := range []struct {
 		name  string
 		edits map[string]string
