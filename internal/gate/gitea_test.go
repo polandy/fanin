@@ -9,6 +9,7 @@ import (
 
 	"github.com/polandy/fanin/internal/forge"
 	"github.com/polandy/fanin/internal/gate"
+	"github.com/polandy/fanin/internal/scope"
 )
 
 // see SCENARIOS GT-3, GT-4, GT-5, GT-6
@@ -33,6 +34,8 @@ func TestGiteaVerdicts(t *testing.T) {
 		{"GT-3_claude_md_is_green_code", openPR(ci), []string{"CLAUDE.md"},
 			gate.Result{Verdict: gate.GreenCode, Title: title}},
 		{"GT-4_no_status_yet", openPR([]forge.Check{}...), nil,
+			pendingFor(gate.WaitNoChecks)},
+		{"SC-2_a_scope_status_alone_is_no_status", openPR(check(scope.Context, forge.CheckSuccess, 1)), nil,
 			pendingFor(gate.WaitNoChecks)},
 		{"GT-4_running_checks", openPR(ci, check("build", forge.CheckPending, 1)), nil, running},
 		{"GT-5_failed_check", openPR(ci, check("build", forge.CheckFailure, 1)), nil,
