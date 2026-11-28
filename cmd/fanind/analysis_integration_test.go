@@ -58,6 +58,13 @@ func (r signalRuntime) Stop(ctx context.Context, h runtime.RunHandle) error {
 	return err
 }
 
+// The fake git of beta's checkout: SP-12 prepares a worktree there before the start.
+const (
+	gitProgram     = "git"
+	betaPath       = "/path/to/" + projectBeta
+	showRefMissing = 1
+)
+
 // notifyOnce hands h on without blocking the caller; the test reads only the first.
 func notifyOnce(ch chan runtime.RunHandle, h runtime.RunHandle) {
 	select {
@@ -97,6 +104,12 @@ func TestAnalysisEndToEnd(t *testing.T) {
 			OnPrefix([]string{"agent", "get"}, fakebin.Answer{Stdout: herdrWorking}).
 			OnPrefix([]string{"pane", "read", herdrPane}).
 			On([]string{"pane", "close", herdrPane})
+		gitC := []string{"-C", betaPath}
+		bin.Fake(gitProgram).
+			On(append(gitC, "worktree", "list", "--porcelain")).
+			OnPrefix(append(gitC, "show-ref"), fakebin.Answer{Exit: showRefMissing}).
+			OnPrefix(append(gitC, "fetch")).
+			OnPrefix(append(gitC, "worktree", "add", "-b"))
 		bin.Install()
 
 		dir := faninConfig(t)
@@ -127,6 +140,11 @@ func TestAnalysisEndToEnd(t *testing.T) {
 		}
 		if h := await(t, rt.observed, done); h.Pane != herdrPane {
 			t.Fatalf("watched pane %q, want %q", h.Pane, herdrPane)
+		}
+		if !slices.ContainsFunc(bin.Calls(gitProgram), func(c fakebin.Call) bool {
+			return slices.Contains(c.Argv, "add")
+		}) {
+			t.Errorf("git calls = %+v, want a worktree add (SP-12)", bin.Calls(gitProgram))
 		}
 
 		runID := sched.RunID(model.TaskID(task.ID), 1)
